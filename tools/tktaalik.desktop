@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Tktaalik
+GenericName=Fossil Repository Browser
+Comment=Timeline, tickets, branches and commits of a Fossil repository
+Exec="@TKTAALIK@" %f
+Icon=tktaalik
+Terminal=false
+Categories=Development;RevisionControl;
+Keywords=fossil;scm;vcs;tickets;branches;
+StartupWMClass=Tktaalik

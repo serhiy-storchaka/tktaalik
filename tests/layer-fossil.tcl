@@ -1,0 +1,93 @@
+# The fossil:: layer (lib/fossil.tcl): run in a directory, with input;
+# runIn; background jobs with their output, stopped, all stopped; the run
+# window; values checked, options, masking, autosync, URL encoding.  On a
+# repository made here.
+source [file join [file dirname [info script]] common.tcl]
+set D $T(tmp)
+set ::boxes {}
+
+# run, runIn, inDir.
+lassign [fossil::run init $D/r.fossil] code out
+check "run: init ($code)" {$code == 0 && [file exists $D/r.fossil]}
+file mkdir $D/co
+lassign [fossil::run -dir $D/co open $D/r.fossil] code out
+check "run -dir: opened there ($code)" {$code == 0 && [file exists $D/co/.fslckout]}
+set here [pwd]
+lassign [fossil::run -dir $D/co info] code out
+check "run -dir: the cwd restored" {[pwd] eq $here && [string match "*checkout:*" $out]}
+catch {fossil::run -dir $D/nowhere info}
+check "run -dir: restored after an error" {[pwd] eq $here}
+lassign [fossil::run -input "SELECT 6*7;\n" sql -R $D/r.fossil] code out
+check "run -input: [string trim $out]" {$code == 0 && [string trim $out] eq "42"}
+lassign [fossil::run nosuchcommand] code out
+check "run: the exit code of a failure ($code)" {$code == 1 && ![string match "*child process exited*" $out]}
+lassign [fossil::runIn $D/co $D/r.fossil info] code out
+check "runIn a checkout" {$code == 0 && [string match "*checkout:*" $out]}
+lassign [fossil::runIn "" $D/r.fossil info] code out
+check "runIn without one: -R" {$code == 0 && ![string match "*checkout:*" $out] && [string match "*project-name:*" $out]}
+set got [fossil::inDir $D/co { file tail [pwd] }]
+check "inDir: $got" {$got eq "co" && [pwd] eq $here}
+
+# start: output, onDone, stop, stopAll.
+set ::chunks ""
+set h [fossil::start -dir $D/co -onOutput {::apply {{c} { append ::chunks $c }}} \
+    -onDone {::apply {{code text stopped msg} { set ::job [list $code $stopped $text] }}} info]
+check "start: running" {[fossil::running $h] && $h in [fossil::running]}
+waitUntil {[info exists ::job]} 10000
+check "start: done ([lrange $::job 0 1])" {[lrange $::job 0 1] eq {0 0} && [string match "*checkout:*" [lindex $::job 2]] && $::chunks eq [lindex $::job 2] && ![fossil::running $h]}
+unset ::job
+set h [fossil::start -command [list sleep 30] -onDone {::apply {{code text stopped msg} { set ::job [list $code $stopped] }}}]
+set p [pid $h]
+after 200 {set ::tick 1}; vwait ::tick
+fossil::stop $h
+waitUntil {[info exists ::job]} 10000
+check "stop: stopped ($::job)" {[lindex $::job 1] == 1 && ![file exists /proc/[lindex $p 0]]}
+unset ::job
+set a [fossil::start -command [list sleep 30]]
+set b [fossil::start -command [list sleep 30] -onDone {::apply {args { set ::job 1 }}}]
+set pids [concat [pid $a] [pid $b]]
+fossil::stopAll
+waitUntil {[info exists ::job] && ![llength [fossil::running]]} 10000
+check "stopAll: all gone" {![llength [fossil::running]] && ![file exists /proc/[lindex $pids 0]] && ![file exists /proc/[lindex $pids 1]]}
+
+# runWindow.
+set w [fossil::runWindow -w .lr -dir $D/co -onDone {::apply {{code text} { set ::win $code }}} Info info]
+update
+check "runWindow: the command shown" {[string match "fossil info*" [$w.t get 1.0 2.0]] && [fossil::windowJob $w] ne ""}
+waitUntil {[info exists ::win]} 10000
+check "runWindow: done ([.lr.b.status cget -text])" {$::win == 0 && [.lr.b.status cget -text] eq "Done" && [fossil::windowJob $w] eq "" && [string match "*checkout:*" [.lr.t get 1.0 end]]}
+unset ::win
+fossil::runWindow -w .lr -command [list sleep 30] -onDone {::apply {{code text} { set ::win $code }}} Long
+after 200 {set ::tick 1}; vwait ::tick
+.lr.b.stop invoke
+waitUntil {[info exists ::win]} 10000
+check "runWindow: Stop ([.lr.b.status cget -text])" {$::win == 1 && [.lr.b.status cget -text] eq "Stopped"}
+fossil::runWindow -w .lr -stop 0 Version version; update
+check "runWindow -stop 0: no Stop" {[.lr.b.stop instate disabled]}
+check "runWindow: passwords masked" {[string first secret [.lr.t get 1.0 end]] < 0}
+fossil::runWindow -w .lr2 Clone clone https://me:secret@example.invalid/x $D/x.fossil; update
+check "runWindow: the URL's password masked: [.lr2.t get 1.0 1.end]" {[string first secret [.lr2.t get 1.0 end]] < 0 && [string first "me:****@" [.lr2.t get 1.0 end]] >= 0}
+fossil::stopAll; destroy .lr .lr2
+
+# Values.
+check "mask -B" {[fossil::mask "clone -B u:pw x"] eq "clone -B u:**** x"}
+check "mask --httpauth=" {[fossil::mask "pull --httpauth=u:pw"] eq "pull --httpauth=u:****"}
+check "opt" {[fossil::opt user "<x"] eq "--user=<x"}
+check "valueProblem: a leading -" {[string match "Tag cannot start*" [fossil::valueProblem Tag -x]]}
+check "valueProblem: tag" {[fossil::valueProblem Tag "a b" tag] ne "" && [fossil::valueProblem Tag ab tag] eq ""}
+check "valueProblem: color" {[fossil::valueProblem C #12 color] ne "" && [fossil::valueProblem C #123 color] eq "" && [fossil::valueProblem C red color] eq ""}
+check "valueProblem: date" {[fossil::valueProblem D 2026-1-1 date] ne "" && [fossil::valueProblem D "2026-10-07 12:00" date] eq ""}
+check "valueProblem: name" {[fossil::valueProblem N "a|b" name] ne "" && [fossil::valueProblem N ab name] eq ""}
+check "valueProblem: version" {[fossil::valueProblem V ">x" version] ne "" && [fossil::valueProblem V trunk version] eq ""}
+set ::boxes {}
+check "argOk: refused with a message" {![fossil::argOk "<x" T] && [lindex $::boxes 0] eq "This name cannot be passed to fossil:"}
+check "argOk: passed" {[fossil::argOk trunk T]}
+check "autosyncValue" {[fossil::autosyncValue "on,commit=off" commit] eq "off" && [fossil::autosyncValue "on,commit=off" update] eq "on" && [fossil::autosyncValue "" update] eq "on" && [fossil::autosyncValue pullonly] eq "pullonly"}
+fossil::run -dir $D/co settings autosync off
+check "autosyncSetting -dir: [fossil::autosyncSetting -dir $D/co]" {[fossil::autosyncSetting -dir $D/co] eq "off" && [fossil::autosync -dir $D/co update] eq "off"}
+fossil::run settings autosync "pullonly,commit=off" -R $D/r.fossil
+check "autosync -R: [fossil::autosync -R $D/r.fossil commit]" {[fossil::autosync -R $D/r.fossil commit] eq "off" && [fossil::autosync -R $D/r.fossil update] eq "pullonly"}
+set s "a b/[encoding convertfrom utf-8 \xc3\xa9]"
+check "urlquery: [fossil::urlquery $s]" {[fossil::urlquery $s] eq "a%20b%2F%C3%A9" && [fossil::urlquery $s /] eq "a%20b/%C3%A9"}
+check "urlDecode" {[fossil::urlDecode "a%20b+%2F%C3%A9"] eq "a b /[encoding convertfrom utf-8 \xc3\xa9]"}
+done

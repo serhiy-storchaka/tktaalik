@@ -1,0 +1,730 @@
+#!/usr/bin/env wish
+# Tktaalik: a Fossil repository in one window: Timeline (with the last
+# pull, the outgoing changes and the private ones), Tickets, Branches, Tags,
+# Files, Commit, Stash, Wiki, Forum and Search, and windows for the
+# repository's information, settings, users, remotes and unversioned files
+# (the Repository menu); Go to (Ctrl+G) and the manual (F1, docs/).  (Named
+# after Tiktaalik, the fossil fish that came out on land: Fossil brought
+# out of the command line.)
+#
+# Usage:  tktaalik ?DIRECTORY | REPOSITORY?
+#
+# Without an argument: the checkout in the current directory, else the
+# repository used last, else it asks.  All tabs use the same repository;
+# with only a repository file (no checkout), the Commit tab and the checkout
+# actions of the Branches tab are not available.  The tabs are built when
+# first shown (lib/tktimeline.tcl, lib/tktsearch.tcl, lib/tkbranches.tcl,
+# lib/tktags.tcl, lib/tkfiles.tcl, lib/tkcommit.tcl, lib/tkstash.tcl,
+# lib/tkwiki.tcl), and each one reads the repository again when shown after
+# it has changed.  So do the windows (lib/tkinfo.tcl, lib/tksettings.tcl,
+# lib/tkusers.tcl, lib/tkremotes.tcl) when opened.  Diffs are shown in
+# lib/diffview.tcl.  Settings are kept in ~/.config/tktaalik/
+# (lib/config.tcl): tktaalik.conf (window, repository, tab) and a file for
+# each tab.
+
+package require Tk 8.6-
+
+# Fossil talks UTF-8.
+encoding system utf-8
+
+source [file join [file dirname [file normalize [info script]]] lib config.tcl]
+
+namespace eval tktaalik {
+    variable repo ""            ;# the repository file
+    variable root ""            ;# its checkout's top directory, or ""
+    variable tabs {
+        timeline {tktimeline Timeline}
+        tickets  {tktsearch Tickets}
+        branches {tkbranches Branches}
+        tags     {tktags Tags}
+        files    {tkfiles Files}
+        commit   {tkcommit Commit}
+        stash    {tkstash Stash}
+        wiki     {tkwiki Wiki}
+        forum    {tkforum Forum}
+        search   {tkfulltext Search}
+    }
+    # The windows of the Repository menu: name -> {namespace label}.
+    variable dialogs {
+        info     {tkinfo Information}
+        settings {tksettings Settings}
+        users    {tkusers Users}
+        remotes  {tkremotes Remotes}
+        uv       {tkuv "Unversioned files"}
+    }
+    variable built {}           ;# the tabs built
+    variable active ""          ;# the tab shown
+    variable titles {}          ;# tab -> the window title for it
+    variable keys {}            ;# shortcut -> tab -> script
+    variable stamps {}          ;# tab -> the repository state it has seen
+    variable back {}            ;# places to go back to: {tab state}
+    variable forward {}         ;# and forward to, after Back
+    variable restoring 0        ;# going back or forward: not a new place
+    variable typing ""          ;# the search box being typed in
+    variable historyMenus {}    ;# the File menus with Back and Forward
+    variable config {}
+    variable configFile [config::path tktaalik]
+    variable version 0.0.1      ;# of the application (Help > About)
+}
+
+set tktaalik::lib [file join [file dirname [file normalize [info script]]] lib]
+source [file join $tktaalik::lib fossil.tcl]
+source [file join $tktaalik::lib ui.tcl]
+source [file join $tktaalik::lib diffview.tcl]
+source [file join $tktaalik::lib htmltext.tcl]
+source [file join $tktaalik::lib icons.tcl]
+source [file join $tktaalik::lib tktsearch.tcl]
+source [file join $tktaalik::lib tkbranches.tcl]
+source [file join $tktaalik::lib tkcommit.tcl]
+source [file join $tktaalik::lib tktimeline.tcl]
+source [file join $tktaalik::lib tkstash.tcl]
+source [file join $tktaalik::lib popup.tcl]
+source [file join $tktaalik::lib tkfiles.tcl]
+source [file join $tktaalik::lib tkinfo.tcl]
+source [file join $tktaalik::lib tksettings.tcl]
+source [file join $tktaalik::lib tkusers.tcl]
+source [file join $tktaalik::lib tkremotes.tcl]
+source [file join $tktaalik::lib tkuv.tcl]
+source [file join $tktaalik::lib tktags.tcl]
+source [file join $tktaalik::lib tkwiki.tcl]
+source [file join $tktaalik::lib tkforum.tcl]
+source [file join $tktaalik::lib goto.tcl]
+source [file join $tktaalik::lib tkfulltext.tcl]
+source [file join $tktaalik::lib helpview.tcl]
+source [file join $tktaalik::lib repoops.tcl]
+
+# ------------------------------------------------------------- settings
+
+proc tktaalik::loadConfig {} {
+    variable configFile
+    variable config
+    # Before, they were in ~/.config/tktaalik.conf.
+    set config [config::get $configFile tktaalik tktaalik.conf]
+}
+
+proc tktaalik::saveConfig {} {
+    variable configFile
+    variable config
+    variable repo
+    variable root
+    variable active
+    dict set config path [expr {$root ne "" ? $root : $repo}]
+    dict set config tab $active
+    dict set config geometry [wm geometry .]
+    config::put $configFile $config
+}
+
+proc tktaalik::getdef {dict key default} {
+    expr {[dict exists $dict $key] ? [dict get $dict $key] : $default}
+}
+
+# ------------------------------------------------------------ repository
+
+# Open a checkout directory or a repository file for all tabs.  Returns 1
+# on success.
+proc tktaalik::openPath {path} {
+    variable repo
+    variable root
+    variable built
+    variable tabs
+    set path [file normalize $path]
+    set newRoot ""
+    if {[file isdirectory $path]} {
+        if {[catch {fossil::run -dir $path info} result]} {
+            set code 1
+        } else {
+            lassign $result code out
+        }
+        if {$code || ![regexp -line {^local-root:\s+(.*\S)} $out -> newRoot]
+                || ![regexp -line {^repository:\s+(.*\S)} $out -> path]} {
+            tk_messageBox -icon error -title tktaalik -message "Not a Fossil checkout:" \
+                -detail $path
+            return 0
+        }
+        set newRoot [string trimright $newRoot /]
+    }
+    if {![file isfile $path]} {
+        tk_messageBox -icon error -title tktaalik -message "No such repository:" -detail $path
+        return 0
+    }
+    if {[catch {fossil::sql $path "SELECT 1"} msg]} {
+        tk_messageBox -icon error -title tktaalik -message "Cannot read the repository:" \
+            -detail "$path\n$msg"
+        return 0
+    }
+    set repo $path
+    set root $newRoot
+    # (The repository served for the browser: the one shown before.)
+    catch repoops::repositoryChanged
+    # Relative paths in the checkout, as in a shell there.
+    if {$root ne ""} { cd $root }
+    foreach tab $built { useRepository $tab }
+    checkoutTabs
+    # The open windows follow.
+    variable dialogs
+    dict for {name spec} $dialogs {
+        if {[winfo exists .$name] && [winfo ismapped .$name]} {
+            [lindex $spec 0]::setRepository $repo $root
+        }
+    }
+    # Back and Forward go to places of the repository shown.
+    variable back {}
+    variable forward {}
+    navState
+    return 1
+}
+
+proc tktaalik::useRepository {tab} {
+    variable repo
+    variable root
+    variable tabs
+    ::[lindex [dict get $tabs $tab] 0]::setRepository $repo $root
+    changed $tab
+}
+
+# The version of Fossil: "2.26 [611144ddd9] 2025-05-16" (once).
+proc tktaalik::fossilVersion {} {
+    variable fossilVersion
+    if {![info exists fossilVersion]} {
+        lassign [fossil::run version] code out
+        set fossilVersion [expr {$code ? "?" : ""}]
+        regexp {version (\S+ \[\S+\] \S+)} $out -> fossilVersion
+    }
+    return $fossilVersion
+}
+
+# Fossil older than the one the application needs (merge-info, patch,
+# bisect run, the search functions...): a warning, once.
+proc tktaalik::checkFossil {} {
+    set need 2.24
+    set v [lindex [fossilVersion] 0]
+    if {![regexp {^\d+(\.\d+)*$} $v] || [package vcompare $v $need] >= 0} return
+    tk_messageBox -icon warning -title tktaalik -message "Fossil $v is older than $need." \
+        -detail "Some of the application's commands need Fossil $need or newer and fail with\
+            this one.  Fossil can be updated from https://fossil-scm.org."
+}
+
+proc tktaalik::chooseRepository {} {
+    set path [tk_getOpenFile -title "Open repository" -filetypes {
+        {{Fossil repositories} {.fossil}} {{All files} *}
+    }]
+    if {$path ne ""} { openPath $path }
+}
+
+proc tktaalik::chooseCheckout {} {
+    set path [tk_chooseDirectory -title "Open checkout" -mustexist 1]
+    if {$path ne ""} { openPath $path }
+}
+
+# The state of the repository and the checkout: the newest artifact, the
+# checked-out version and the merges into it.
+proc tktaalik::stamp {} {
+    variable repo
+    variable root
+    if {$root ne ""} {
+        set query "SELECT (SELECT max(rid) FROM blob) || ' ' ||
+            (SELECT value FROM vvar WHERE name='checkout') || ' ' ||
+            (SELECT count(*) FROM vmerge)"
+        lassign [fossil::run -dir $root -input "$query;\n" sql --readonly] code out
+        return $out
+    }
+    if {[catch {fossil::sql $repo "SELECT max(rid) FROM blob"} rows]} { return "" }
+    lindex $rows 0 0
+}
+
+# Has the repository changed since the tab last looked?  Remembers that it
+# has looked now.
+proc tktaalik::changed {tab} {
+    variable stamps
+    set now [stamp]
+    set old [getdef $stamps $tab ""]
+    dict set stamps $tab $now
+    expr {$now ne $old}
+}
+
+# ---------------------------------------------------------------- tabs
+
+proc tktaalik::show {tab} {
+    # (Not a tab that needs a checkout, without one.)
+    if {[.nb tab .$tab -state] eq "disabled"} {
+        bell
+        return 0
+    }
+    .nb select .$tab
+    tabChanged
+    return 1
+}
+
+# The tabs that need a checkout (Commit, Stash): disabled without one.  If
+# one of them is shown, Tickets instead.
+proc tktaalik::checkoutTabs {} {
+    variable root
+    variable active
+    foreach tab {commit stash} {
+        .nb tab .$tab -state [expr {$root ne "" ? "normal" : "disabled"}]
+    }
+    checkoutMenu
+    if {$root eq "" && $active in {commit stash}} { show tickets }
+}
+
+proc tktaalik::tabChanged {} {
+    variable active
+    variable built
+    variable repo
+    variable tabs
+    variable titles
+    set tab [winfo name [.nb select]]
+    if {$tab eq $active} return
+    # Back returns to the tab left.
+    if {$active ne ""} { navigate }
+    set ns ::[lindex [dict get $tabs $tab] 0]
+    set fresh [expr {$tab ni $built}]
+    if {$fresh} {
+        ${ns}::build
+        lappend built $tab
+        if {$repo ne ""} { useRepository $tab }
+    }
+    set active $tab
+    variable viewTab $tab
+    useMenus $tab
+    wm title . [getdef $titles $tab [dict get $tabs $tab]]
+    ${ns}::activate
+}
+
+# The menu bar shows the menus of the tab: the same menu bar, with its
+# cascades changed.  (Setting another menu bar makes it collapse to one
+# pixel and grow back, and the window under it jump: a flicker.)
+proc tktaalik::useMenus {tab} {
+    set m .menubar
+    $m delete 0 end
+    set tabMenu .$tab.menu
+    set help ""
+    for {set i 0} {$i <= [$tabMenu index end]} {incr i} {
+        if {[$tabMenu type $i] ne "cascade"} continue
+        set label [$tabMenu entrycget $i -label]
+        if {$label eq "Help"} { set help [$m index end] }
+        $m add cascade -label $label \
+            -underline [$tabMenu entrycget $i -underline] -menu [$tabMenu entrycget $i -menu]
+    }
+    # After File, the View menu: the tabs; before Help, the Checkout menu
+    # (its tabs) and the Repository menu (its windows).  All in every tab.
+    $m insert 1 cascade -label View -underline 0 -menu [viewMenu]
+    if {$help ne ""} { incr help }
+    set at [expr {$help eq "" ? [$m index end] + 1 : $help + 1}]
+    $m insert $at cascade -label Checkout -underline 5 -menu [checkoutMenu]
+    $m insert [incr at] cascade -label Repository -underline 0 -menu [repositoryMenu]
+    # The manual in the Help menu of every tab (one is made if the tab has
+    # none).
+    if {$help eq ""} {
+        $m add cascade -label Help -underline 0 -menu [helpMenu .menubar.help]
+    } else {
+        helpMenu [$m entrycget end -menu]
+    }
+}
+
+# The manual's entries at the top of a Help menu, About at its end (once).
+proc tktaalik::helpMenu {m} {
+    if {![winfo exists $m]} { menu $m }
+    if {[$m index end] ne "none" && [$m entrycget 0 -label] eq "Manual"} { return $m }
+    $m insert 0 command -label Manual -underline 0 -accelerator F1 -command help::contextHelp
+    $m insert 1 command -label "Contents\u2026" -underline 0 -command {help::show index}
+    if {[$m index end] > 1} { $m insert 2 separator }
+    $m add separator
+    $m add command -label "About Tktaalik" -underline 0 -command tktaalik::about
+    return $m
+}
+
+# Help > About: the version, the Tcl/Tk and Fossil used, the license and
+# the project's page.
+proc tktaalik::about {} {
+    variable version
+    variable lib
+    set url https://github.com/serhiy-storchaka/tktaalik
+    set f [ui::dialog .about "About Tktaalik" -bar 1 -escape {destroy .about} -help index]
+    wm resizable .about 0 0
+    set size [expr {[font metrics TkDefaultFont -linespace] <= 19 ? 64 : 128}]
+    set icon [image create photo -format png \
+        -file [file join $lib .. icons tktaalik-$size.png]]
+    bind $f <Destroy> [list image delete $icon]
+    if {"TktaalikTitle" ni [font names]} {
+        font create TktaalikTitle {*}[font actual TkDefaultFont] -weight bold \
+            -size [expr {round(abs([font actual TkDefaultFont -size]) * 1.5)}]
+    }
+    ttk::label $f.icon -image $icon
+    ttk::label $f.name -text "Tktaalik $version" -font TktaalikTitle
+    ttk::label $f.what -text "A Tk desktop application for Fossil repositories."
+    set tk [package provide Tk]
+    set tcltk [expr {$tk eq [info patchlevel] ? "Tcl/Tk $tk" : "Tcl [info patchlevel], Tk $tk"}]
+    ttk::label $f.used -justify center -text "$tcltk ([tk windowingsystem])\nFossil [fossilVersion]"
+    ttk::label $f.copy -justify center \
+        -text "Copyright \u00a9 2026 Serhiy Storchaka\nBSD 2-Clause License"
+    ttk::label $f.url -text $url -foreground #0b57d0 -cursor hand2 \
+        -font [list {*}[font actual TkDefaultFont] -underline 1]
+    bind $f.url <Button-1> [list fossil::browse $url]
+    foreach w {icon name what used copy url} {
+        pack $f.$w -pady {0 6} -padx 8
+    }
+    ttk::button .about.b.close -text Close -default active -command {destroy .about}
+    pack .about.b.close -side right
+    bind .about <Return> {destroy .about}
+    focus .about.b.close
+}
+
+# The View menu: the tabs that need no checkout, with their keys.
+proc tktaalik::viewMenu {} {
+    set m .menubar.view
+    if {![winfo exists $m]} {
+        menu $m
+        tabEntries $m [lmap {tab spec} $::tktaalik::tabs {
+            if {$tab in {commit stash}} continue
+            set tab
+        }]
+    }
+    return $m
+}
+
+# The Checkout menu: the tabs of the checkout (disabled without one).
+proc tktaalik::checkoutMenu {} {
+    variable root
+    set m .menubar.checkout
+    if {![winfo exists $m]} {
+        menu $m
+        tabEntries $m {commit stash}
+        $m add separator
+        $m add command -label "New checkout\u2026" -underline 0 -command repoops::newCheckout
+        $m add command -label "Close checkout\u2026" -underline 1 -command repoops::closeCheckout
+    }
+    foreach tab {commit stash} {
+        $m entryconfigure [dict get {commit 0 stash 1} $tab] \
+            -state [expr {$root ne "" ? "normal" : "disabled"}]
+    }
+    $m entryconfigure [$m index "Close checkout\u2026"] -state [expr {$root ne "" ? "normal" : "disabled"}]
+    return $m
+}
+
+# An entry for each tab: its name, its key (Ctrl+1 ... Ctrl+0, by the
+# order of the tabs), a mark at the tab shown.
+proc tktaalik::tabEntries {m tabs} {
+    set all [dict keys $::tktaalik::tabs]
+    foreach tab $tabs {
+        set i [expr {[lsearch -exact $all $tab] + 1}]
+        set key [expr {$i <= 10 ? "Ctrl+[expr {$i % 10}]" : ""}]
+        # (Underlined: a letter of its own in the menu.)
+        set underline [dict get {timeline 0 tickets 2 branches 0 tags 2 files 0 commit 0 stash 0
+            wiki 0 forum 1 search 0} $tab]
+        $m add radiobutton -label [lindex [dict get $::tktaalik::tabs $tab] 1] -underline $underline \
+            -accelerator $key -variable tktaalik::viewTab -value $tab \
+            -command [list tktaalik::viewTab $tab]
+    }
+}
+
+# Show a tab from the menus; the mark stays where the tab shown is.
+proc tktaalik::viewTab {tab} {
+    variable active
+    variable viewTab
+    if {![show $tab]} { set viewTab $active }
+}
+
+proc tktaalik::repositoryMenu {} {
+    variable dialogs
+    set m .menubar.repository
+    if {![winfo exists $m]} {
+        menu $m
+        dict for {name spec} $dialogs {
+            lassign $spec ns label
+            $m add command -label "$label\u2026" -underline 0 -command ${ns}::window
+        }
+        $m add separator
+        $m add command -label "Back up repository\u2026" -underline 0 -command repoops::backup
+        $m add command -label "Pull configuration\u2026" -underline 0 -command repoops::pullConfiguration
+        $m add command -label "Export configuration\u2026" -underline 1 -command repoops::exportConfiguration
+        $m add command -label "Import configuration\u2026" -underline 1 -command repoops::importConfiguration
+        $m add command -label "Reset configuration\u2026" -underline 2 -command repoops::resetConfiguration
+        $m add separator
+        $m add command -label "Open locally in browser" -underline 5 -command repoops::openLocally
+        $m add command -label "Open chat in browser" -underline 6 -command repoops::openChat
+        $m add command -label "Download chat archive\u2026" -underline 0 -command repoops::chatArchive
+    }
+    return $m
+}
+
+# A window of the Repository menu: made the first time (then 1 is
+# returned), shown again later; closing it only hides it.
+proc tktaalik::dialogWindow {w title} {
+    if {[winfo exists $w]} {
+        wm deiconify $w
+        raise $w
+        return 0
+    }
+    toplevel $w
+    wm title $w $title
+    wm group $w .
+    wm protocol $w WM_DELETE_WINDOW [list wm withdraw $w]
+    bind $w <Escape> [list wm withdraw $w]
+    return 1
+}
+
+proc tktaalik::setTitle {tab title} {
+    variable titles
+    variable active
+    dict set titles $tab $title
+    if {$tab eq $active} { wm title . $title }
+}
+
+# The entries of the File menus of all tabs.
+proc tktaalik::fileMenu {m} {
+    variable historyMenus
+    $m add command -label "Open checkout\u2026" -underline 5 -command tktaalik::chooseCheckout
+    $m add command -label "Open repository\u2026" -underline 5 -accelerator Ctrl+O \
+        -command tktaalik::chooseRepository
+    # (The repositories this computer knows: "fossil all list", when posted.)
+    menu $m.known -postcommand [list repoops::knownMenu $m.known]
+    $m add cascade -label "Known repositories" -underline 0 -menu $m.known
+    menu $m.checkouts -postcommand [list repoops::knownMenu $m.checkouts 1]
+    $m add cascade -label "Known checkouts" -underline 6 -menu $m.checkouts
+    $m add command -label "Clone repository\u2026" -underline 0 -command repoops::clone
+    $m add command -label "New repository\u2026" -underline 0 -command repoops::newRepository
+    $m add separator
+    $m add command -label Back -underline 0 -accelerator Alt+Left \
+        -command tktaalik::goBack -state disabled
+    $m add command -label Forward -underline 0 -accelerator Alt+Right \
+        -command tktaalik::goForward -state disabled
+    $m add command -label "Go to\u2026" -underline 0 -accelerator Ctrl+G -command goto::window
+    $m add separator
+    lappend historyMenus $m
+}
+
+# ---------------------------------------------------------- back, forward
+
+# Where we are: the tab and what it shows (its "here" proc; a tab that
+# has none is just the tab).
+proc tktaalik::location {} {
+    variable active
+    variable tabs
+    if {$active eq ""} { return {} }
+    set ns ::[lindex [dict get $tabs $active] 0]
+    if {[info commands ${ns}::here] eq ""} { return [list $active {}] }
+    list $active [${ns}::here]
+}
+
+# Before going somewhere else (another tab, a link, a filter from a
+# menu, a search): Back will return here.
+proc tktaalik::navigate {} {
+    variable back
+    variable forward
+    variable restoring
+    variable typing
+    set typing ""
+    if {$restoring} return
+    set here [location]
+    if {$here eq "" || [lindex $back end] eq $here} return
+    lappend back $here
+    set back [lrange $back end-99 end]
+    set forward {}
+    navState
+}
+
+# Typing in a search box that searches as you type: one place for all the
+# typing, recorded at the first key (only when the user types: not when a
+# query is set from elsewhere).  Return or leaving the box ends it.
+proc tktaalik::typing {entry} {
+    variable typing
+    if {[focus] ne $entry || $typing eq $entry} return
+    navigate
+    set typing $entry
+    if {![string match *tktaalik::typing* [bind $entry <FocusOut>]]} {
+        bind $entry <FocusOut> {+set tktaalik::typing ""}
+    }
+}
+
+proc tktaalik::goBack {} {
+    variable back
+    variable forward
+    if {![llength $back]} return
+    lappend forward [location]
+    set to [lindex $back end]
+    set back [lrange $back 0 end-1]
+    restore $to
+}
+
+proc tktaalik::goForward {} {
+    variable back
+    variable forward
+    if {![llength $forward]} return
+    lappend back [location]
+    set to [lindex $forward end]
+    set forward [lrange $forward 0 end-1]
+    restore $to
+}
+
+proc tktaalik::restore {place} {
+    variable restoring
+    variable tabs
+    variable typing
+    lassign $place tab state
+    set typing ""
+    set restoring 1
+    try {
+        if {[show $tab]} {
+            set ns ::[lindex [dict get $tabs $tab] 0]
+            if {[info commands ${ns}::goTo] ne ""} { ${ns}::goTo $state }
+        }
+    } finally {
+        set restoring 0
+        # (Setting a restored query is not typing.)
+        set typing ""
+    }
+    navState
+}
+
+# The Back and Forward entries of the File menus.
+proc tktaalik::navState {} {
+    variable back
+    variable forward
+    variable historyMenus
+    foreach m $historyMenus {
+        if {![winfo exists $m]} continue
+        $m entryconfigure Back -state [expr {[llength $back] ? "normal" : "disabled"}]
+        $m entryconfigure Forward -state [expr {[llength $forward] ? "normal" : "disabled"}]
+    }
+}
+
+proc tktaalik::quitEntry {m} {
+    $m add separator
+    $m add command -label Quit -underline 0 -accelerator Ctrl+Q -command tktaalik::quit
+}
+
+# The side buttons of the mouse: Back and Forward.  Tk 9 names them
+# <Button-4> and <Button-5> on all systems (TIP 474).  They are bound by
+# these names, not by %b: before Tk 9.0.5 and 9.1.1, %b was still the X11
+# number, 8 and 9 (Tk ticket 8f73af092a).  Tk 8.6 has no such names:
+# <Button-4> and <Button-5> are the wheel on X11, the side buttons 8 and 9
+# there, but 4 and 5 on Windows and macOS.
+proc tktaalik::sideButtons {} {
+    if {[package vsatisfies [package provide Tk] 9]} {
+        bind . <Button-4> {event generate %W <<Back>>}
+        bind . <Button-5> {event generate %W <<Forward>>}
+    } else {
+        bind . <ButtonPress> {+tktaalik::sideButton %W %b}
+    }
+}
+
+proc tktaalik::sideButton {w button} {
+    set buttons {8 <<Back>> 9 <<Forward>>}
+    if {[tk windowingsystem] ne "x11"} { set buttons {4 <<Back>> 5 <<Forward>>} }
+    if {[dict exists $buttons $button]} { event generate $w [dict get $buttons $button] }
+}
+
+# A key binding of a tab: it works while the tab is shown.
+proc tktaalik::shortcut {tab sequence script} {
+    variable keys
+    dict set keys $sequence $tab $script
+    bind . $sequence [list tktaalik::key $sequence]
+}
+
+proc tktaalik::key {sequence} {
+    variable keys
+    variable active
+    if {[dict exists $keys $sequence $active]} {
+        uplevel #0 [dict get $keys $sequence $active]
+    }
+}
+
+# ----------------------------------------------------------------- window
+
+proc tktaalik::buildWindow {} {
+    variable tabs
+    if {[tk windowingsystem] eq "x11" && "clam" in [ttk::style theme names]} {
+        ttk::style theme use clam
+    }
+    # Rows as high as the text: the theme's row height does not follow the
+    # font size or the scaling.
+    set font [ttk::style lookup Treeview -font]
+    if {$font eq ""} { set font TkDefaultFont }
+    ttk::style configure Treeview -rowheight [expr {[font metrics $font -linespace] + 4}]
+    ttk::style configure Item.Toolbutton -anchor w -padding {4 2}
+    option add *tearOff 0
+
+    menu .menubar
+    . configure -menu .menubar
+    ttk::notebook .nb -padding {0 4 0 0}
+    set i 0
+    dict for {tab spec} $tabs {
+        ttk::frame .$tab
+        .nb add .$tab -text [lindex $spec 1]
+        # Ctrl+1, Ctrl+2, ..., Ctrl+9, Ctrl+0: the tabs.
+        if {[incr i] <= 10} { bind . <Control-Key-[expr {$i % 10}]> [list tktaalik::show $tab] }
+    }
+    ttk::notebook::enableTraversal .nb
+    pack .nb -fill both -expand 1
+    bind .nb <<NotebookTabChanged>> tktaalik::tabChanged
+    bind . <Control-o> tktaalik::chooseRepository
+    bind . <Control-g> goto::window
+    bind . <Control-F> tkfulltext::focusSearch
+    # F1: the manual, at what has the focus, in every window.
+    bind all <F1> help::contextHelp
+    bind . <Control-q> tktaalik::quit
+    wm protocol . WM_DELETE_WINDOW tktaalik::quit
+    # Back and Forward in all tabs: Alt+Left and Alt+Right, the keys of
+    # that name, the mouse buttons.
+    event add <<Back>> <Alt-Left>
+    event add <<Forward>> <Alt-Right>
+    catch {event add <<Back>> <Key-XF86Back>}
+    catch {event add <<Forward>> <Key-XF86Forward>}
+    bind . <<Back>> tktaalik::goBack
+    bind . <<Forward>> tktaalik::goForward
+    sideButtons
+}
+
+proc tktaalik::quit {} {
+    variable built
+    variable tabs
+    # The settings of the tabs that have any; quit anyway.
+    foreach tab $built {
+        set save ::[lindex [dict get $tabs $tab] 0]::saveConfig
+        if {[info commands $save] ne ""} { catch $save }
+    }
+    catch saveConfig
+    # (What runs in the background: stopped; the repository served for
+    # the browser too.)
+    catch repoops::stopAll
+    exit
+}
+
+# Start on tab $tab ("": the one used last).  The arguments: a checkout
+# directory or a repository file, and for the Tickets tab a search.
+proc tktaalik::main {tab argv} {
+    variable config
+    variable tabs
+    variable root
+    loadConfig
+    buildWindow
+    icons::appIcon
+    wm geometry . [getdef $config geometry 1200x800]
+
+    lassign $argv path query
+    # The argument, else the checkout here, else the last one.
+    # ("fossil info" succeeds outside a checkout too, without local-root.)
+    lassign [fossil::run info] code out
+    if {$path eq "" && !$code && [regexp -line {^local-root:} $out]} { set path [pwd] }
+    if {$path eq ""} { set path [getdef $config path ""] }
+    if {$path eq "" || ![openPath $path]} {
+        update
+        set path [tk_getOpenFile -title "Open repository" -filetypes {
+            {{Fossil repositories} {.fossil}} {{All files} *}
+        }]
+        if {$path eq "" || ![openPath $path]} { exit 1 }
+    }
+    checkFossil
+    if {$tab eq ""} { set tab [getdef $config tab tickets] }
+    if {![dict exists $tabs $tab] || [.nb tab .$tab -state] eq "disabled"} { set tab tickets }
+    show $tab
+    if {$query ne ""} {
+        show tickets
+        tktsearch::setQuery $query
+    }
+}
+
+if {![info exists ::tktaalik_test]} {
+    tktaalik::main "" $argv
+}
