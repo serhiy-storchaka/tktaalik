@@ -502,6 +502,210 @@ proc tktsearch::closeDone {uuid old closedStatus} {
     showTicket $uuid
 }
 
+# Ticket > Start fix: a branch for the fix of the ticket, as the Tcl/Tk
+# workflow has it (TIP 710: a branch per fix, from the tip of trunk).  The
+# fix is made in this checkout, updated to the tip of the base branch
+# (after Fossil's dry run and a question), or in a new checkout of it
+# beside this one (Fossil's way: a checkout per line of work); then the
+# Commit tab gets the new branch's name and the comment "Fix [id]: title".
+# The fix itself and the commit are yours.
+
+namespace eval tktsearch {
+    variable fixBranch ""
+    variable fixBase ""
+    variable fixComment ""
+    variable fixWhere here      ;# here (this checkout) or new
+    variable fixDir ""          ;# the new checkout
+    variable fixSuggested ""    ;# the branch name the folder is named after
+}
+
+# The folder of the new checkout follows the branch name while it is the
+# one suggested.
+proc tktsearch::fixDirFollows {args} {
+    variable fixDir
+    variable fixBranch
+    variable fixSuggested
+    if {[file tail $fixDir] ne $fixSuggested} return
+    set fixDir [file join [file dirname $fixDir] $fixBranch]
+    set fixSuggested $fixBranch
+}
+
+# A branch name from a title: its words, without the little ones, joined
+# by "-" (tests-fail-high-display-scale).
+proc tktsearch::branchName {title} {
+    set words [regexp -all -inline {[a-z0-9]+} [string tolower $title]]
+    set words [lmap w $words {
+        if {$w in {a an the of at in on to for with and or is are be by from not when does do}} continue
+        set w
+    }]
+    set name [join [lrange $words 0 4] -]
+    string range $name 0 39
+}
+
+# The branches a fix can start from: main (or trunk), then the merge
+# targets of the Branches tab.
+proc tktsearch::fixBases {} {
+    set repo $::tickets::repo
+    set bases {}
+    foreach b [concat {main trunk} [expr {[info exists ::tkbranches::targets] ? $::tkbranches::targets : {}}]] {
+        if {$b in $bases} continue
+        if {[llength [fossil::sql $repo "SELECT 1 FROM tag WHERE tagname=[fossil::sqlstr sym-$b]"]]} {
+            lappend bases $b
+        }
+    }
+    # (main and trunk are the same branch where both exist: main.)
+    if {"main" in $bases} { set bases [lsearch -all -inline -not -exact $bases trunk] }
+    return $bases
+}
+
+proc tktsearch::startFix {uuid} {
+    variable fixBranch
+    variable fixBase
+    variable fixComment
+    variable fixWhere
+    variable fixDir
+    if {$uuid eq ""} return
+    set root $::tktaalik::root
+    set title [lindex [::tickets::sql "SELECT [fossil::outcol "coalesce(title,'')"] FROM ticket\
+        WHERE tkt_uuid=[fossil::sqlstr $uuid]"] 0 0]
+    set bases [fixBases]
+    set fixBranch [branchName $title]
+    set fixBase [lindex $bases 0]
+    set fixComment "Fix \[[string range $uuid 0 9]\]: $title"
+    # A new checkout beside this one (or the repository): by default when
+    # there is none, or when this one has changes.
+    set changes ""
+    if {$root ne ""} {
+        lassign [fossil::run -dir $root changes] code out
+        if {!$code} { set changes [string trim $out] }
+    }
+    set fixWhere [expr {$root eq "" || $changes ne "" ? "new" : "here"}]
+    set fixDir [file join [file dirname [expr {$root ne "" ? $root : $::tickets::repo}]] $fixBranch]
+    set f [dialog .tickets.startfix "Start a fix for [string range $uuid 0 9]"]
+    ttk::label $f.title -text "[string range $uuid 0 9]  $title" -font TkHeadingFont \
+        -wraplength 600 -justify left
+    grid $f.title - -sticky w -pady {0 8}
+    ttk::label $f.lbranch -text "New branch"
+    ttk::entry $f.branch -textvariable tktsearch::fixBranch -width 40
+    ttk::label $f.lbase -text "From the tip of"
+    ttk::combobox $f.base -textvariable tktsearch::fixBase -values $bases -state readonly -width 38
+    ttk::label $f.lcomment -text "Comment"
+    ttk::entry $f.comment -textvariable tktsearch::fixComment -width 60
+    foreach {l e} {lbranch branch lbase base lcomment comment} {
+        grid $f.$l $f.$e -sticky ew -pady 2
+        grid $f.$l -sticky w -padx {0 8}
+    }
+    ttk::label $f.lwhere -text "Where"
+    ttk::frame $f.where
+    ttk::radiobutton $f.where.here -variable tktsearch::fixWhere -value here \
+        -text [expr {$root eq "" ? "This checkout (there is none: a repository is shown)"
+            : "This checkout, updated[expr {$changes ne "" ? " (it has changes: they are kept)" : ""}]"}]
+    if {$root eq ""} { $f.where.here state disabled }
+    ttk::radiobutton $f.where.new -variable tktsearch::fixWhere -value new -text "A new checkout in:"
+    ttk::entry $f.where.dir -textvariable tktsearch::fixDir -width 50
+    grid $f.where.here - -sticky w
+    grid $f.where.new $f.where.dir -sticky w
+    grid $f.where.dir -sticky ew
+    grid columnconfigure $f.where 1 -weight 1
+    grid $f.lwhere $f.where -sticky nw -pady {6 2}
+    grid $f.where -sticky ew
+    variable fixSuggested $fixBranch
+    trace add variable ::tktsearch::fixBranch write tktsearch::fixDirFollows
+    bind $f <Destroy> {trace remove variable ::tktsearch::fixBranch write tktsearch::fixDirFollows}
+    ttk::label $f.note -foreground gray35 -wraplength 560 -justify left -text "Then the Commit\
+        tab gets the new branch and the comment, for the first commit of the fix.  Nothing is\
+        committed or pushed."
+    grid $f.note - -sticky w -pady {8 0}
+    ttk::frame $f.b
+    ttk::button $f.b.start -text Start -default active -command [list tktsearch::startFixDone $uuid]
+    ttk::button $f.b.cancel -text Cancel -command {destroy .tickets.startfix}
+    pack $f.b.cancel $f.b.start -side right -padx {4 0}
+    grid $f.b - -sticky e -pady {10 0}
+    bind .tickets.startfix <Return> [list tktsearch::startFixDone $uuid]
+    focus $f.branch
+    $f.branch selection range 0 end
+}
+
+proc tktsearch::startFixDone {uuid} {
+    variable fixBranch
+    variable fixBase
+    variable fixComment
+    variable fixWhere
+    variable fixDir
+    set w .tickets.startfix
+    if {![winfo exists $w]} return
+    set repo $::tickets::repo
+    set root $::tktaalik::root
+    set name [string trim $fixBranch]
+    set problem [fossil::valueProblem "The branch name" $name name]
+    if {$problem eq "" && [regexp {\s} $name]} { set problem "The branch name cannot have spaces." }
+    if {$problem eq "" && [llength [fossil::sql $repo "SELECT 1 FROM tag\
+            WHERE tagname=[fossil::sqlstr sym-$name]"]]} {
+        set problem "There is a branch or tag \"$name\" already."
+    }
+    if {$problem eq "" && $fixWhere eq "new"} {
+        set dir [file normalize [string trim $fixDir]]
+        if {[string trim $fixDir] eq ""} {
+            set problem "Which folder for the new checkout?"
+        } elseif {[file exists $dir] && (![file isdirectory $dir] || [llength [glob -nocomplain -directory $dir * .*]] > 2)} {
+            set problem "$dir is not empty: choose a new folder."
+        } elseif {![file isdirectory [file dirname $dir]]} {
+            set problem "There is no folder [file dirname $dir]."
+        } elseif {$root ne "" && [string match [file normalize $root]/* $dir]} {
+            set problem "The new checkout cannot be inside this one: choose a folder beside it."
+        }
+    }
+    if {$problem ne ""} {
+        ui::infoBox -parent $w -title "Start fix" $problem
+        return
+    }
+    set t .commit.bottom.msg.text
+    set replaced [expr {[winfo exists $t] && [string trim [$t get 1.0 end]] ne ""}]
+    if {$fixWhere eq "here"} {
+        lassign [fossil::run -dir $root update --nosync -n [fossil::arg $fixBase]] code out
+        if {$code} {
+            ui::errorBox -parent $w -title "Start fix" "fossil update failed (dry run):" $out
+            return
+        }
+        lassign [fossil::run -dir $root changes] code changes
+        set message "Update the checkout to the tip of $fixBase, for the new branch $name?"
+        set detail "Dry run:\n[join [lrange [split [string trim $out] \n] 0 30] \n]"
+        if {!$code && [string trim $changes] ne ""} {
+            append detail "\n\nThe checkout has uncommitted changes: they are merged into the new\
+                files, and can conflict with them."
+        }
+        if {$replaced} { append detail "\n\nThe comment written in the Commit tab is replaced." }
+        if {![ui::confirm -parent $w -title "Start fix" $message $detail]} return
+        lassign [fossil::run -dir $root update --nosync [fossil::arg $fixBase]] code out
+        if {$code} {
+            ui::errorBox -parent $w -title "Start fix" "fossil update failed:" $out
+            return
+        }
+    } else {
+        if {![ui::confirm -parent $w -title "Start fix" "Open a new checkout of\
+                [file tail $repo] at the tip of $fixBase in $dir, for the new branch $name?" \
+                "fossil open --workdir: Fossil writes the files there, and Tktaalik then shows that\
+                checkout.  This checkout stays as it is.  Nothing is synced."]} return
+        file mkdir $dir
+        # (Beside it: inside another checkout fossil refuses.)
+        lassign [fossil::run -dir [file dirname $dir] open $repo [fossil::arg $fixBase] \
+            --workdir $dir --nosync] code out
+        if {$code} {
+            ui::errorBox -parent $w -title "Start fix" "fossil open failed:" $out
+            return
+        }
+        destroy $w
+        tktaalik::openPath $dir
+    }
+    destroy $w
+    tktaalik::show commit
+    update idletasks
+    set ::tkcommit::branch $name
+    $t delete 1.0 end
+    $t insert end $fixComment
+    set ::tkcommit::status "For the fix of [string range $uuid 0 9]: the new branch $name, from $fixBase"
+}
+
 # The fields of the web page's new-ticket form, and what it sets itself.
 proc tktsearch::newTicket {} {
     variable editFields

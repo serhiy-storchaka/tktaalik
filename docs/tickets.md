@@ -263,6 +263,31 @@ After a confirmation it is written with `fossil ticket add` and shown.
 Changes are recorded as the default user of the repository; without one,
 Tktaalik says so and changes nothing.
 
+## Starting a fix
+
+**Start fix…** (the button by the title of an open ticket, Ticket ▸ Start
+fix…, or the list's context menu) prepares a branch for the fix, as the
+Tcl/Tk workflow has it (TIP 710: one branch per fix, from the tip of
+trunk).  It asks for:
+
+- **New branch**: a name made from the ticket's title, without the little
+  words (`tests-fail-high-display-scale`); change it as you like.  A name
+  that exists already is refused;
+- **From the tip of**: main (or trunk), or another merge target;
+- **Comment**: `Fix [id]: title`;
+- **Where**: this checkout, updated to the tip of that branch
+  (uncommitted changes are kept: merged into the new files), or **a new
+  checkout** in a folder beside this one, named after the branch (Fossil's
+  way: a checkout per line of work; this one stays as it is).  A new
+  checkout is proposed when this one has changes, and is the only choice
+  when a repository file is shown.
+
+**Start** asks first — with Fossil's dry run of the update — then updates
+the checkout, or opens the new one (`fossil open --workdir`) and shows it.
+Then the [Commit](commit.md) tab opens with the new branch and the comment
+filled in.  Make the fix, then commit there: the first commit creates the
+branch.  Nothing is committed or pushed by Start fix.
+
 ## Closing tickets
 
 **Ticket ▸ Close ticket…**, the **Close…** button of the details (shown

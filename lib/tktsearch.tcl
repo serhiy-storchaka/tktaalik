@@ -377,6 +377,8 @@ proc tktsearch::contextMenu {x y X Y} {
     }
     $m add command -label "Close ticket\u2026" -command [list tktsearch::closeTicket $item] \
         -state [expr {$closable ? "normal" : "disabled"}]
+    $m add command -label "Start fix\u2026" -command [list tktsearch::startFix $item] \
+        -state [expr {$closable || ![::tickets::canWrite status] ? "normal" : "disabled"}]
     $m add command -label "Copy title" \
         -command [list ui::copy [dict get $data title]]
     tk_popup $m $X $Y
@@ -525,6 +527,8 @@ proc tktsearch::build {} {
         -command {tktsearch::editTicket $tktsearch::shownTicket}
     .tickets.menu.ticket add command -label "Close ticket\u2026" -underline 0 \
         -command {tktsearch::closeTicket $tktsearch::shownTicket}
+    .tickets.menu.ticket add command -label "Start fix\u2026" -underline 0 \
+        -command {tktsearch::startFix $tktsearch::shownTicket}
     .tickets.menu.ticket add separator
     .tickets.menu.ticket add command -label "Reports\u2026" -underline 0 -command ticketreports::window
     .tickets.menu add cascade -label Help -underline 0 -menu [menu .tickets.menu.help]

@@ -281,7 +281,7 @@ proc tktsearch::showDetails {uuid} {
         $w configure -state normal
         $w delete 1.0 end
     }
-    destroy $d.reply $h.edit $h.close
+    destroy $d.reply $h.edit $h.close $h.fix
     # (The links of the values shown before.)
     foreach tag [$h tag names] { if {[string match fl-* $tag]} { $h tag delete $tag } }
     htmltext::reset $d
@@ -360,6 +360,12 @@ proc tktsearch::showDetails {uuid} {
                 -command [list tktsearch::closeTicket $uuid]
             $h window create end -window $h.close -align center -padx 4
         }
+    }
+    # (Start fix does not write the ticket: for anyone.)
+    if {![isClosed $status]} {
+        ttk::button $h.fix -text "Start fix\u2026" -style Small.TButton \
+            -command [list tktsearch::startFix $uuid]
+        $h window create end -window $h.fix -align center
     }
     $h insert end \n title
     # Status, Priority and Severity with their icon.  Each value is a
