@@ -133,25 +133,30 @@ proc tkwiki::build {} {
     ttk::label $p.head.title -font TkHeadingFont
     ttk::label $p.head.meta -foreground gray35
     ttk::frame $p.head.v
+    ttk::frame $p.head.a
     ttk::label $p.head.vl -text "Version:"
     ttk::combobox $p.head.version -textvariable tkwiki::version -state readonly -width 30
-    ttk::button $p.head.changes -text Changes -style Small.Toolbutton \
+    ttk::button $p.head.changes -text Changes -style Small.TButton \
         -command {tkwiki::diff changes}
-    ttk::button $p.head.since -text "Since" -style Small.Toolbutton \
+    ttk::button $p.head.since -text "Since" -style Small.TButton \
         -command {tkwiki::diff since}
     icons::tooltip $p.head.changes "What this version changed (a diff with the one before)"
     icons::tooltip $p.head.since "What changed after this version (a diff with the newest)"
-    ttk::button $p.head.edit -text "Edit\u2026" -style Small.Toolbutton -command {tkwiki::editor edit}
-    ttk::button $p.head.save -text "Save\u2026" -style Small.Toolbutton -command tkwiki::save
+    ttk::button $p.head.edit -text "Edit\u2026" -style Small.TButton -command {tkwiki::editor edit}
+    ttk::button $p.head.save -text "Save\u2026" -style Small.TButton -command tkwiki::save
     icons::tooltip $p.head.edit "Edit this version: commit it as the newest one"
-    ttk::button $p.head.attach -text "Attach\u2026" -style Small.Toolbutton -command tkwiki::attach
+    ttk::button $p.head.attach -text "Attach\u2026" -style Small.TButton -command tkwiki::attach
     icons::tooltip $p.head.save "Save this version to a file: its source, or HTML"
     icons::tooltip $p.head.attach "Attach files to this page or technote"
-    pack $p.head.vl $p.head.version $p.head.changes $p.head.since $p.head.edit $p.head.save \
-        $p.head.attach -in $p.head.v -side left -padx {0 6}
-    grid $p.head.title -sticky ew
-    grid $p.head.meta -sticky w
-    grid $p.head.v -sticky w -pady {2 0}
+    # The versions on their row; what can be done with the page by its
+    # date, on the right.
+    pack $p.head.vl $p.head.version $p.head.changes $p.head.since -in $p.head.v \
+        -side left -padx {0 6}
+    pack $p.head.edit $p.head.save $p.head.attach -in $p.head.a -side left -padx {6 0}
+    grid $p.head.title - -sticky ew
+    grid $p.head.meta $p.head.a -sticky w
+    grid $p.head.a -sticky e
+    grid $p.head.v - -sticky w -pady {2 0}
     # A long title wraps.
     bind $p.head <Configure> {.wiki.main.page.head.title configure -wraplength [expr {max(0, %w - 16)}]}
     grid columnconfigure $p.head 0 -weight 1
@@ -178,7 +183,7 @@ proc tkwiki::build {} {
     ttk::button .wiki.b.newnote -text "New technote\u2026" -command {tkwiki::editor newnote}
     ttk::button .wiki.b.browse -text "Open in browser" -command tkwiki::browsePage
     pack .wiki.b.browse .wiki.b.newnote .wiki.b.newpage -side right -padx {4 0}
-    ttk::style configure Small.Toolbutton -padding {4 0}
+    ttk::style configure Small.TButton -padding {8 0} -width 0
     pack .wiki.b.status -side left -fill x -expand 1
     pack .wiki.top -fill x
     pack .wiki.b -side bottom -fill x

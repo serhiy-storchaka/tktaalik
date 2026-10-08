@@ -580,7 +580,6 @@ proc tktsearch::build {} {
     $h tag configure fieldlink -foreground #0b57d0
     $h tag bind fieldlink <Enter> [list $h configure -cursor hand2]
     $h tag bind fieldlink <Leave> [list $h configure -cursor ""]
-    ttk::style configure Small.Toolbutton -padding {4 0}
     ttk::style configure Small.TButton -padding {8 0} -width 0
     set nb .tickets.main.details.nb
     ttk::notebook $nb
