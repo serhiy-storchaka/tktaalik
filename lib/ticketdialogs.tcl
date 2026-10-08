@@ -379,20 +379,8 @@ proc tktsearch::saveEdit {uuid old} {
         dict set fields $field $new
         lappend changes "$field: $value \u2192 $new"
     }
-    # As the web page: closing records who and when, reopening clears who.
-    # (Fossil's own Fixed and Tested are closed too, as in tickets::stateExpr.)
     if {[dict exists $fields status]} {
-        set closed {closed deleted fixed tested}
-        set closing [expr {[string tolower [string trim [dict get $fields status]]] in $closed}]
-        set wasClosed [expr {[string tolower [string trim [dict get $old status]]] in $closed}]
-        if {$closing && !$wasClosed} {
-            if {[::tickets::canWrite closer]} { dict set fields closer $::tickets::me }
-            if {[::tickets::canWrite closedate]} {
-                dict set fields closedate [lindex [::tickets::sql "SELECT julianday('now')"] 0 0]
-            }
-        } elseif {$wasClosed && !$closing && [::tickets::canWrite closer]} {
-            dict set fields closer nobody
-        }
+        set fields [dict merge $fields [closerFields [dict get $old status] [dict get $fields status]]]
     }
     set text [string trim [formattext::get $f.editor]]
     if {$text ne ""} {
@@ -406,6 +394,111 @@ proc tktsearch::saveEdit {uuid old} {
     if {![confirm "Edit ticket" "Change ticket [string range $uuid 0 9]?" [join $changes \n]]} return
     if {[write set $uuid $fields] eq ""} return
     destroy .tickets.edit
+    showTicket $uuid
+}
+
+# What a change of the status from OLD to NEW also sets, as the web page:
+# closing records who and when, reopening clears who.  (Fossil's own Fixed
+# and Tested are closed too, as in tickets::stateExpr.)
+proc tktsearch::closerFields {old new} {
+    set closed {closed deleted fixed tested}
+    set closing [expr {[string tolower [string trim $new]] in $closed}]
+    set wasClosed [expr {[string tolower [string trim $old]] in $closed}]
+    set fields {}
+    if {$closing && !$wasClosed} {
+        if {[::tickets::canWrite closer]} { dict set fields closer $::tickets::me }
+        if {[::tickets::canWrite closedate]} {
+            dict set fields closedate [lindex [::tickets::sql "SELECT julianday('now')"] 0 0]
+        }
+    } elseif {$wasClosed && !$closing && [::tickets::canWrite closer]} {
+        dict set fields closer nobody
+    }
+    return $fields
+}
+
+# Whether the ticket's status is a closed one (as closerFields).
+proc tktsearch::isClosed {status} {
+    expr {[string tolower [string trim $status]] in {closed deleted fixed tested}}
+}
+
+# Ticket > Close: the status Closed with a resolution (Fixed for a bug,
+# else Accepted) and a closing comment, in one change.
+proc tktsearch::closeTicket {uuid} {
+    if {$uuid eq "" || ![needUser]} return
+    if {![::tickets::canWrite status]} {
+        tk_messageBox -icon info -title "Close ticket" -message "Tickets here have no status to close."
+        return
+    }
+    set row [lindex [::tickets::sql "SELECT [join [lmap f {title type status} {
+        expr {[::tickets::canWrite $f] ? [fossil::outcol "coalesce([::tickets::field $f],'')"] : "''"}
+    }] {, }] FROM ticket WHERE tkt_uuid=[fossil::sqlstr $uuid]"] 0]
+    lassign $row title type status
+    if {[isClosed $status]} {
+        tk_messageBox -icon info -title "Close ticket" -message "The ticket is already $status."
+        return
+    }
+    # The values of the repository's ticket setup (the web pages' choices).
+    set choices [::tickets::choices]
+    set closedStatus Closed
+    if {[dict exists $choices status]} {
+        set i [lsearch -exact -nocase [dict get $choices status] closed]
+        if {$i >= 0} { set closedStatus [lindex [dict get $choices status] $i] }
+    }
+    if {![dict exists $choices resolution]} {
+        dict set choices resolution {Fixed Accepted Rejected {Works For Me} Duplicate {Wont Fix}}
+    }
+    dict set choices resolution [lsearch -all -inline -not -exact -nocase \
+        [dict get $choices resolution] none]
+    set resolution [expr {[string equal -nocase [string trim $type] bug] ? "Fixed" : "Accepted"}]
+    set i [lsearch -exact -nocase [dict get $choices resolution] $resolution]
+    set resolution [lindex [dict get $choices resolution] [expr {max($i, 0)}]]
+
+    set w .tickets.close
+    set f [dialog $w "Close ticket [string range $uuid 0 9]"]
+    ttk::label $f.title -text "[string range $uuid 0 9]  $title" -font TkHeadingFont \
+        -wraplength 600 -justify left
+    grid $f.title -row 0 -column 0 -columnspan 2 -sticky w -pady {0 6}
+    if {[::tickets::canWrite resolution]} {
+        formRow $f 1 resolution Resolution $resolution $choices
+    }
+    formText $f 2 "Comment\n(optional)"
+    ttk::frame $f.buttons
+    ttk::label $f.buttons.who -text "As $::tickets::me; nothing is pushed." -foreground gray35
+    ttk::button $f.buttons.close -text Close -default active \
+        -command [list tktsearch::closeDone $uuid $status $closedStatus]
+    ttk::button $f.buttons.cancel -text Cancel -command [list destroy $w]
+    pack $f.buttons.who -side left
+    pack $f.buttons.cancel $f.buttons.close -side right -padx {4 0}
+    grid $f.buttons -row 4 -column 0 -columnspan 2 -sticky ew -pady {8 0}
+    bind [formattext::widget $f.editor] <Control-Return> \
+        "[list tktsearch::closeDone $uuid $status $closedStatus]; break"
+    focus [formattext::widget $f.editor]
+}
+
+proc tktsearch::closeDone {uuid old closedStatus} {
+    variable format
+    set f .tickets.close.f
+    if {![winfo exists $f]} return
+    set fields [list status $closedStatus]
+    set changes [list "status: $old \u2192 $closedStatus"]
+    set as ""
+    if {[winfo exists $f.eresolution]} {
+        set resolution [string trim [fieldValue $f.eresolution]]
+        if {$resolution ne ""} {
+            dict set fields resolution $resolution
+            lappend changes "resolution: $resolution"
+            set as " as $resolution"
+        }
+    }
+    set fields [dict merge $fields [closerFields $old $closedStatus]]
+    set text [string trim [formattext::get $f.editor]]
+    if {$text ne ""} {
+        set fields [dict merge $fields [commentFields $text]]
+        lappend changes "comment ($format):\n[string range $text 0 400]"
+    }
+    if {![confirm "Close ticket" "Close ticket [string range $uuid 0 9]$as?" [join $changes \n]]} return
+    if {[write set $uuid $fields] eq ""} return
+    destroy .tickets.close
     showTicket $uuid
 }
 

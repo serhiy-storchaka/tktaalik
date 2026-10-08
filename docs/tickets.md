@@ -263,6 +263,18 @@ After a confirmation it is written with `fossil ticket add` and shown.
 Changes are recorded as the default user of the repository; without one,
 Tktaalik says so and changes nothing.
 
+## Closing tickets
+
+**Ticket ▸ Close ticket…**, the **Close…** button of the details (shown
+while the ticket is not closed), or **Close ticket…** in the list's
+context menu opens a window with the ticket's **Resolution** — **Fixed**
+for a bug, **Accepted** for other types, any of the repository's
+resolutions to choose — and an optional closing comment, written in the
+same editor as other comments (format, Write, Preview).  **Close** (or
+Ctrl+Return in the comment) shows the change and asks before writing it:
+the status Closed, the resolution and the comment go in one ticket change,
+which also records you as the closer and the date, as the web pages do.
+
 ## Attachments
 
 The Attachments tab lists the newest version of each file attached to the

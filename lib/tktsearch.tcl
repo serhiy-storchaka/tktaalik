@@ -369,6 +369,14 @@ proc tktsearch::contextMenu {x y X Y} {
         -state [expr {$remote eq "" ? "disabled" : "normal"}]
     $m add command -label "Copy ticket id" -command [list ui::copy $item]
     $m add command -label "Edit ticket\u2026" -command [list tktsearch::editTicket $item]
+    set closable [::tickets::canWrite status]
+    if {$closable} {
+        set closable [expr {![isClosed [lindex [::tickets::sql "SELECT\
+            [fossil::outcol "coalesce([::tickets::field status],'')"] FROM ticket\
+            WHERE tkt_uuid=[fossil::sqlstr $item]"] 0 0]]}]
+    }
+    $m add command -label "Close ticket\u2026" -command [list tktsearch::closeTicket $item] \
+        -state [expr {$closable ? "normal" : "disabled"}]
     $m add command -label "Copy title" \
         -command [list ui::copy [dict get $data title]]
     tk_popup $m $X $Y
@@ -515,6 +523,8 @@ proc tktsearch::build {} {
         -command tktsearch::newTicket
     .tickets.menu.ticket add command -label "Edit ticket\u2026" -underline 0 -accelerator Ctrl+E \
         -command {tktsearch::editTicket $tktsearch::shownTicket}
+    .tickets.menu.ticket add command -label "Close ticket\u2026" -underline 0 \
+        -command {tktsearch::closeTicket $tktsearch::shownTicket}
     .tickets.menu.ticket add separator
     .tickets.menu.ticket add command -label "Reports\u2026" -underline 0 -command ticketreports::window
     .tickets.menu add cascade -label Help -underline 0 -menu [menu .tickets.menu.help]
@@ -571,6 +581,7 @@ proc tktsearch::build {} {
     $h tag bind fieldlink <Enter> [list $h configure -cursor hand2]
     $h tag bind fieldlink <Leave> [list $h configure -cursor ""]
     ttk::style configure Small.Toolbutton -padding {4 0}
+    ttk::style configure Small.TButton -padding {8 0} -width 0
     set nb .tickets.main.details.nb
     ttk::notebook $nb
     ttk::notebook::enableTraversal $nb

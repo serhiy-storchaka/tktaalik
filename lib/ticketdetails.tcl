@@ -281,7 +281,7 @@ proc tktsearch::showDetails {uuid} {
         $w configure -state normal
         $w delete 1.0 end
     }
-    destroy $d.reply $h.edit
+    destroy $d.reply $h.edit $h.close
     # (The links of the values shown before.)
     foreach tag [$h tag names] { if {[string match fl-* $tag]} { $h tag delete $tag } }
     htmltext::reset $d
@@ -348,7 +348,20 @@ proc tktsearch::showDetails {uuid} {
     if {$uuid eq ""} return
 
     # The header, above the tabs: the title, the fields, then who and when.
-    $h insert end "$title\n" title
+    $h insert end $title title
+    # Edit and Close: buttons with a frame, after the title.
+    if {[canWrite]} {
+        $h insert end "   " title
+        ttk::button $h.edit -text Edit\u2026 -style Small.TButton \
+            -command [list tktsearch::editTicket $uuid]
+        $h window create end -window $h.edit -align center
+        if {[::tickets::canWrite status] && ![isClosed $status]} {
+            ttk::button $h.close -text Close\u2026 -style Small.TButton \
+                -command [list tktsearch::closeTicket $uuid]
+            $h window create end -window $h.close -align center -padx 4
+        }
+    }
+    $h insert end \n title
     # Status, Priority and Severity with their icon.  Each value is a
     # link: the tickets with it (fieldLink).
     foreach {label value icon key raw} [list TIP $tip_number "" tip $tip_number \
@@ -379,11 +392,6 @@ proc tktsearch::showDetails {uuid} {
             fieldLink $h $key $raw $value fields
         }
         $h insert end "    " fields
-    }
-    if {[canWrite]} {
-        ttk::button $h.edit -text Edit\u2026 -style Small.Toolbutton \
-            -command [list tktsearch::editTicket $uuid]
-        $h window create end -window $h.edit -align center
     }
     $h insert end \n fields
     # "by ..." only where the tickets record who.
