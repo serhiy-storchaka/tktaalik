@@ -82,15 +82,17 @@ selected branches you have looked at.
 
 ## Views
 
-| View | Shows |
-|---|---|
-| **Open** | The branches that are not closed |
-| **Unmerged** | Open branches whose last check-in is not in the first target branch (usually main) |
-| **Mine** | Open branches you (the repository's default user) have check-ins on |
-| **Closed** | Closed branches |
-| **All** | All of them |
+| View | Shows | Search term |
+|---|---|---|
+| **Open** | The branches that are not closed | `is:open` |
+| **Unmerged** | Open branches whose last check-in is not in the first target branch (usually main) | `is:open -merged:main` (the first target) |
+| **Mine** | Open branches you (the repository's default user) have check-ins on | `is:open user:@me` |
+| **Closed** | Closed branches | `is:closed` |
+| **All** | All of them | none |
 
-Each view shows how many branches it has with the current search.
+A view is a term of the search: a button puts its terms in the search box
+(in place of those of the view shown), and typing them selects the button.
+Each view shows how many branches it has with the rest of the search.
 
 | Check box | Effect |
 |---|---|
@@ -114,7 +116,7 @@ Return also searches and remembers the search in the drop-down history.
 | `comment:TEXT` | The check-in comments only |
 | `user:NAME` | Someone with check-ins on it; `user:@me` is the default user |
 | `base:BRANCH` | Made from that branch (a pattern is allowed) |
-| `merged:TARGET` | Its last check-in is merged into the target: `merged:main`, `merged:9.0` or `merged:core-9-0-branch`; `-merged:main` is not (yet) merged |
+| `merged:TARGET` | Its last check-in is merged into the target: `merged:main`, `merged:9.0` or `merged:core-9-0-branch`; `-merged:main` is not (yet) merged.  The target counts as merged into itself |
 | `is:open`, `is:closed` | Open or closed |
 | `is:hidden`, `is:private` | Hidden, private |
 | `is:current` | The checkout's branch |

@@ -102,9 +102,10 @@ proc tkbranches::goTo {place} {
     variable privateOnly
     lassign $place q v hidden private name
     if {$v ne ""} {
-        set view $v
         set showHidden $hidden
         set privateOnly $private
+        # (The view is a term of the query; a place without it has it here.)
+        if {$v ne "all" && [stripView $q] eq [string trim $q]} { set q [string trim "$q [viewTerms $v]"] }
     }
     set query $q
     search
@@ -340,9 +341,11 @@ proc tkbranches::reload {} {
     # The search again: merged: depends on the targets.
     variable query
     variable terms
+    variable searched
+    set searched $query
     set error ""
     try {
-        set terms [parseQuery $query]
+        set terms [parseSearch $query]
     } trap {TKFOSSIL QUERY} msg {
         set terms {}
         set error $msg
@@ -664,7 +667,7 @@ proc tkbranches::search {{remember 0}} {
     variable history
     after cancel {tkbranches::search}
     try {
-        set terms [parseQuery $query]
+        set terms [parseSearch $query]
     } trap {TKFOSSIL QUERY} msg {
         showError $msg
         return
@@ -701,6 +704,97 @@ proc tkbranches::addTerm {key value neg} {
         set query [string trim "$query $term"]
     }
     search 1
+}
+
+# The terms of a search, and its view: the view (the buttons) is terms of
+# the query: the first is:open or is:closed; with is:open, -merged:TARGET
+# (the first merge target) is Unmerged, else user:@me (or the default user
+# by name) is Mine.  They filter as the view, and the buttons count the
+# rest.  None: All.
+proc tkbranches::parseSearch {query} {
+    variable view
+    variable me
+    variable targets
+    set terms [parseQuery $query]
+    set view all
+    set i [findTerm $terms 0 is {open closed}]
+    if {$i < 0} { return $terms }
+    set view [lindex $terms $i 2 0]
+    set terms [lreplace $terms $i $i]
+    if {$view ne "open"} { return $terms }
+    set i [findTerm $terms 1 merged [lrange $targets 0 0]]
+    if {$i >= 0} {
+        set view unmerged
+        return [lreplace $terms $i $i]
+    }
+    set i [expr {$me eq "" ? -1 : [findTerm $terms 0 user [list [string tolower $me]]]}]
+    if {$i >= 0} {
+        set view mine
+        return [lreplace $terms $i $i]
+    }
+    return $terms
+}
+
+# The index of the first term NEG KEY:VALUE with one value, one of VALUES;
+# -1 if none.
+proc tkbranches::findTerm {terms neg key values} {
+    set i 0
+    foreach term $terms {
+        lassign $term n k alts
+        if {$n == $neg && $k eq $key && [llength $alts] == 1 && [lindex $alts 0] in $values} {
+            return $i
+        }
+        incr i
+    }
+    return -1
+}
+
+# The Open/Unmerged/Mine/Closed/All buttons: the same search with another
+# view's terms (is:open, is:open -merged:TARGET, is:open user:@me,
+# is:closed; none for All), in place of those of the view shown.
+proc tkbranches::setView {} {
+    variable query
+    variable view
+    variable shown
+    tktaalik::navigate
+    # (The view of the list shown: the button has already changed $view.)
+    set rest [stripView $query [lindex $shown 1]]
+    set query [string trim "$rest [viewTerms $view]"]
+    search
+}
+
+# QUERY without the terms of view SHOWN (is:open or is:closed, and the
+# -merged:TARGET of Unmerged or the user:@me of Mine), the rest as it was
+# typed.  SHOWN "": only is:open and is:closed.
+proc tkbranches::stripView {query {shown ""}} {
+    variable me
+    variable targets
+    set target [lindex $targets 0]
+    join [lmap word [regexp -all -inline {(?:[^\s"]|"[^"]*")+} $query] {
+        if {[regexp -nocase {^is:(open|closed)$} $word]} continue
+        if {$shown eq "mine" && ([string equal -nocase $word user:@me]
+                || ($me ne "" && [string equal -nocase $word user:$me]))} continue
+        if {$shown eq "unmerged" && $target ne ""
+                && ([string equal -nocase $word -merged:$target]
+                || [string equal -nocase $word -merged:[targetHeading $target]])} continue
+        set word
+    }]
+}
+
+# The terms of view V: "" for All.
+proc tkbranches::viewTerms {v} {
+    variable targets
+    switch -- $v {
+        open     { return is:open }
+        unmerged {
+            set target [lindex $targets 0]
+            if {$target eq ""} { return is:open }
+            return "is:open -merged:[targetHeading $target]"
+        }
+        mine     { return "is:open user:@me" }
+        closed   { return is:closed }
+        default  { return "" }
+    }
 }
 
 # The tooltip of a merge, CI or forks cell (tablecols -celltip).
@@ -1170,7 +1264,7 @@ proc tkbranches::build {} {
     ttk::frame .branches.tabs -padding {6 4}
     foreach v {open unmerged mine closed all} {
         ttk::radiobutton .branches.tabs.$v -style Toolbutton -text [string totitle $v] \
-            -variable tkbranches::view -value $v -command {tktaalik::navigate; tkbranches::showList}
+            -variable tkbranches::view -value $v -command tkbranches::setView
         pack .branches.tabs.$v -side left -padx {0 4}
     }
     ttk::checkbutton .branches.tabs.hidden -text "Show hidden" -variable tkbranches::showHidden \
@@ -1260,6 +1354,10 @@ proc tkbranches::build {} {
     variable history [getdef $config history {}]
     .branches.top.q configure -values $history
     variable query [getdef $config query ""]
+    # (Settings of before the view was a term: the view into the query.)
+    if {$view ne "all" && [stripView $query] eq [string trim $query]} {
+        set query [string trim "$query [viewTerms $view]"]
+    }
     after cancel {tkbranches::search}
 }
 

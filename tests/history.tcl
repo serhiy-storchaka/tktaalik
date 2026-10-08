@@ -62,9 +62,9 @@ set b .branches.main.list.t
 set name [lindex [$b children {}] 1]
 $b selection set $name; update
 tkbranches::addTerm user [lindex [dict get $tkbranches::branches($name) users] 0] 0; update
-check "Branches filter: $tkbranches::query" {[string match user:* $tkbranches::query]}
+check "Branches filter: $tkbranches::query" {[string match "*user:*" $tkbranches::query]}
 tktaalik::goBack; update
-check "Back: no filter, $name selected" {$tkbranches::query eq "" && $tkbranches::selected eq $name}
+check "Back: no filter, $name selected" {$tkbranches::query eq "is:open" && $tkbranches::selected eq $name}
 .branches.tabs.closed invoke; update
 tktaalik::goBack; update
 check "Back from the closed view: open, $name" {$tkbranches::view eq "open" && $tkbranches::selected eq $name}
