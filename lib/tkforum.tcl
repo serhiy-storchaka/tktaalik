@@ -3,11 +3,13 @@
 # after the post they answer, indented), each the newest version of it,
 # rendered by Fossil (Markdown, wiki or plain text).  Links to other posts
 # open their thread here, links to tickets in the Tickets tab, others in
-# the browser.  Nothing is changed (Fossil has no command to post).
+# the browser.  New threads and replies are sent to the server through
+# its web forms (web::forumPost), then pulled.
 
 source [file join [file dirname [file normalize [info script]]] fossil.tcl]
 source [file join [file dirname [file normalize [info script]]] tablecols.tcl]
 source [file join [file dirname [file normalize [info script]]] htmltext.tcl]
+source [file join [file dirname [file normalize [info script]]] web.tcl]
 
 namespace eval tkforum {
     variable repo ""
@@ -22,7 +24,17 @@ namespace eval tkforum {
     variable status ""
     variable hashes {}        ;# [hash] in the thread shown -> link
     variable marks {}         ;# post hash -> its position in the text
+    variable scrollTo {}      ;# {thread post}: where showThread scrolls
     variable posts {}         ;# the posts shown: {rid depth edited} each
+    variable me ""            ;# the default user: who posts
+    variable format Markdown  ;# of new posts
+    variable formats {
+        Markdown text/x-markdown  "Fossil wiki" text/x-fossil-wiki  {Plain text} text/plain
+    }
+    variable postTitle ""     ;# of a new thread
+    variable webUser          ;# server URL -> the user to post as
+    variable webPassword ""   ;# in the window
+    variable passwords        ;# server URL -> password (this session only)
     variable config {}
     variable configFile [config::path forum]
 }
@@ -52,6 +64,9 @@ proc tkforum::build {} {
     tktaalik::fileMenu .forum.menu.file
     .forum.menu.file add command -label Refresh -underline 0 -accelerator F5 -command tkforum::reload
     tktaalik::quitEntry .forum.menu.file
+    .forum.menu add cascade -label Forum -underline 1 -menu [menu .forum.menu.forum]
+    .forum.menu.forum add command -label "New thread\u2026" -underline 0 -accelerator Ctrl+N \
+        -command tkforum::compose
     loadConfig
     set filter [tktaalik::getdef $config filter ""]
 
@@ -105,7 +120,8 @@ proc tkforum::build {} {
     ttk::label .forum.b.status -textvariable tkforum::status -anchor w
     ttk::button .forum.b.more -text More -command tkforum::more
     ttk::button .forum.b.browse -text "Open in browser" -command tkforum::browse
-    pack .forum.b.browse .forum.b.more -side right -padx {4 0}
+    ttk::button .forum.b.new -text "New thread\u2026" -command tkforum::compose
+    pack .forum.b.browse .forum.b.more .forum.b.new -side right -padx {4 0}
     pack .forum.b.status -side left -fill x -expand 1
     pack .forum.top -fill x
     pack .forum.b -side bottom -fill x
@@ -113,6 +129,8 @@ proc tkforum::build {} {
 
     bind $t <<TreeviewSelect>> {tkforum::showThread [lindex [.forum.main.list.t selection] 0]}
     tktaalik::shortcut forum <F5> tkforum::reload
+    tktaalik::shortcut forum <Control-n> tkforum::compose
+    ttk::style configure Small.TButton -padding {8 0} -width 0
     tktaalik::shortcut forum <Control-f> {focus .forum.top.filter; .forum.top.filter selection range 0 end}
     popup::attach .forum.main.list.t tkforum::popupMenu
 }
@@ -121,6 +139,9 @@ proc tkforum::setRepository {path newRoot} {
     variable repo $path
     variable root $newRoot
     variable remote [fossil::remoteUrl $path]
+    variable me
+    lassign [fossil::run user default -R $path] code out
+    set me [expr {$code ? "" : [string trim $out]}]
     variable limit 1000
     tktaalik::setTitle forum "Forum \u2014 [file rootname [file tail $repo]]"
     reload
@@ -324,7 +345,13 @@ proc tkforum::showThread {froot} {
         set first [lindex $row($post) 3]
         set when $first
         if {$current($post) ne $post} { append when ", edited $date" }
-        $d insert end $user [list head $tag] "  $when\n" [list meta $tag]
+        $d insert end $user [list head $tag] "  $when" [list meta $tag]
+        if {[canPost]} {
+            ttk::button $d.reply$fpid -text Reply\u2026 -style Small.TButton \
+                -command [list tkforum::compose $uuid]
+            $d window create end -window $d.reply$fpid -padx 8 -align center
+        }
+        $d insert end \n [list meta $tag]
         set mimetype [expr {[dict exists $cards N] ? [dict get $cards N] : "text/x-fossil-wiki"}]
         if {[string trim $text] eq ""} {
             $d insert end "(deleted)\n" [list missing $tag]
@@ -342,7 +369,177 @@ proc tkforum::showThread {froot} {
     set posts $shown
     $d tag raise sel
     $d configure -state disabled
-    $d yview moveto 0
+    # At the post Go to or a link asked for (showPost), else at the top.
+    variable scrollTo
+    if {[lindex $scrollTo 0] eq $froot && [dict exists $marks [lindex $scrollTo 1]]} {
+        $d yview [dict get $marks [lindex $scrollTo 1]]
+    } else {
+        set scrollTo {}
+        $d yview moveto 0
+    }
+}
+
+# ------------------------------------------------------------- writing
+
+# Posts go to the server through its web forms (web::forumPost), as from
+# the browser: the user logs in there, so anyone allowed to post on the
+# website can, without the right to push.  The password is asked for and
+# kept for the session only.  Then a pull brings the post here.
+
+proc tkforum::canPost {} {
+    variable remote
+    expr {$remote ne "" && [auto_execok curl] ne ""}
+}
+
+# The window to write a post: a new thread, or a reply to the post REPLYTO
+# (its hash).
+proc tkforum::compose {{replyTo ""}} {
+    variable formats
+    variable repo
+    variable remote
+    variable postTitle
+    variable webUser
+    variable webPassword
+    variable passwords
+    variable me
+    if {$repo eq ""} return
+    if {![canPost]} {
+        if {$remote eq ""} {
+            ui::infoBox -title Forum "Posting needs the server." \
+                "This repository has no server URL to post to (fossil remote)."
+        } else {
+            ui::infoBox -title Forum "Posting needs curl." \
+                "Posts are sent with curl, which was not found."
+        }
+        return
+    }
+    set w .forum.compose
+    destroy $w
+    if {$replyTo eq ""} {
+        set title "New thread"
+    } else {
+        lassign [lindex [fossil::sql $repo "SELECT [fossil::outcol "coalesce(e.user,'')"],
+            strftime('%Y-%m-%d %H:%M', f.fmtime),
+            [fossil::outcol "coalesce((SELECT comment FROM event WHERE objid=f.froot),'')"]
+            FROM forumpost f LEFT JOIN event e ON e.objid=f.fpid
+            WHERE f.fpid=(SELECT rid FROM blob WHERE uuid=[fossil::sqlstr $replyTo])"] 0] \
+            user date thread
+        set title "Reply: [tkforum::title $thread]"
+    }
+    set f [ui::dialog $w $title -escape [list destroy $w] -help forum#writing]
+    grid columnconfigure $f 1 -weight 1
+    if {$replyTo eq ""} {
+        set postTitle ""
+        ttk::label $f.lt -text Title
+        ttk::entry $f.title -textvariable tkforum::postTitle -width 60
+        grid $f.lt $f.title -sticky ew -pady {0 6}
+        grid $f.lt -sticky w -padx {0 8}
+    } else {
+        ttk::label $f.to -text "In reply to $user, $date" -foreground gray35
+        grid $f.to - -sticky w -pady {0 6}
+    }
+    formattext::create $f.editor -formats $formats -variable tkforum::format -repo $repo -height 12
+    grid $f.editor - -sticky news
+    grid rowconfigure $f 1 -weight 1
+    # Who: the user of the server URL, else the default user; the password
+    # given before in this session, else the one Fossil saved for the
+    # user of the server URL.
+    set urlUser [fossil::remoteUser $repo]
+    if {![info exists webUser($remote)]} {
+        set webUser($remote) [expr {$urlUser ne "" ? $urlUser : $me}]
+    }
+    if {[info exists passwords($remote)]} {
+        set webPassword $passwords($remote)
+    } elseif {$urlUser ne "" && $webUser($remote) eq $urlUser} {
+        set webPassword [fossil::savedPassword $repo]
+    } else {
+        set webPassword ""
+    }
+    ttk::frame $f.login
+    ttk::label $f.login.lu -text "Post to $remote as"
+    ttk::entry $f.login.user -textvariable tkforum::webUser($remote) -width 16
+    ttk::label $f.login.lp -text Password
+    ttk::entry $f.login.password -textvariable tkforum::webPassword -show * -width 16
+    pack $f.login.lu $f.login.user $f.login.lp $f.login.password -side left -padx {0 6}
+    grid $f.login - -sticky w -pady {8 0}
+    ttk::frame $f.b
+    ttk::button $f.b.post -text Post -default active -command [list tkforum::post $replyTo]
+    ttk::button $f.b.cancel -text Cancel -command [list destroy $w]
+    pack $f.b.cancel $f.b.post -side right -padx {4 0}
+    grid $f.b - -sticky ew -pady {8 0}
+    bind [formattext::widget $f.editor] <Control-Return> "[list tkforum::post $replyTo]; break"
+    bind $f.login.password <Return> [list tkforum::post $replyTo]
+    focus [expr {$replyTo eq "" ? "$f.title" : [formattext::widget $f.editor]}]
+}
+
+# Post what the window has: asked first, then sent, then pulled here.
+proc tkforum::post {replyTo} {
+    variable repo
+    variable remote
+    variable postTitle
+    variable webUser
+    variable webPassword
+    variable passwords
+    set w .forum.compose
+    if {![winfo exists $w]} return
+    set f $w.f
+    set text [string trim [formattext::get $f.editor]]
+    set title [string trim $postTitle]
+    set user [string trim $webUser($remote)]
+    if {$replyTo eq "" && $title eq ""} {
+        ui::infoBox -parent $w -title Forum "A new thread needs a title."
+        return
+    }
+    if {$text eq ""} {
+        ui::infoBox -parent $w -title Forum "The post is empty."
+        return
+    }
+    if {$user eq "" || $webPassword eq ""} {
+        ui::infoBox -parent $w -title Forum "Posting needs your user and password on the server."
+        focus [expr {$user eq "" ? "$f.login.user" : "$f.login.password"}]
+        return
+    }
+    set fields [dict create content $text mimetype [formattext::mimetype $f.editor]]
+    if {$replyTo eq ""} {
+        dict set fields title $title
+        set what "Start the thread \"$title\""
+    } else {
+        dict set fields fpid $replyTo
+        set what "Post this reply"
+    }
+    if {![ui::confirm -parent $w -title Forum "$what on $remote?" \
+            "As $user.  It goes to the server now and cannot be taken back (an edit\
+            is a new version); then this repository pulls it."]} return
+    try {
+        ui::busy {
+            lassign [web::forumPost $remote $user $webPassword $fields] hash held
+        }
+    } trap {WEB LOGIN} msg {
+        ui::errorBox -parent $w -title Forum "Not logged in." $msg
+        focus $f.login.password
+        return
+    } trap {WEB} msg {
+        ui::errorBox -parent $w -title Forum "The post was not sent." $msg
+        return
+    }
+    set passwords($remote) $webPassword
+    destroy $w
+    if {$held} {
+        ui::infoBox -title Forum "Posted; it waits for a moderator." \
+            "The post shows here once a moderator of $remote has approved it\
+            and the repository has pulled it."
+        return
+    }
+    ui::busy {
+        lassign [fossil::run pull -R $repo] code out
+    }
+    if {$code} {
+        ui::errorBox -title Forum "Posted, but the pull failed." [string trim $out]
+        return
+    }
+    tktaalik::navigate
+    reload
+    showPost $hash 0
 }
 
 proc tkforum::hashLink {match hash} {
@@ -379,11 +576,10 @@ proc tkforum::showPost {hash {remember 1}} {
     $t selection set [list $froot]
     $t see $froot
     update idletasks
+    # Shown at the post (the newest version of it); kept for the thread, as
+    # the selection shows it again (<<TreeviewSelect>>, after this).
+    variable scrollTo [list $froot $uuid]
     showThread $froot
-    # (The newest version of the post is shown: its mark, or the first's.)
-    foreach {h index} $marks {
-        if {$h eq $uuid} { .forum.main.thread.text yview $index }
-    }
     return 1
 }
 

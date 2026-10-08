@@ -34,6 +34,8 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   runs the dry run, confirms, then runs), `lib/commitops.tcl` and
   `lib/diffopts.tcl` (the Commit tab's operations and diff options),
   `lib/config.tcl` (settings files),
+  `lib/web.tcl` (a server's web forms through curl, for what has no
+  command: forum posts),
   `lib/icons.tcl` (icons and tooltips).
 - `lib/fossil.tcl` and `lib/ui.tcl`: the layer every window uses.  New
   code runs Fossil only through `fossil::` (`run ?-dir? ?-input?`,

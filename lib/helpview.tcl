@@ -46,6 +46,7 @@ namespace eval help {
         .tickets.new                tickets#editing-tickets
         .tickets.close              tickets#closing-tickets
         .tickets.startfix           tickets#starting-a-fix
+        .forum.compose              forum#writing
         .tickets.save               tickets#search-syntax
         .tickets.main.details.nb.comments    tickets#comments
         .tickets.main.details.nb.attachments tickets#attachments

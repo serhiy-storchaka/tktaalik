@@ -536,6 +536,40 @@ proc fossil::remoteUrl {repo} {
     string trimright $url /
 }
 
+# The user in the server URL of REPO ("" if none).
+proc fossil::remoteUser {repo} {
+    if {[catch {exec fossil remote -R $repo} url] || ![regexp {^https?://([^/@:]+)(?::[^/@]*)?@} $url -> user]} {
+        return ""
+    }
+    return $user
+}
+
+# The password Fossil saved for the server URL of REPO (last-sync-pw, as
+# Fossil's own sync and chat use it), "" if none.  Fossil keeps it
+# obscured, not encrypted: hex, a salt byte, then each byte XOR-ed with
+# the salt and a fixed key (obscure() in Fossil's encode.c).
+proc fossil::savedPassword {repo} {
+    set value [lindex [sql $repo "SELECT [outcol value] FROM config WHERE name='last-sync-pw'"] 0 0]
+    unobscure $value
+}
+
+proc fossil::unobscure {text} {
+    # (Not obscured: as it is, as Fossil does.)
+    if {[string length $text] < 2 || [string length $text] % 2 || ![string is xdigit $text]} {
+        return $text
+    }
+    set key {0xa7 0x21 0x31 0xe3 0x2a 0x50 0x2c 0x86 0x4c 0xa4 0x52 0x25 0xff 0x49 0x35 0x85}
+    binary scan [binary format H* $text] cu* bytes
+    set bytes [lassign $bytes salt]
+    set out {}
+    set i 0
+    foreach b $bytes {
+        lappend out [expr {$b ^ [lindex $key [expr {$i & 15}]] ^ $salt}]
+        incr i
+    }
+    encoding convertfrom utf-8 [binary format c* $out]
+}
+
 proc fossil::browse {url} {
     switch -- [tk windowingsystem] {
         win32   { exec {*}[auto_execok start] "" $url & }

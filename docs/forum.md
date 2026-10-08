@@ -2,8 +2,8 @@
 
 The **Forum** tab shows the forum of the repository: its threads, newest
 activity first, and below them the posts of the thread selected, threaded
-and rendered.  It only reads: posting, replying and editing are done in the
-web interface (**Open in browser**).
+and rendered.  You can start threads and reply ([Writing](#writing));
+editing a post is done in the web interface (**Open in browser**).
 
 A repository has a forum only if it is a forum repository or one where the
 forum is used; otherwise the status line says "No forum in this
@@ -73,3 +73,26 @@ Find text and how many threads were shown.
 
 You can also open a post directly with [Go to](goto.md) (Ctrl+G): type the
 hash or a prefix of any post, or of any version of an edited post.
+
+## Writing
+
+**New thread…** (Forum ▸ New thread…, Ctrl+N, or the button at the bottom)
+asks for a title and the text; **Reply…**, after the name and date of each
+post, answers that post.  The text is written in the same editor as ticket
+comments, in Markdown (the default), Fossil wiki or plain text, with its
+**Preview**.  **Post** (or Ctrl+Return in the text) sends it, as below.
+
+Posts are sent to the server, as from its web pages: Tktaalik logs in
+there (with `curl`) and fills in the same forms, so anyone allowed to post
+on the website can post here, without the right to push.  The window asks
+for your user and password on the server: the user from the repository's
+server URL, else its default user, and the password Fossil saved for that
+URL's user (when you let it remember the password for sync), if any.  A
+password typed here is kept until Tktaalik is closed, never saved.  **Post** asks first: the post goes to the server at
+once and cannot be taken back (Fossil keeps every artifact, and an edit, in
+the web interface, is a new version of the post).  Then the repository
+pulls, and the thread is shown with the post.
+
+If the server holds your posts for a moderator (users the forum does not
+yet trust), Tktaalik says so; the post shows here once it is approved and
+pulled.
