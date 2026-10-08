@@ -962,6 +962,7 @@ proc tkbranches::showDetails {name} {
     $c delete [$c children {}]
     .branches.main.details.nb.tickets.t delete [.branches.main.details.nb.tickets.t children {}]
     clearFiles
+    .branches.main.details.finish state [expr {[finishable $name] ? "!disabled" : "disabled"}]
     if {$name eq "" || ![info exists branches($name)]} {
         set header ""
         return
@@ -1123,6 +1124,8 @@ proc tkbranches::fillBranchMenu {m name} {
     set hidden [expr {$ok && [dict get $branches($name) hidden]}]
     $m add command -label [expr {$closed ? "Reopen" : "Close"}] -state $state \
         -command [list tkbranches::tagBranches [expr {$closed ? "reopen" : "close"}]]
+    $m add command -label "Finish branch\u2026" -command [list tkbranches::finish $name] \
+        -state [expr {$ok && [finishable $name] ? "normal" : "disabled"}]
     $m add command -label [expr {$hidden ? "Unhide" : "Hide"}] -state $state \
         -command [list tkbranches::tagBranches [expr {$hidden ? "unhide" : "hide"}]]
     $m add command -label "New branch from here\u2026" -state $state \
@@ -1307,8 +1310,17 @@ proc tkbranches::build {} {
     .branches.main.list.t tag configure current -font TkHeadingFont
 
     ttk::frame .branches.main.details
+    # The header of the branch, and on its right what is done with it.
+    ttk::frame .branches.main.details.top
     ttk::label .branches.main.details.header -textvariable tkbranches::header -padding {6 4} \
         -anchor w -wraplength 1000 -justify left
+    ttk::style configure Small.TButton -padding {8 0} -width 0
+    ttk::button .branches.main.details.finish -text Finish\u2026 -style Small.TButton -state disabled \
+        -command {tkbranches::finish $tkbranches::selected}
+    icons::tooltip .branches.main.details.finish \
+        "After the merge: cancel its CI tags, close its tickets, close the branch"
+    pack .branches.main.details.finish -in .branches.main.details.top -side right -padx {4 6}
+    pack .branches.main.details.header -in .branches.main.details.top -side left -fill x -expand 1
     bind .branches.main.details.header <Configure> {%W configure -wraplength [expr {max(0, %w - 12)}]}
     ttk::notebook .branches.main.details.nb
     set c [tree .branches.main.details.nb.checkins {
@@ -1323,7 +1335,7 @@ proc tkbranches::build {} {
     .branches.main.details.nb add .branches.main.details.nb.checkins -text Check-ins
     .branches.main.details.nb add .branches.main.details.nb.files -text Files
     .branches.main.details.nb add .branches.main.details.nb.tickets -text Tickets
-    pack .branches.main.details.header -fill x
+    pack .branches.main.details.top -fill x
     pack .branches.main.details.nb -fill both -expand 1
     .branches.main add .branches.main.list -weight 3
     .branches.main add .branches.main.details -weight 2

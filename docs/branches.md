@@ -282,6 +282,30 @@ pushed.
 To rename a branch from a check-in on, or to close a single leaf, use
 [Edit check-in](timeline.md#editing-check-ins) in the Timeline.
 
+## Finishing a branch
+
+**Finish branch…** (branch menu, or the **Finish…** button by the branch's
+details; disabled when there is nothing to do: for main and the other
+merge targets, and for a closed branch with no CI tags or tickets it fixes
+left) does in one go what is left after a branch
+is merged, as in the Tcl/Tk workflow (TIP 710: a branch per fix, reviewed,
+tested by the CI, merged).  It lists, each with a check box:
+
+- the CI tags (`core-…`, not release tags like `core-9-0-2`) given to the
+  branch's check-ins, to cancel (`fossil tag cancel`);
+- the open tickets the branch's comments link to, to close — as **Fixed**
+  for a bug, **Accepted** for other types, recording you as the closer.
+  Those named as fixed ("Fix [id]…") are checked; those only mentioned are
+  not;
+- closing the branch itself (`fossil branch close`).
+
+If the branch's last check-in is not merged into the first merge target
+yet, it says so in red (it does not stop you).  **Finish** shows Fossil's
+dry runs of the tag and branch changes and the ticket changes, and asks
+once; then they are written in this order, stopping at the first that
+fails.  Like the other changes here, it is refused while autosync is on,
+and nothing is pushed.
+
 ## Bundles
 
 A bundle is a file with check-ins, to give to someone without pushing

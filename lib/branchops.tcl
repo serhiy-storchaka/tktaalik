@@ -613,3 +613,208 @@ proc tkbranches::setTargets {} {
     setupColumns 1
     reload
 }
+
+# ------------------------------------------------------------ finish
+
+# After a branch is merged (TIP 710: reviewed, tested by CI, merged): in
+# one go, the core-* tags its check-ins got for the CI cancelled, the
+# open tickets it fixes closed, and the branch closed.  Each is a check
+# box; Fossil's dry runs and one question before anything is written.
+
+namespace eval tkbranches {
+    variable finish             ;# array: the check boxes of the window
+}
+
+# The core-* tags (not release tags) given to the branch's check-ins
+# themselves: {name hash} each.
+proc tkbranches::ciTags {name} {
+    variable repo
+    set rows [sql "SELECT DISTINCT substr(t.tagname,5), b.uuid FROM tagxref x
+        JOIN tag t ON t.tagid=x.tagid JOIN blob b ON b.rid=x.rid
+        WHERE x.tagtype=1 AND t.tagname GLOB 'sym-core-*'
+        AND x.rid IN (SELECT rid FROM tagxref WHERE tagtype>0 AND value=[fossil::sqlstr $name]
+            AND tagid=(SELECT tagid FROM tag WHERE tagname='branch'))
+        ORDER BY 1"]
+    lmap row $rows {
+        # (core-9-0-2, core-8-6-17, core-9-1-b0...: releases.)
+        if {[regexp {^core-[0-9]+-[0-9]+-([0-9]+|[ab][0-9]+)(-rc[0-9]*)?$} [lindex $row 0]]} continue
+        set row
+    }
+}
+
+# The open tickets the branch's comments link to: {uuid title type status
+# fix} each, fix 1 if a comment names it as fixed ("Fix [id]...").
+proc tkbranches::finishTickets {name} {
+    variable branches
+    if {![llength [dict get $branches($name) tickets]]} { return {} }
+    ::tickets::useRepository $::tkbranches::repo
+    set comments [split [dict get $branches($name) comments] \x02]
+    set result {}
+    foreach id [dict get $branches($name) tickets] {
+        set row [lindex [::tickets::sql "SELECT tkt_uuid, [join [lmap f {title type status} {
+            fossil::outcol "coalesce([::tickets::field $f],'')"
+        }] {, }] FROM ticket WHERE tkt_uuid GLOB [fossil::sqlstr $id*]"] 0]
+        if {$row eq ""} continue
+        lassign $row uuid title type status
+        if {[tktsearch::isClosed $status]} continue
+        set fix 0
+        foreach c $comments {
+            set id4 [string range $id 0 3]
+            if {[regexp -nocase [string cat {(^|\m)(fix(es|ed)?|close[sd]?|resolve[sd]?)\s+((for|of|bug|ticket)\s+)*\[} $id4] $c]
+                    || [regexp -nocase [string cat {^\s*\[} $id4] $c]} {
+                set fix 1
+            }
+        }
+        lappend result [list $uuid $title $type $status $fix]
+    }
+    return $result
+}
+
+# Whether Finish has anything to do for branch NAME: not a branch merged
+# into (main, the release branches), and still open, or with a CI tag or
+# an open ticket it fixes left.
+proc tkbranches::finishable {name} {
+    variable branches
+    variable targets
+    if {![info exists branches($name)] || $name in $targets || $name in {trunk main}} { return 0 }
+    if {![dict get $branches($name) closed]} { return 1 }
+    if {[llength [ciTags $name]]} { return 1 }
+    foreach t [finishTickets $name] { if {[lindex $t 4]} { return 1 } }
+    return 0
+}
+
+proc tkbranches::finish {name} {
+    variable branches
+    variable targets
+    variable finish
+    if {![info exists branches($name)] || ![canWrite]} return
+    set b $branches($name)
+    set tags [ciTags $name]
+    set tickets [finishTickets $name]
+    set w .branches.finish
+    set f [ui::dialog $w "Finish branch $name" -escape [list destroy $w] -help branches#finishing-a-branch]
+    array unset finish
+    set row 0
+    ttk::label $f.intro -justify left -wraplength 560 -text "After the branch is merged: what\
+        is still to do, each as checked.  Nothing is pushed."
+    grid $f.intro -row [incr row] -sticky w -pady {0 6}
+    # Not merged yet into the first target: said, not forbidden.
+    set first [lindex $targets 0]
+    if {$first ne "" && $first ne $name && [dict get $b merged $first] != 2} {
+        ttk::label $f.warn -foreground red3 -wraplength 560 -justify left -text "The last check-in of\
+            $name is not merged into [targetHeading $first] yet."
+        grid $f.warn -row [incr row] -sticky w -pady {0 6}
+    }
+    set n 0
+    foreach t $tags {
+        lassign $t tag hash
+        set finish(tag,$n) 1
+        set finish(tagof,$n) $t
+        ttk::checkbutton $f.t$n -variable tkbranches::finish(tag,$n) \
+            -text "Cancel the CI tag $tag on [string range $hash 0 9]"
+        grid $f.t$n -row [incr row] -sticky w
+        incr n
+    }
+    set n 0
+    foreach t $tickets {
+        lassign $t uuid title type status fix
+        set finish(tkt,$n) $fix
+        set finish(tktof,$n) $t
+        set resolution [expr {[string equal -nocase [string trim $type] bug] ? "Fixed" : "Accepted"}]
+        set finish(res,$n) $resolution
+        ttk::checkbutton $f.k$n -variable tkbranches::finish(tkt,$n) \
+            -text "Close ticket [string range $uuid 0 9] as $resolution: $title"
+        grid $f.k$n -row [incr row] -sticky w
+        if {!$fix} { icons::tooltip $f.k$n "Only mentioned in the branch's comments, not named as fixed" }
+        incr n
+    }
+    if {![dict get $b closed]} {
+        set finish(close) 1
+        ttk::checkbutton $f.close -variable tkbranches::finish(close) -text "Close the branch $name"
+        grid $f.close -row [incr row] -sticky w
+    }
+    if {![llength $tags] && ![llength $tickets] && [dict get $b closed]} {
+        ttk::label $f.none -text "Nothing is left to do: the branch is closed, and it has no CI tags\
+            or open tickets." -wraplength 560
+        grid $f.none -row [incr row] -sticky w
+    }
+    ttk::frame $f.b
+    ttk::button $f.b.ok -text Finish -default active -command [list tkbranches::finishDone $name]
+    ttk::button $f.b.cancel -text Cancel -command [list destroy $w]
+    pack $f.b.cancel $f.b.ok -side right -padx {4 0}
+    grid $f.b -row [incr row] -sticky ew -pady {10 0}
+    focus $f.b.ok
+}
+
+proc tkbranches::finishDone {name} {
+    variable finish
+    variable repo
+    variable me
+    set w .branches.finish
+    if {![winfo exists $w]} return
+    # The closed status as the repository spells it (as Close ticket).
+    ::tickets::useRepository $repo
+    set closed Closed
+    set choices [::tickets::choices]
+    if {[dict exists $choices status]} {
+        set i [lsearch -exact -nocase [dict get $choices status] closed]
+        if {$i >= 0} { set closed [lindex [dict get $choices status] $i] }
+    }
+    # What is checked, with Fossil's dry runs.
+    set steps {}
+    set dry {}
+    foreach key [lsort -dictionary [array names finish tag,*]] {
+        if {!$finish($key)} continue
+        lassign $finish(tagof,[lindex [split $key ,] 1]) tag hash
+        set cmd [list tag cancel [fossil::arg $tag] [fossil::arg $hash]]
+        lassign [fossil::run {*}$cmd -R $repo --dry-run] code out
+        if {$code} { ui::errorBox -parent $w -title "Finish branch" "fossil tag cancel failed (dry run):" $out; return }
+        lappend steps [list fossil $cmd]
+        lappend dry "fossil [join $cmd]\n[string trim $out]"
+    }
+    foreach key [lsort -dictionary [array names finish tkt,*]] {
+        if {!$finish($key)} continue
+        set n [lindex [split $key ,] 1]
+        lassign $finish(tktof,$n) uuid title type status
+        lappend steps [list ticket $uuid $status $finish(res,$n)]
+        lappend dry "ticket [string range $uuid 0 9]: status $status \u2192 $closed, resolution $finish(res,$n)"
+    }
+    if {[info exists finish(close)] && $finish(close)} {
+        lassign [fossil::run branch close -n -v -R $repo [fossil::arg $name]] code out
+        if {$code} { ui::errorBox -parent $w -title "Finish branch" "fossil branch close failed (dry run):" $out; return }
+        lappend steps [list fossil [list branch close [fossil::arg $name]]]
+        lappend dry "fossil branch close $name\n[string trim $out]"
+    }
+    if {![llength $steps]} {
+        ui::infoBox -parent $w -title "Finish branch" "Nothing is checked."
+        return
+    }
+    if {![showOutput "Finish branch" "Finish $name: [llength $steps] [expr {[llength $steps] == 1 ? "change" : "changes"}],\
+            as $me, in [file tail $repo]?  Nothing is pushed." [join $dry \n\n] Finish]} return
+    destroy $w
+    # The ticket fields as Close ticket writes them.
+    set ::tickets::me $me
+    set done 0
+    foreach step $steps {
+        if {[lindex $step 0] eq "fossil"} {
+            lassign [fossil::run {*}[lindex $step 1] -R $repo] code out
+            if {$code} {
+                showOutput "Finish branch" "fossil [lindex $step 1 0] failed\
+                    ($done of [llength $steps] done):" $out
+                break
+            }
+        } else {
+            lassign $step - uuid status resolution
+            set fields [list status $closed]
+            if {[::tickets::canWrite resolution]} { dict set fields resolution $resolution }
+            set fields [dict merge $fields [tktsearch::closerFields $status $closed]]
+            if {[catch {::tickets::writeTicket set $uuid $fields} msg]} {
+                showOutput "Finish branch" "The ticket [string range $uuid 0 9] was not closed\
+                    ($done of [llength $steps] done):" $msg
+                break
+            }
+        }
+        incr done
+    }
+    reload
+}
