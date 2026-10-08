@@ -3,8 +3,8 @@
 # after the post they answer, indented), each the newest version of it,
 # rendered by Fossil (Markdown, wiki or plain text).  Links to other posts
 # open their thread here, links to tickets in the Tickets tab, others in
-# the browser.  New threads and replies are sent to the server through
-# its web forms (web::forumPost), then pulled.
+# the browser.  New threads, replies, edits and deletions are sent to the
+# server through its web forms (web::forumPost), then pulled.
 
 source [file join [file dirname [file normalize [info script]]] fossil.tcl]
 source [file join [file dirname [file normalize [info script]]] tablecols.tcl]
@@ -26,7 +26,7 @@ namespace eval tkforum {
     variable marks {}         ;# post hash -> its position in the text
     variable scrollTo {}      ;# {thread post}: where showThread scrolls
     variable posts {}         ;# the posts shown: {rid depth edited} each
-    variable me ""            ;# the default user: who posts
+    variable me ""            ;# the default user (tkforum::poster)
     variable format Markdown  ;# of new posts
     variable formats {
         Markdown text/x-markdown  "Fossil wiki" text/x-fossil-wiki  {Plain text} text/plain
@@ -348,8 +348,17 @@ proc tkforum::showThread {froot} {
         $d insert end $user [list head $tag] "  $when" [list meta $tag]
         if {[canPost]} {
             ttk::button $d.reply$fpid -text Reply\u2026 -style Small.TButton \
-                -command [list tkforum::compose $uuid]
+                -command [list tkforum::compose reply $uuid]
             $d window create end -window $d.reply$fpid -padx 8 -align center
+            # One's own posts (not deleted): Edit and Delete too.
+            if {$user eq [poster] && [string trim $text] ne ""} {
+                ttk::button $d.edit$fpid -text Edit\u2026 -style Small.TButton \
+                    -command [list tkforum::compose edit $uuid]
+                ttk::button $d.delete$fpid -text Delete\u2026 -style Small.TButton \
+                    -command [list tkforum::compose delete $uuid]
+                $d window create end -window $d.edit$fpid -padx 2 -align center
+                $d window create end -window $d.delete$fpid -padx 2 -align center
+            }
         }
         $d insert end \n [list meta $tag]
         set mimetype [expr {[dict exists $cards N] ? [dict get $cards N] : "text/x-fossil-wiki"}]
@@ -391,17 +400,31 @@ proc tkforum::canPost {} {
     expr {$remote ne "" && [auto_execok curl] ne ""}
 }
 
-# The window to write a post: a new thread, or a reply to the post REPLYTO
-# (its hash).
-proc tkforum::compose {{replyTo ""}} {
+# Who posts: the user given in this session, else the user of the server
+# URL, else the default user.
+proc tkforum::poster {} {
+    variable repo
+    variable remote
+    variable webUser
+    variable me
+    if {![info exists webUser($remote)]} {
+        set urlUser [fossil::remoteUser $repo]
+        set webUser($remote) [expr {$urlUser ne "" ? $urlUser : $me}]
+    }
+    return $webUser($remote)
+}
+
+# The window to write a post (MODE new: a new thread; reply: a reply to
+# the post HASH; edit: a new version of it) or to delete one (delete: the
+# same window without the text).
+proc tkforum::compose {{mode new} {hash ""}} {
     variable formats
+    variable format
     variable repo
     variable remote
     variable postTitle
-    variable webUser
     variable webPassword
     variable passwords
-    variable me
     if {$repo eq ""} return
     if {![canPost]} {
         if {$remote eq ""} {
@@ -415,82 +438,112 @@ proc tkforum::compose {{replyTo ""}} {
     }
     set w .forum.compose
     destroy $w
-    if {$replyTo eq ""} {
-        set title "New thread"
-    } else {
+    set postTitle ""
+    set first 0
+    if {$mode ne "new"} {
         lassign [lindex [fossil::sql $repo "SELECT [fossil::outcol "coalesce(e.user,'')"],
             strftime('%Y-%m-%d %H:%M', f.fmtime),
-            [fossil::outcol "coalesce((SELECT comment FROM event WHERE objid=f.froot),'')"]
-            FROM forumpost f LEFT JOIN event e ON e.objid=f.fpid
-            WHERE f.fpid=(SELECT rid FROM blob WHERE uuid=[fossil::sqlstr $replyTo])"] 0] \
-            user date thread
-        set title "Reply: [tkforum::title $thread]"
+            [fossil::outcol "coalesce((SELECT comment FROM event WHERE objid=f.froot),'')"],
+            [fossil::outcol "content(b.uuid)"]
+            FROM forumpost f JOIN blob b ON b.rid=f.fpid LEFT JOIN event e ON e.objid=f.fpid
+            WHERE b.uuid=[fossil::sqlstr $hash]"] 0] \
+            user date thread artifact
+        lassign [parse $artifact] cards text
+        # (A thread's first post has its title: kept, and editable.)
+        set first [dict exists $cards H]
+        if {$first} { set postTitle [dict get $cards H] }
     }
+    set title [dict get {new "New thread" reply Reply edit Edit delete Delete} $mode]
+    if {$mode ne "new"} { append title ": [tkforum::title $thread]" }
     set f [ui::dialog $w $title -escape [list destroy $w] -help forum#writing]
     grid columnconfigure $f 1 -weight 1
-    if {$replyTo eq ""} {
-        set postTitle ""
+    if {$mode eq "new" || ($mode eq "edit" && $first)} {
         ttk::label $f.lt -text Title
         ttk::entry $f.title -textvariable tkforum::postTitle -width 60
         grid $f.lt $f.title -sticky ew -pady {0 6}
         grid $f.lt -sticky w -padx {0 8}
-    } else {
-        ttk::label $f.to -text "In reply to $user, $date" -foreground gray35
+    }
+    switch $mode {
+        reply { set about "In reply to $user, $date" }
+        edit { set about "Your post of $date: the edit is a new version of it" }
+        delete { set about "Your post of $date" }
+        default { set about "" }
+    }
+    if {$about ne ""} {
+        ttk::label $f.to -text $about -foreground gray35
         grid $f.to - -sticky w -pady {0 6}
     }
-    formattext::create $f.editor -formats $formats -variable tkforum::format -repo $repo -height 12
-    grid $f.editor - -sticky news
-    grid rowconfigure $f 1 -weight 1
-    # Who: the user of the server URL, else the default user; the password
-    # given before in this session, else the one Fossil saved for the
-    # user of the server URL.
-    set urlUser [fossil::remoteUser $repo]
-    if {![info exists webUser($remote)]} {
-        set webUser($remote) [expr {$urlUser ne "" ? $urlUser : $me}]
+    if {$mode eq "delete"} {
+        ttk::label $f.what -wraplength 520 -justify left -text "Its text is replaced by\
+            nothing (a new, empty version); the earlier versions stay in the history, and\
+            replies to it stay."
+        grid $f.what - -sticky w
+    } else {
+        if {$mode eq "edit"} {
+            set type [expr {[dict exists $cards N] ? [dict get $cards N] : "text/x-fossil-wiki"}]
+            foreach {name t} $formats {
+                if {$t eq $type} { set format $name }
+            }
+        }
+        formattext::create $f.editor -formats $formats -variable tkforum::format -repo $repo -height 12
+        grid $f.editor - -sticky news
+        grid rowconfigure $f [lindex [grid info $f.editor] [expr {[lsearch [grid info $f.editor] -row] + 1}]] -weight 1
+        if {$mode eq "edit"} { [formattext::widget $f.editor] insert end $text }
+        bind [formattext::widget $f.editor] <Control-Return> "[list tkforum::post $mode $hash]; break"
     }
+    # The password given before in this session, else the one Fossil saved
+    # for the user of the server URL.
+    set who [poster]
+    set urlUser [fossil::remoteUser $repo]
     if {[info exists passwords($remote)]} {
         set webPassword $passwords($remote)
-    } elseif {$urlUser ne "" && $webUser($remote) eq $urlUser} {
+    } elseif {$urlUser ne "" && $who eq $urlUser} {
         set webPassword [fossil::savedPassword $repo]
     } else {
         set webPassword ""
     }
     ttk::frame $f.login
-    ttk::label $f.login.lu -text "Post to $remote as"
+    ttk::label $f.login.lu -text "[expr {$mode eq "delete" ? "On" : "Post to"}] $remote as"
     ttk::entry $f.login.user -textvariable tkforum::webUser($remote) -width 16
     ttk::label $f.login.lp -text Password
     ttk::entry $f.login.password -textvariable tkforum::webPassword -show * -width 16
     pack $f.login.lu $f.login.user $f.login.lp $f.login.password -side left -padx {0 6}
     grid $f.login - -sticky w -pady {8 0}
     ttk::frame $f.b
-    ttk::button $f.b.post -text Post -default active -command [list tkforum::post $replyTo]
+    ttk::button $f.b.post -text [dict get {new Post reply Post edit Save delete Delete} $mode] \
+        -default active -command [list tkforum::post $mode $hash]
     ttk::button $f.b.cancel -text Cancel -command [list destroy $w]
     pack $f.b.cancel $f.b.post -side right -padx {4 0}
     grid $f.b - -sticky ew -pady {8 0}
-    bind [formattext::widget $f.editor] <Control-Return> "[list tkforum::post $replyTo]; break"
-    bind $f.login.password <Return> [list tkforum::post $replyTo]
-    focus [expr {$replyTo eq "" ? "$f.title" : [formattext::widget $f.editor]}]
+    bind $f.login.password <Return> [list tkforum::post $mode $hash]
+    if {$mode eq "new"} {
+        focus $f.title
+    } elseif {$mode eq "delete"} {
+        focus $f.b.post
+    } else {
+        focus [formattext::widget $f.editor]
+    }
 }
 
-# Post what the window has: asked first, then sent, then pulled here.
-proc tkforum::post {replyTo} {
+# Send what the window has (see compose): asked first, then sent, then
+# pulled here.
+proc tkforum::post {mode hash} {
     variable repo
     variable remote
     variable postTitle
-    variable webUser
     variable webPassword
     variable passwords
     set w .forum.compose
     if {![winfo exists $w]} return
     set f $w.f
-    set text [string trim [formattext::get $f.editor]]
+    set text [expr {$mode eq "delete" ? "" : [string trim [formattext::get $f.editor]]}]
     set title [string trim $postTitle]
-    set user [string trim $webUser($remote)]
-    if {$replyTo eq "" && $title eq ""} {
-        ui::infoBox -parent $w -title Forum "A new thread needs a title."
+    set user [string trim [poster]]
+    if {[winfo exists $f.title] && $title eq ""} {
+        ui::infoBox -parent $w -title Forum "A thread needs a title."
         return
     }
-    if {$text eq ""} {
+    if {$mode ne "delete" && $text eq ""} {
         ui::infoBox -parent $w -title Forum "The post is empty."
         return
     }
@@ -499,20 +552,31 @@ proc tkforum::post {replyTo} {
         focus [expr {$user eq "" ? "$f.login.user" : "$f.login.password"}]
         return
     }
-    set fields [dict create content $text mimetype [formattext::mimetype $f.editor]]
-    if {$replyTo eq ""} {
-        dict set fields title $title
-        set what "Start the thread \"$title\""
-    } else {
-        dict set fields fpid $replyTo
-        set what "Post this reply"
+    set fields [dict create]
+    if {$mode ne "delete"} {
+        dict set fields content $text
+        dict set fields mimetype [formattext::mimetype $f.editor]
     }
+    if {$mode ne "new"} {
+        dict set fields fpid $hash
+        dict set fields action $mode
+    }
+    # (A thread's first post: its title; "" when deleted.)
+    if {[winfo exists $f.title]} {
+        dict set fields title $title
+    } elseif {$mode eq "delete" && $postTitle ne ""} {
+        dict set fields title ""
+    }
+    set what [dict get {new "Start the thread" reply "Post this reply" edit "Save this edit"
+        delete "Delete this post"} $mode]
+    if {$mode eq "new"} { append what " \"$title\"" }
     if {![ui::confirm -parent $w -title Forum "$what on $remote?" \
-            "As $user.  It goes to the server now and cannot be taken back (an edit\
-            is a new version); then this repository pulls it."]} return
+            "As $user.  It goes to the server now and cannot be taken back (an edit or\
+            a deletion is a new version; the earlier ones stay); then this repository\
+            pulls it."]} return
     try {
         ui::busy {
-            lassign [web::forumPost $remote $user $webPassword $fields] hash held
+            lassign [web::forumPost $remote $user $webPassword $fields] newHash held
         }
     } trap {WEB LOGIN} msg {
         ui::errorBox -parent $w -title Forum "Not logged in." $msg
@@ -525,8 +589,8 @@ proc tkforum::post {replyTo} {
     set passwords($remote) $webPassword
     destroy $w
     if {$held} {
-        ui::infoBox -title Forum "Posted; it waits for a moderator." \
-            "The post shows here once a moderator of $remote has approved it\
+        ui::infoBox -title Forum "Sent; it waits for a moderator." \
+            "It shows here once a moderator of $remote has approved it\
             and the repository has pulled it."
         return
     }
@@ -534,12 +598,12 @@ proc tkforum::post {replyTo} {
         lassign [fossil::run pull -R $repo] code out
     }
     if {$code} {
-        ui::errorBox -title Forum "Posted, but the pull failed." [string trim $out]
+        ui::errorBox -title Forum "Sent, but the pull failed." [string trim $out]
         return
     }
     tktaalik::navigate
     reload
-    showPost $hash 0
+    showPost $newHash 0
 }
 
 proc tkforum::hashLink {match hash} {

@@ -2,8 +2,8 @@
 
 The **Forum** tab shows the forum of the repository: its threads, newest
 activity first, and below them the posts of the thread selected, threaded
-and rendered.  You can start threads and reply ([Writing](#writing));
-editing a post is done in the web interface (**Open in browser**).
+and rendered.  You can start threads, reply, and edit or delete your own
+posts ([Writing](#writing)).
 
 A repository has a forum only if it is a forum repository or one where the
 forum is used; otherwise the status line says "No forum in this
@@ -82,16 +82,25 @@ post, answers that post.  The text is written in the same editor as ticket
 comments, in Markdown (the default), Fossil wiki or plain text, with its
 **Preview**.  **Post** (or Ctrl+Return in the text) sends it, as below.
 
+Your own posts (by the user you post as) also have **Edit…** and
+**Delete…**.  **Edit…** opens the post's text in its format (and the
+thread's title, for the first post of a thread); **Save** sends a new
+version of the post, which the thread then shows, "edited".  **Delete…**
+replaces the text with nothing — a new, empty version, shown "(deleted)";
+the replies to it stay.  Neither takes anything back: the earlier versions
+stay in the repository's history.  The server decides in the end: a closed
+thread cannot be edited, except by an administrator (whose **Edit…** for
+other people's posts is only in the web interface).
+
 Posts are sent to the server, as from its web pages: Tktaalik logs in
 there (with `curl`) and fills in the same forms, so anyone allowed to post
 on the website can post here, without the right to push.  The window asks
 for your user and password on the server: the user from the repository's
 server URL, else its default user, and the password Fossil saved for that
 URL's user (when you let it remember the password for sync), if any.  A
-password typed here is kept until Tktaalik is closed, never saved.  **Post** asks first: the post goes to the server at
-once and cannot be taken back (Fossil keeps every artifact, and an edit, in
-the web interface, is a new version of the post).  Then the repository
-pulls, and the thread is shown with the post.
+password typed here is kept until Tktaalik is closed, never saved.
+**Post** (**Save**, **Delete**) asks first: it goes to the server at once.
+Then the repository pulls, and the thread is shown with the change.
 
 If the server holds your posts for a moderator (users the forum does not
 yet trust), Tktaalik says so; the post shows here once it is approved and

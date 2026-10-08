@@ -8,8 +8,11 @@
 #   web::forumPost URL USER PASSWORD FIELDS
 #       logs in to the repository at URL and posts to the forum: FIELDS
 #       is a dict with content and mimetype, and title (a new thread) or
-#       fpid (the hash of the post replied to).  Returns {HASH HELD}: the
-#       new post and whether it waits for a moderator.  Throws
+#       fpid (the hash of a post) and action: reply (the default), edit
+#       (a new version of the post: its title too if it starts a thread)
+#       or delete (an empty version; title "" if it starts a thread, no
+#       content needed).  Returns {HASH HELD}: the new post or version
+#       and whether it waits for a moderator.  Throws
 #       {WEB LOGIN} (wrong user or password), {WEB DENIED} (the user may
 #       not post), {WEB CURL} (no curl, or the server not reached) or
 #       {WEB POST} (the server did not take the post).
@@ -25,14 +28,25 @@ proc web::forumPost {url user password fields} {
         # Logged in: redirected (to the home page); else 401.
         if {$code == 401} { throw {WEB LOGIN} "The server did not take the user or the password." }
         if {$code != 302} { throw {WEB CURL} "The login page answered $code." }
-        if {[dict exists $fields title]} {
+        if {![dict exists $fields fpid]} {
             set page forume1
             set query ""
             set form [dict create title [dict get $fields title]]
         } else {
             set page forume2
-            set query ?fpid=[dict get $fields fpid]&reply
-            set form [dict create fpid [dict get $fields fpid] reply 1]
+            set fpid [dict get $fields fpid]
+            set action [expr {[dict exists $fields action] ? [dict get $fields action] : "reply"}]
+            # (Fossil's names: a deletion "nulls out" the post.)
+            set name [dict get {reply reply edit edit delete nullout} $action]
+            set query ?fpid=$fpid&$name
+            set form [dict create fpid $fpid $name 1]
+            if {$action eq "delete"} {
+                dict set fields content ""
+                dict set fields mimetype text/x-fossil-wiki
+            }
+            if {$action ne "reply" && [dict exists $fields title]} {
+                dict set form title [dict get $fields title]
+            }
         }
         # The form, for its token against cross-site requests.
         lassign [Request $dir $url/$page$query {} ""] code to

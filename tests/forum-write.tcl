@@ -11,7 +11,7 @@ set S $T(tmp)/server.fossil
 exec fossil init -A admin $S
 # (No backoffice: a process the server forks and leaves running.)
 exec fossil settings backoffice-disable 1 -R $S
-foreach {user caps pw} {poster o23 secret trusted o234 secret2} {
+foreach {user caps pw} {poster o23 secret trusted o234 secret2 other o234 secret4} {
     exec fossil user new $user "" $pw -R $S
     exec fossil user capabilities $user $caps -R $S
 }
@@ -53,6 +53,7 @@ for {set i 0} {$i < 20} {incr i} {
 check "the server is up ($url)" {$up}
 if {!$up} done
 set first [lindex [web::forumPost $url trusted secret2 {title "First thread" content "Hello." mimetype text/x-markdown}] 0]
+set others [lindex [web::forumPost $url other secret4 [list fpid $first content "Not yours." mimetype text/plain]] 0]
 set R $T(tmp)/clone.fossil
 exec fossil clone $url $R
 exec fossil settings autosync off -R $R
@@ -117,12 +118,53 @@ check "the password kept for the session" {$tkforum::webPassword eq "secret"}
 set tkforum::webUser($url) trusted
 set tkforum::webPassword secret2
 $f.b.post invoke; update
-set reply [lindex [sql "SELECT fpid FROM forumpost WHERE froot=$root AND fpid<>$root" $R] 0 0]
+set reply [lindex [sql "SELECT fpid FROM forumpost JOIN event ON objid=fpid
+    WHERE froot=$root AND fpid<>$root AND user='trusted'" $R] 0 0]
 check "pulled here as a reply ($reply)" {$reply ne ""}
 check "shown in the thread" {[winfo exists $d.reply$reply]}
 check "busy while sent: $::busyDuring" {$::busyDuring eq {1 1 watch}}
 check "not busy after" {![tk busy status .]}
 check "public on the server" {![private [lindex [sql "SELECT uuid FROM blob WHERE rid=$reply" $R] 0 0]]}
+
+# Edit and Delete: on one's own posts only.
+set orid [lindex [sql "SELECT rid FROM blob WHERE uuid=[fossil::sqlstr $others]" $R] 0 0]
+check "Edit and Delete on one's own posts" {[winfo exists $d.edit$reply] && [winfo exists $d.delete$reply]
+    && [winfo exists $d.edit$root]}
+check "not on another user's ($orid)" {[winfo exists $d.reply$orid] && ![winfo exists $d.edit$orid]
+    && ![winfo exists $d.delete$orid]}
+# Edit a reply: its text and format in the window, no title; a new version.
+$d.edit$reply invoke; update
+set e [formattext::widget $f.editor]
+check "edit: the text and the format" {[$e get 1.0 end-1c] eq "A trusted reply."
+    && $tkforum::format eq "Markdown" && ![winfo exists $f.title] && [$f.b.post cget -text] eq "Save"}
+$e delete 1.0 end
+$e insert end "An edited reply."
+set ::boxes {}
+$f.b.post invoke; update
+check "edit: asked first: [lindex $::boxes 0]" {[string match "Save this edit on *" [lindex $::boxes 0]]}
+set edited [lindex [sql "SELECT fpid FROM forumpost WHERE fprev=$reply" $R] 0 0]
+check "edit: a new version, pulled ($edited)" {$edited ne ""}
+check "edit: shown, edited" {[string first "An edited reply." [$d get 1.0 end]] >= 0
+    && [string first "A trusted reply." [$d get 1.0 end]] < 0 && [winfo exists $d.edit$edited]}
+# Edit the thread's first post: its title too.
+$d.edit$root invoke; update
+check "edit the first post: its title" {[winfo exists $f.title] && $tkforum::postTitle eq "First thread"}
+set tkforum::postTitle "First thread, renamed"
+$f.b.post invoke; update
+set rootv [lindex [sql "SELECT fpid FROM forumpost WHERE fprev=$root" $R] 0 0]
+check "edit the first post: the new title ($rootv)" {$rootv ne ""
+    && [string first "First thread, renamed" [$d get 1.0 end]] >= 0}
+# Delete the edited reply: an empty version; no Edit on it after.
+$d.delete$edited invoke; update
+check "delete: no text, the button says so" {![winfo exists $f.editor] && [$f.b.post cget -text] eq "Delete"}
+set ::boxes {}
+$f.b.post invoke; update
+check "delete: asked first: [lindex $::boxes 0]" {[string match "Delete this post on *" [lindex $::boxes 0]]}
+set gone [lindex [sql "SELECT fpid FROM forumpost WHERE fprev=$edited" $R] 0 0]
+check "delete: an empty version, pulled ($gone)" {$gone ne ""
+    && [string trim [lindex [tkforum::parse [lindex [sql "SELECT content(uuid) FROM blob WHERE rid=$gone" $R] 0 0]] 1]] eq ""}
+check "delete: shown deleted, no Edit" {[string first "(deleted)" [$d get 1.0 end]] >= 0
+    && ![winfo exists $d.edit$gone] && [winfo exists $d.reply$gone]}
 
 # A new thread.
 tkforum::compose; update
