@@ -432,10 +432,9 @@ proc tkcommit::commit {{dryRun 0}} {
     if {!$merging} {
         foreach path $paths { lappend args [filearg $path] }
     }
-    . configure -cursor watch
-    update idletasks
-    lassign [fossil {*}$args] code out
-    . configure -cursor ""
+    ui::busy {
+        lassign [fossil {*}$args] code out
+    }
     file delete $tmp
 
     if {$dryRun} {

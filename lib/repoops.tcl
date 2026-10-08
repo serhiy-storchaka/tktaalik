@@ -130,12 +130,11 @@ proc repoops::repositoryChanged {} {
 
 # Run fossil (in DIR if not ""), waiting: {code output}.
 proc repoops::runFossil {dir args} {
-    . configure -cursor watch
-    update idletasks
+    set busy [ui::busyHold]
     try {
         fossil::run -dir $dir {*}$args
     } finally {
-        . configure -cursor ""
+        ui::busyRelease $busy
     }
 }
 
@@ -398,8 +397,7 @@ proc repoops::allChanges {} {
     pack $w.y -side right -fill y
     pack $w.t -fill both -expand 1
     bind $w <Escape> [list destroy $w]
-    . configure -cursor watch
-    update idletasks
+    set busy [ui::busyHold]
     set clean {}
     try {
         foreach dir [known 1] {
@@ -413,7 +411,7 @@ proc repoops::allChanges {} {
             }
         }
     } finally {
-        . configure -cursor ""
+        ui::busyRelease $busy
     }
     if {[llength $clean]} {
         $w.t insert end "Without changes\n" head "[join $clean \n]\n" none

@@ -587,12 +587,11 @@ proc tkfulltext::ftsChange {argv} {
             -title "Search index" $what "fossil fts-config $argv\n\nIt changes\
                 this repository's settings and index only; nothing is synced.  On a big\
                 repository rebuilding the index takes a while."]} return
-    . configure -cursor watch
-    update
+    set busy [ui::busyHold]
     try {
         lassign [fossil::run fts-config -R $repo {*}$argv] code out
     } finally {
-        . configure -cursor ""
+        ui::busyRelease $busy
     }
     if {$code} {
         tk_messageBox -parent .search.fts -icon error -title "Search index" \

@@ -43,8 +43,9 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   `open |fossil` of its own) and makes its dialogs only through `ui::`
   (`confirm`, `ask`, `errorBox`, `infoBox`, `copy`, `openServer`, `dialog`,
   `buttons`, `form` with `-preview` and `-help`, `later`, `setText`,
-  `textWindow`; no `tk_messageBox`, `clipboard` or modal loop of its
-  own).  The API is listed at the top of each file.  The tabs' short
+  `textWindow`, `busy` and `busyHold`/`busyRelease` while waiting; no
+  `tk_messageBox`, `clipboard`, modal loop or `. configure -cursor watch`
+  of its own).  The API is listed at the top of each file.  The tabs' short
   procs that call it with their own context (`inCheckout` with the tab's
   checkout, `sql` with its repository, `openUrl`, a `confirm` with the
   tab's title) are fine; a proc that only passes its arguments on is not:

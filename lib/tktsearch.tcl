@@ -104,9 +104,8 @@ proc tktsearch::search {} {
     set query [string trim [regsub -all {[[:cntrl:]]} $query " "]]
     set q $query
 
-    . configure -cursor watch
+    set busy [ui::busyHold]
     .tickets.status configure -foreground ""
-    update idletasks
     try {
         set where [::tickets::buildQuery $q 1]
         set base [::tickets::stripState $q]
@@ -132,7 +131,7 @@ proc tktsearch::search {} {
         showError "Database error: $msg"
         return
     } finally {
-        . configure -cursor ""
+        ui::busyRelease $busy
     }
 
     set history [lrange [linsert [lsearch -all -inline -not -exact $history $q] 0 $q] 0 29]

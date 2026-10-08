@@ -509,10 +509,9 @@ proc tkuv::download {} {
             -detail "Add one in Repository \u25b8 Remotes."
         return
     }
-    . configure -cursor watch
-    update idletasks
-    lassign [fossil::run uv revert -n -v -R $repo] code out
-    . configure -cursor ""
+    ui::busy {
+        lassign [fossil::run uv revert -n -v -R $repo] code out
+    }
     if {$code} { failed "revert -n" $out; return }
     # The dry run names the files it would download ("UV-PULL: NAME"),
     # not those it would remove: the ones here that the server lacks

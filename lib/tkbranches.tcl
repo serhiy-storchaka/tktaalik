@@ -293,8 +293,7 @@ proc tkbranches::reload {} {
     variable root
     variable current
     variable repo
-    . configure -cursor watch
-    update idletasks
+    set busy [ui::busyHold]
     # The merge states in other processes, one for each target, beside the
     # rest: mstate(TARGET,BRANCH).
     array set mstate {}
@@ -312,7 +311,7 @@ proc tkbranches::reload {} {
         foreach {t chan} $chans {
             if {$chan in [chan names]} { catch {close $chan} }
         }
-        . configure -cursor ""
+        ui::busyRelease $busy
     }
     array unset branches
     variable currentMergedOf ""

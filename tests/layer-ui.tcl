@@ -108,4 +108,21 @@ ui::textWindow .ltw "Text" "line 1\nline 2"
 update
 check "textWindow" {[.ltw.t get 1.0 end-1c] eq "line 1\nline 2" && [.ltw.t cget -state] eq "disabled" && [wm title .ltw] eq "Text"}
 check "textWindow: Escape closes" {[bind .ltw <Escape>] eq "destroy .ltw"}
+
+# busy: the main window and the other toplevels shown, during the script
+# only; its return, error and result passed on.
+toplevel .lb; update
+proc busyStates {} { list [tk busy status .] [tk busy status .lb] [tk busy cget .lb -cursor] }
+check "busy: all windows, the watch: [ui::busy busyStates]" {[ui::busy busyStates] eq {1 1 watch}}
+check "busy: released after" {![tk busy status .] && ![tk busy status .lb]}
+proc busyReturns {} { ui::busy { return early }; return late }
+check "busy: return in the script returns from the caller" {[busyReturns] eq "early"}
+check "busy: error passed on, its code" {[catch {ui::busy { throw {LB TEST} oops }} msg opts]
+    && $msg eq "oops" && [dict get $opts -errorcode] eq {LB TEST}}
+check "busy: released after an error" {![tk busy status .] && ![tk busy status .lb]}
+set held [ui::busyHold .]
+check "busyHold .: the main window only" {$held eq "." && [tk busy status .] && ![tk busy status .lb]}
+ui::busyRelease $held
+check "busyRelease" {![tk busy status .]}
+destroy .lb
 done

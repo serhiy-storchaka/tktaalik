@@ -346,8 +346,7 @@ proc tktimeline::search {{remember 0}} {
         set history [lrange [linsert [lsearch -all -inline -not -exact $history $q] 0 $q] 0 29]
         .timeline.top.q configure -values $history
     }
-    . configure -cursor watch
-    update idletasks
+    set busy [ui::busyHold]
     try {
         set counts {}
         foreach v {all lastpull outgoing private} {
@@ -373,7 +372,7 @@ proc tktimeline::search {{remember 0}} {
         showError "Database error: $msg"
         return
     } finally {
-        . configure -cursor ""
+        ui::busyRelease $busy
     }
     foreach v {all lastpull outgoing private} {
         .timeline.tabs.$v configure -text "[dict get {all All lastpull "Last pull" outgoing Outgoing

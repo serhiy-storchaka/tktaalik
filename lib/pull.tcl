@@ -125,7 +125,7 @@ proc tktimeline::startPull {} {
     $w.f.out configure -state normal
     $w.f.out delete 1.0 end
     $w.f.out configure -state disabled
-    . configure -cursor watch
+    variable pullBusy [ui::busyHold .]
     fileevent $pullChan readable tktimeline::pullOutput
 }
 
@@ -147,7 +147,8 @@ proc tktimeline::pullOutput {} {
     fconfigure $pullChan -blocking 1
     set failed [catch {close $pullChan} msg]
     set pullChan ""
-    . configure -cursor ""
+    variable pullBusy
+    ui::busyRelease $pullBusy
     if {[winfo exists $w]} {
         $w.f.b.ok state !disabled
         $w.f.b.stop state disabled

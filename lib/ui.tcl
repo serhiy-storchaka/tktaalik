@@ -112,6 +112,39 @@ proc ui::buttons {frame ok okScript cancelScript} {
     pack $frame.cancel $frame.ok -side right -padx {4 0}
 }
 
+# Waiting for something: the windows busy (tk busy), the watch cursor
+# over all of each, text and entries too, and clicks ignored until done.
+#
+#   ui::busy SCRIPT         SCRIPT run in the caller with all the windows
+#                           shown busy (its return, break or error passed on)
+#   ui::busyHold ?WINDOWS?  WINDOWS (default: the main window and the other
+#                           toplevels shown) busy: those held, for
+#   ui::busyRelease HELD    after (for what goes on in the background)
+proc ui::busy {script} {
+    set held [busyHold]
+    set code [catch {uplevel 1 $script} result opts]
+    busyRelease $held
+    if {$code == 1} {
+        dict incr opts -level
+        return -options $opts $result
+    }
+    return -code $code $result
+}
+
+proc ui::busyHold {{windows ""}} {
+    if {$windows eq ""} { set windows [linsert [wm stackorder .] 0 .] }
+    set held {}
+    foreach w [lsort -unique $windows] {
+        if {[winfo exists $w] && ![catch {tk busy hold $w -cursor watch}]} { lappend held $w }
+    }
+    update idletasks
+    return $held
+}
+
+proc ui::busyRelease {held} {
+    foreach w $held { catch {tk busy forget $w} }
+}
+
 proc ui::later {cmd {ms 250}} {
     after cancel $cmd
     after $ms $cmd

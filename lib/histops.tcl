@@ -124,10 +124,9 @@ proc histops::archive {repo checkin {label ""}} {
     set ext [dict get {zip .zip tarball .tar.gz sqlar .sqlar} $archive(format)]
     set file [tk_getSaveFile -title "Save the archive" -initialfile [string trim $archive(name)]$ext]
     if {$file eq ""} return
-    . configure -cursor watch
-    update idletasks
-    lassign [fossil::run $archive(format) [fossil::arg $checkin] $file -R $repo {*}[archiveOpts]] code out
-    . configure -cursor ""
+    ui::busy {
+        lassign [fossil::run $archive(format) [fossil::arg $checkin] $file -R $repo {*}[archiveOpts]] code out
+    }
     if {$code} {
         tk_messageBox -icon error -title Archive -message "fossil $archive(format) failed:" -detail $out
     } else {

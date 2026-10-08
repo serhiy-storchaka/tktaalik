@@ -529,10 +529,9 @@ proc tkfiles::saveArchive {format path name include exclude} {
         tk_messageBox -icon info -title Archive -message $msg
         return 0
     }
-    . configure -cursor watch
-    update idletasks
-    lassign [fossil::run $format -R $repo $hash [file normalize $path] {*}$opts] code out
-    . configure -cursor ""
+    ui::busy {
+        lassign [fossil::run $format -R $repo $hash [file normalize $path] {*}$opts] code out
+    }
     if {$code} {
         tk_messageBox -icon error -title Archive -message "fossil $format failed:" -detail $out
         return 0

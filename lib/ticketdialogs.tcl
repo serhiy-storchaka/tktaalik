@@ -26,8 +26,7 @@ proc tktsearch::confirm {title what details} {
 
 # Write and show the result; returns the ticket's id or "".
 proc tktsearch::write {mode uuid fields} {
-    . configure -cursor watch
-    update idletasks
+    set busy [ui::busyHold]
     try {
         set id [::tickets::writeTicket $mode $uuid $fields]
     } trap {TICKETS WRITE} msg {
@@ -38,7 +37,7 @@ proc tktsearch::write {mode uuid fields} {
         tk_messageBox -icon error -title "Not written" -message "Database error." -detail $msg
         return ""
     } finally {
-        . configure -cursor ""
+        ui::busyRelease $busy
     }
     return $id
 }
