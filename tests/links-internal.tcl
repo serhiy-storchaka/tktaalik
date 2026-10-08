@@ -90,7 +90,13 @@ if {[llength [$nb.checkins.tv children {}]]} {
     $nb select $nb.checkins; update
     $nb.checkins.tv see $c; update
     lassign [$nb.checkins.tv bbox $c] x y
-    event generate $nb.checkins.tv <Double-1> -x [expr {$x + 5}] -y [expr {$y + 3}]; update
+    # (Two clicks with close times: Tk does not generate <Double-1>.)
+    set now [incr ::clickTime 10000]
+    foreach dt {0 100} {
+        event generate $nb.checkins.tv <ButtonPress-1> -x [expr {$x + 5}] -y [expr {$y + 3}] -time [expr {$now + $dt}]
+        event generate $nb.checkins.tv <ButtonRelease-1> -x [expr {$x + 5}] -y [expr {$y + 3}] -time [expr {$now + $dt + 20}]
+    }
+    update
     check "Check-ins tab: double-click, the Timeline" {$tktaalik::active eq "timeline" && $tktimeline::query eq "hash:[string range $c 0 15]"}
 }
 done

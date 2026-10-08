@@ -30,7 +30,7 @@ proc fontsUsed {} {
     return $r
 }
 # Markdown
-set md [ticketWith {c.mimetype='text/x-markdown' AND (c.icomment LIKE '%**%' OR c.icomment LIKE '%`%')}]
+set md [ticketWith {c.mimetype='text/x-markdown' AND c.icomment LIKE '%`tk_getOpenFile`%'}]
 set us [show $md]
 puts "  markdown ticket $md ([expr {$us/1000}] ms)"
 check "markdown: bold or code rendered" {[string match *-1?? [join [fontsUsed]]] || [string match *TkFixedFont* [join [fontsUsed]]]}

@@ -61,7 +61,11 @@ can arrange.  In the tabs, the arrangement is saved.
   A click without dragging still sorts.
 - **Choose:** right-click a heading.  A pop-up lists the columns with a
   check box each: check or uncheck them and the table changes at once (the
-  pop-up stays open).  Some columns, such as a ticket's title, are always
+  pop-up stays open).  A column checked appears after the column whose
+  heading was right-clicked.  The columns fill the window: the wide one
+  (such as a comment or a title) gives up or takes the space, down to a
+  readable width; if that is not enough, the table scrolls to show the new
+  column.  Some columns, such as a ticket's title, are always
   shown.  Below the check boxes are "Sort by COLUMN, ascending" and
   "descending" for the column right-clicked, and for the Tickets' Status
   column also by the resolution.  **Default columns** goes back to the columns and order

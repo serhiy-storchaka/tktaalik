@@ -3,8 +3,9 @@
 #
 # A click on a heading sorts by its column, a second click reverses the
 # order.  A right-click on a heading opens a pop-up with a checkbox for
-# each column, which stays open and changes the table at once, then the
-# sort orders of the column and "Default columns".  Dragging a heading
+# each column, which stays open and changes the table at once (a column
+# shown goes after the one right-clicked), then the sort orders of the
+# column and "Default columns".  Dragging a heading
 # moves its column.  The rows are sorted here, by the values given to
 # tablecols::fill, or by the caller (-sortcommand), e.g. with a query.
 #
@@ -35,6 +36,9 @@
 #   tablecols::state TREE   -> dict {shown KEYS order KEYS sort {KEY DIR}}
 #   tablecols::setSort TREE KEY DIR
 #       The sort order as the rows are sorted elsewhere: only the headings.
+#   tablecols::fit TREE
+#       The stretchable columns resized so that the columns fill the window
+#       (done when it is first shown and when columns are shown or hidden).
 
 namespace eval tablecols {
     variable columns    ;# array: tree -> the dict of columns
@@ -48,6 +52,7 @@ namespace eval tablecols {
     variable sortcommand ;# array: tree -> sorts the rows, or ""
     variable sortvalue  ;# array: tree,id -> dict key -> sort value
     variable on         ;# array: tree,key -> its checkbox
+    variable fitted     ;# array: tree -> fitted since setup (tablecols::fit)
     variable drag {}    ;# the heading being dragged
 }
 
@@ -107,6 +112,11 @@ proc tablecols::setup {t cols args} {
         if {[dict exists $spec icon]} { imageFirst; break }
     }
     headings $t
+    # The widths just set: fitted to the window when it is shown (now, if
+    # it is).
+    variable fitted
+    set fitted($t) 0
+    if {[winfo ismapped $t]} { after idle [list tablecols::firstFit $t] }
 
     if {![winfo exists [mark $t]]} {
         # A mark where a dragged column would go.
@@ -117,6 +127,7 @@ proc tablecols::setup {t cols args} {
         bind $t <B1-Motion> {+tablecols::dragMotion %W %x %y}
         bind $t <ButtonRelease-1> {+tablecols::dragEnd %W %x %y}
         # Tooltips: of icon headings, and of cells (-celltip).
+        bind $t <Map> {+tablecols::firstFit %W}
         bind $t <Motion> {+tablecols::motion %W %x %y %X %Y}
         bind $t <Leave> {+tablecols::tipOff %W}
         bind $t <ButtonPress> {+tablecols::tipOff %W}
@@ -345,21 +356,98 @@ proc tablecols::display {t} {
     $t configure -displaycolumns $display
 }
 
-# A checkbox of the pop-up: hide the column, or show it at the end.
-proc tablecols::toggle {t key} {
+# A checkbox of the pop-up: hide the column, or show it after the column
+# AFTER (the one right-clicked), else at the end, and scroll to it (at the
+# end of a wide table it would be out of sight).
+proc tablecols::toggle {t key {after ""}} {
     variable shown
     variable on
     variable order
     if {$on($t,$key)} {
         if {$key ni $shown($t)} {
             lappend shown($t) $key
-            set order($t) [concat [$t cget -displaycolumns] $key]
+            set display [$t cget -displaycolumns]
+            set i [lsearch -exact $display $after]
+            set order($t) [expr {$i < 0 ? [concat $display $key] : [linsert $display $i+1 $key]}]
         }
+        display $t
+        fit $t
+        seeColumn $t $key
     } else {
         set shown($t) [lmap k $shown($t) { if {$k eq $key} continue; set k }]
+        display $t
+        fit $t
     }
-    display $t
     changed $t
+}
+
+# Fit the columns to the window: the stretchable ones grow, or shrink down
+# to their -minwidth, until the columns shown fill it.  Tk adjusts them
+# only when the window is resized (and then only once any overflow or empty
+# space is used up), so a column shown would land beyond the right edge and
+# a column hidden would leave empty space.
+proc tablecols::fit {t} {
+    if {![winfo exists $t] || ![winfo ismapped $t]} return
+    # The width inside the border: where the first column starts.
+    set inset 0
+    for {set x 0} {$x < 20} {incr x} {
+        if {[$t identify column $x 10] ne ""} { set inset $x; break }
+    }
+    set display [$t cget -displaycolumns]
+    set total 0
+    set stretch {}
+    foreach c $display {
+        incr total [$t column $c -width]
+        if {[$t column $c -stretch]} { lappend stretch $c }
+    }
+    set diff [expr {[winfo width $t] - 2 * $inset - $total}]
+    # (Evenly; what one cannot give below its -minwidth, the others do.)
+    while {$diff != 0 && [llength $stretch]} {
+        set n [llength $stretch]
+        set left {}
+        foreach c $stretch {
+            set part [expr {$diff / $n}]
+            incr n -1
+            set w [$t column $c -width]
+            set new [expr {max([$t column $c -minwidth], $w + $part)}]
+            $t column $c -width $new
+            incr diff [expr {$w - $new}]
+            if {$new != $w + $part} continue
+            lappend left $c
+        }
+        if {[llength $left] == [llength $stretch] && $diff != 0} break
+        set stretch $left
+    }
+    # Tk's own record of the free space is computed again.
+    $t configure -displaycolumns $display
+}
+
+# Fit the table once after setup, when it is shown (Map), or at once.
+proc tablecols::firstFit {t} {
+    variable fitted
+    if {![info exists fitted($t)] || $fitted($t) || ![winfo ismapped $t]} return
+    set fitted($t) 1
+    update idletasks
+    fit $t
+}
+
+# Scroll the table sideways, if needed, so that column KEY is in view.
+proc tablecols::seeColumn {t key} {
+    update idletasks
+    set total 0
+    foreach c [$t cget -displaycolumns] {
+        if {$c eq $key} { set left $total }
+        incr total [$t column $c -width]
+    }
+    if {![info exists left] || $total <= 0} return
+    set right [expr {$left + [$t column $key -width]}]
+    lassign [$t xview] first last
+    set view [expr {($last - $first) * $total}]
+    if {$left < $first * $total} {
+        $t xview moveto [expr {double($left) / $total}]
+    } elseif {$right > $last * $total} {
+        $t xview moveto [expr {max(0.0, double($right) - $view) / $total}]
+    }
 }
 
 proc tablecols::defaultColumns {t} {
@@ -372,6 +460,7 @@ proc tablecols::defaultColumns {t} {
     set order($t) $defaultOrder($t)
     foreach key [others $t [$t cget -columns]] { set on($t,$key) [expr {$key in $shown($t)}] }
     display $t
+    fit $t
     changed $t
 }
 
@@ -492,7 +581,7 @@ proc tablecols::popup {t key X Y} {
     foreach k [others $t [$t cget -columns]] {
         set on($t,$k) [expr {$k in $shown($t)}]
         ttk::checkbutton $w.f.c$k -text [option $t $k heading $k] \
-            -variable tablecols::on($t,$k) -command [list tablecols::toggle $t $k]
+            -variable tablecols::on($t,$k) -command [list tablecols::toggle $t $k $key]
         pack $w.f.c$k -fill x -padx 2 -pady 1
         if {$first eq ""} { set first $w.f.c$k }
     }
