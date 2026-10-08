@@ -55,4 +55,12 @@ set tkbranches::query "-merged:$first is:closed"; tkbranches::search; update
 check "-merged with Closed: a filter of its own" {$tkbranches::view eq "closed" && [string match "*-merged:*" $tkbranches::query]}
 set tkbranches::query "is:Open"; tkbranches::search; update
 check "case: is:Open is the Open view" {$tkbranches::view eq "open"}
+# Private only: the term is:private.
+set tkbranches::query "is:open"; tkbranches::search; update
+.branches.tabs.private invoke; update
+check "Private only: [list $tkbranches::query]" {$tkbranches::query eq "is:open is:private" && $tkbranches::privateOnly && $tkbranches::view eq "open"}
+.branches.tabs.private invoke; update
+check "unchecked: the term gone: [list $tkbranches::query]" {$tkbranches::query eq "is:open" && !$tkbranches::privateOnly}
+set tkbranches::query "is:Private is:closed"; tkbranches::search; update
+check "typed: the box checked, Closed" {$tkbranches::privateOnly && $tkbranches::view eq "closed"}
 done

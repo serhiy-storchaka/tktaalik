@@ -97,7 +97,7 @@ Each view shows how many branches it has with the rest of the search.
 | Check box | Effect |
 |---|---|
 | Show hidden | Also hidden branches; without it they are shown only when the search asks for them with `is:hidden` |
-| Private only | Only private branches, which are never pushed |
+| Private only | Only private branches, which are never pushed: the term `is:private` in the search (checking the box adds it, typing it checks the box) |
 
 ## Search syntax
 

@@ -264,6 +264,38 @@ proc tktimeline::where {query} {
     expr {[llength $conds] ? [join $conds " AND "] : "1"}
 }
 
+# The views (the All, Last pull, Outgoing and Private buttons) are terms of
+# the query: none, pull:1, is:unsent, is:private.  The first one in the
+# query is the view; it filters as the view, and the buttons count the
+# rest of the search.  Returns {view rest-of-query}.
+proc tktimeline::splitView {query} {
+    set words [regexp -all -inline {(?:[^\s"]|"[^"]*")+} $query]
+    set i 0
+    foreach word $words {
+        foreach {v term} {lastpull pull:1 outgoing is:unsent private is:private} {
+            if {[string equal -nocase $word $term]} {
+                return [list $v [join [lreplace $words $i $i]]]
+            }
+        }
+        incr i
+    }
+    list all [join $words]
+}
+
+proc tktimeline::viewTerm {v} {
+    dict get {all "" lastpull pull:1 outgoing is:unsent private is:private} $v
+}
+
+# A view button: the same search with its term, in place of the view's.
+proc tktimeline::setView {} {
+    variable query
+    variable view
+    set new $view
+    tktaalik::navigate
+    set query [string trim "[lindex [splitView $query] 1] [viewTerm $new]"]
+    search
+}
+
 # The condition of a view.
 proc tktimeline::viewCondition {view} {
     switch -- $view {
@@ -294,6 +326,8 @@ proc tktimeline::search {{remember 0}} {
     variable history
     variable view
     variable searched
+    # (The view is a term of the query: see splitView.)
+    lassign [splitView $query] view rest
     set searched [list $query $view]
     variable limit
     variable status
@@ -302,7 +336,7 @@ proc tktimeline::search {{remember 0}} {
     after cancel {tktimeline::search}
     checkoutState
     try {
-        set where [where $query]
+        set where [where $rest]
     } trap {TKFOSSIL QUERY} msg {
         showError $msg
         return
@@ -985,7 +1019,7 @@ proc tktimeline::build {} {
     ttk::frame .timeline.tabs -padding {6 4}
     foreach {v label} {all All lastpull "Last pull" outgoing Outgoing private Private} {
         ttk::radiobutton .timeline.tabs.$v -style Toolbutton -text $label \
-            -variable tktimeline::view -value $v -command {tktaalik::navigate; tktimeline::search}
+            -variable tktimeline::view -value $v -command tktimeline::setView
         pack .timeline.tabs.$v -side left -padx {0 4}
     }
 
@@ -1087,6 +1121,10 @@ proc tktimeline::build {} {
     .timeline.top.q configure -values $history
     set view [getdef $config view all]
     set query [getdef $config query ""]
+    # (Settings of before the view was a term: the view into the query.)
+    if {$view ne "all" && [lindex [splitView $query] 0] eq "all"} {
+        set query [string trim "$query [viewTerm $view]"]
+    }
     # Searched while typing, a moment after the last key.
     trace add variable ::tktimeline::query write {::apply {args {
         tktaalik::typing .timeline.top.q
@@ -1127,7 +1165,10 @@ proc tktimeline::goTo {place} {
     variable query
     variable view
     lassign $place q v rid
-    if {$v ne ""} { set view $v }
+    # (A place of before the view was a term: the view into the query.)
+    if {$v ni {"" all} && [lindex [splitView $q] 0] eq "all"} {
+        set q [string trim "$q [viewTerm $v]"]
+    }
     set query $q
     search
     after cancel {tktimeline::search}
@@ -1159,11 +1200,9 @@ proc tktimeline::setRepository {path newRoot} {
     after cancel {tktimeline::search}
 }
 
-# Search for $q (from another tab), in the All view.
+# Search for $q (from another tab): the All view unless it has a view term.
 proc tktimeline::setQuery {q} {
     variable query
-    variable view
-    set view all
     set query $q
     search 1
     after cancel {tktimeline::search}

@@ -1,9 +1,9 @@
 # The Timeline tab: views, search terms, details.
 source [file join [file dirname [info script]] common.tcl]
 proc diffview::run {title args} { lappend ::diffs [list $title $args] }
+# (A view as its term in the search, as its button does.)
 proc q {text {view all}} {
-    set tktimeline::view $view
-    set tktimeline::query $text
+    set tktimeline::query [string trim "$text [tktimeline::viewTerm $view]"]
     tktimeline::search 1
     after cancel {tktimeline::search}
     update
@@ -51,8 +51,7 @@ set first [lindex [rows] end]
 set got2 [q {in:core-9-0-2 kind:ci}]
 check "ancestor sets differ" {[llength $got2] > 0}
 set got [q pull:1]
-set lp [q "" lastpull]
-check "pull:1 = Last pull view ([llength $got])" {$got eq $lp}
+check "pull:1 is the Last pull view ([llength $got])" {$tktimeline::view eq "lastpull"}
 set out [q "" outgoing]
 set unsent [lindex [tktimeline::sql "SELECT count(*) FROM event WHERE objid IN (SELECT rid FROM unsent)"] 0 0]
 check "outgoing = unsent events ($unsent)" {[llength $out] == $unsent}

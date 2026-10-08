@@ -101,20 +101,21 @@ searches, views and selected rows you have looked at.
 The buttons under the search box choose which events are listed.  Each
 shows how many events match the search in that view.
 
-| View | Shows |
-|---|---|
-| **All** | Everything |
-| **Last pull** | What the last pull from a server brought |
-| **Outgoing** | What a push would send: the events among the artifacts not pushed yet.  The files of unpushed check-ins are not events; the status line counts all unpushed artifacts |
-| **Private** | Private check-ins and branches, which are never pushed (as `fossil unpublished` lists them).  In the other views they are in purple italics |
+| View | Shows | Search term |
+|---|---|---|
+| **All** | Everything | none |
+| **Last pull** | What the last pull from a server brought | `pull:1` |
+| **Outgoing** | What a push would send: the events among the artifacts not pushed yet.  The files of unpushed check-ins are not events; the status line counts all unpushed artifacts | `is:unsent` |
+| **Private** | Private check-ins and branches, which are never pushed (as `fossil unpublished` lists them).  In the other views they are in purple italics | `is:private` |
 
 "Last pull" means the last pull over the network: Fossil records where each
 artifact came from, and a pull from a local file has no address.  After
 **File ▸ Pull…** the tab switches to this view by itself when something
 new came from a server.
 
-The view is a filter like the search: `pull:N` and `is:unsent` in the
-search do the same in any view.
+A view is a term of the search: a button puts its term in the search box
+(in place of another view's), and typing the term selects the button.
+Each button counts the events of the rest of the search.
 
 ## Search syntax
 

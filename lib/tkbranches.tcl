@@ -103,9 +103,10 @@ proc tkbranches::goTo {place} {
     lassign $place q v hidden private name
     if {$v ne ""} {
         set showHidden $hidden
-        set privateOnly $private
-        # (The view is a term of the query; a place without it has it here.)
+        # (The view and Private only are terms of the query; a place
+        # without them has them here.)
         if {$v ne "all" && [stripView $q] eq [string trim $q]} { set q [string trim "$q [viewTerms $v]"] }
+        if {$private && ![regexp -nocase {(^|\s)is:private(\s|$)} $q]} { set q [string trim "$q is:private"] }
     }
     set query $q
     search
@@ -716,6 +717,9 @@ proc tkbranches::parseSearch {query} {
     variable me
     variable targets
     set terms [parseQuery $query]
+    # Private only: the term is:private (it filters as a term).
+    variable privateOnly
+    set privateOnly [expr {[findTerm $terms 0 is private] >= 0}]
     set view all
     set i [findTerm $terms 0 is {open closed}]
     if {$i < 0} { return $terms }
@@ -760,6 +764,21 @@ proc tkbranches::setView {} {
     # (The view of the list shown: the button has already changed $view.)
     set rest [stripView $query [lindex $shown 1]]
     set query [string trim "$rest [viewTerms $view]"]
+    search
+}
+
+# Private only: the term is:private added to the search, or taken out.
+proc tkbranches::setPrivate {} {
+    variable query
+    variable privateOnly
+    set on $privateOnly
+    tktaalik::navigate
+    set words [lmap word [regexp -all -inline {(?:[^\s"]|"[^"]*")+} $query] {
+        if {[string equal -nocase $word is:private]} continue
+        set word
+    }]
+    if {$on} { lappend words is:private }
+    set query [join $words]
     search
 }
 
@@ -1270,7 +1289,7 @@ proc tkbranches::build {} {
     ttk::checkbutton .branches.tabs.hidden -text "Show hidden" -variable tkbranches::showHidden \
         -command {tktaalik::navigate; tkbranches::showList}
     ttk::checkbutton .branches.tabs.private -text "Private only" -variable tkbranches::privateOnly \
-        -command {tktaalik::navigate; tkbranches::showList}
+        -command tkbranches::setPrivate
     pack .branches.tabs.private .branches.tabs.hidden -side right -padx {6 0}
 
     # The list and the details.

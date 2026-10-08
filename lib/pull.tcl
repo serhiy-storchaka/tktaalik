@@ -164,7 +164,10 @@ proc tktimeline::pullOutput {} {
         AND rcvid IN (SELECT rcvid FROM blob JOIN event ON objid=rid)"]
     if {[llength $new]} {
         tktaalik::navigate
-        set view [expr {[lsearch -exact [join $new] 1] >= 0 ? "lastpull" : "all"}]
+        set v [expr {[lsearch -exact [join $new] 1] >= 0 ? "lastpull" : "all"}]
+        # (The view is a term of the search: in place of the one there.)
+        variable query
+        set query [string trim "[lindex [splitView $query] 1] [viewTerm $v]"]
     }
     changedHere
 }
