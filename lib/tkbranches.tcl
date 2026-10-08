@@ -1124,6 +1124,8 @@ proc tkbranches::fillBranchMenu {m name} {
     set hidden [expr {$ok && [dict get $branches($name) hidden]}]
     $m add command -label [expr {$closed ? "Reopen" : "Close"}] -state $state \
         -command [list tkbranches::tagBranches [expr {$closed ? "reopen" : "close"}]]
+    $m add command -label "Backport to another checkout\u2026" -state $state \
+        -command [list tkbranches::backport $name]
     $m add command -label "Finish branch\u2026" -command [list tkbranches::finish $name] \
         -state [expr {$ok && [finishable $name] ? "normal" : "disabled"}]
     $m add command -label [expr {$hidden ? "Unhide" : "Hide"}] -state $state \

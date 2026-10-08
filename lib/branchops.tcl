@@ -388,6 +388,13 @@ proc tkbranches::mergeIn {kind what done} {
     uplevel #0 $done
     if {$code} {
         showOutput $label "fossil merge failed:" $out
+    } elseif {$root ne $::tktaalik::root} {
+        # (Another checkout: committed there, so shown first.)
+        if {[ui::ask -title $label "Merged into the checkout $root." \
+                "[string trim $out]\n\nShow that checkout, to review and commit?"]} {
+            tktaalik::openPath $root
+            tktaalik::show commit
+        }
     } elseif {[ui::ask -title $label \
             "Merged into the checkout." "[string trim $out]\n\nOpen the commit window?"]} {
         commitWindow
@@ -817,4 +824,201 @@ proc tkbranches::finishDone {name} {
         incr done
     }
     reload
+}
+
+# ------------------------------------------------------------ backport
+
+# A branch into another checkout of the repository (one on 8.6, while this
+# one is on main): its check-ins cherry-picked there, oldest first, or the
+# branch merged, with Fossil's dry runs; the checkout shown is not
+# touched.  Then that checkout can be shown, to commit there.
+
+namespace eval tkbranches {
+    variable bp                 ;# array: the choices of the window
+}
+
+# The other checkouts of the repository at the tip of a merge target (the
+# ones to backport to): {dir branch changes} each.
+proc tkbranches::backportTargets {} {
+    variable repo
+    variable root
+    variable branches
+    variable targets
+    set tips {}
+    foreach t $targets {
+        if {![info exists branches($t)]} continue
+        dict set tips [lindex [sql "SELECT rid FROM blob\
+            WHERE uuid=[fossil::sqlstr [dict get $branches($t) tip]]"] 0 0] $t
+    }
+    set result {}
+    foreach row [sql "SELECT substr(name,7) FROM config WHERE name GLOB 'ckout:*' ORDER BY 1"] {
+        set dir [string trimright [lindex $row 0] /]
+        if {$dir eq "" || $dir eq [string trimright $root /] || ![file isdirectory $dir]} continue
+        if {![file exists $dir/.fslckout] && ![file exists $dir/_FOSSIL_]} continue
+        if {[catch {fossil::checkoutSql $dir "SELECT (SELECT value FROM vvar WHERE name='checkout'),
+            (SELECT count(*) FROM vfile WHERE chnged OR deleted OR rid=0)"} rows]} continue
+        lassign [lindex $rows 0] rid changes
+        if {[dict exists $tips $rid]} { lappend result [list $dir [dict get $tips $rid] $changes] }
+    }
+    return $result
+}
+
+# The check-ins of branch NAME, oldest first: {uuid date comment merge} each
+# (merge: it merged something in).
+proc tkbranches::branchCheckins {name} {
+    sql "SELECT b.uuid, strftime('%Y-%m-%d %H:%M', e.mtime),
+        [fossil::outcol "coalesce(e.ecomment,e.comment)"],
+        EXISTS(SELECT 1 FROM plink WHERE cid=x.rid AND NOT isprim)
+        FROM tagxref x JOIN event e ON e.objid=x.rid JOIN blob b ON b.rid=x.rid
+        WHERE x.tagtype>0 AND x.value=[fossil::sqlstr $name]
+        AND x.tagid=(SELECT tagid FROM tag WHERE tagname='branch') AND e.type='ci'
+        ORDER BY e.mtime"
+}
+
+proc tkbranches::backport {name} {
+    variable branches
+    variable bp
+    if {![info exists branches($name)]} return
+    set b $branches($name)
+    set dests [backportTargets]
+    variable bpDests $dests
+    set checkins [branchCheckins $name]
+    array unset bp
+    set bp(other) ""
+    # By default: a target the branch is not merged into yet.
+    set bp(dest) [expr {[llength $dests] ? 0 : "other"}]
+    set i 0
+    foreach d $dests {
+        lassign $d dir branch
+        if {[dict exists $b merged $branch] && [dict get $b merged $branch] != 2} { set bp(dest) $i; break }
+        incr i
+    }
+    set w .branches.backport
+    set f [ui::dialog $w "Backport $name" -escape [list destroy $w] -help branches#backports]
+    ttk::label $f.intro -wraplength 620 -justify left -text "Bring $name into another checkout\
+        of [file tail $::tkbranches::repo]; this one stays as it is.  Nothing is committed."
+    grid $f.intro - -sticky w -pady {0 6}
+    ttk::labelframe $f.to -text "Into the checkout" -padding 6
+    grid $f.to - -sticky ew
+    set i 0
+    foreach d $dests {
+        lassign $d dir branch changes
+        ttk::radiobutton $f.to.d$i -variable tkbranches::bp(dest) -value $i \
+            -text "$dir \u2014 on [targetHeading $branch][expr {$changes ? ", $changes changed files" : ""}]" \
+            -command tkbranches::backportHow
+        grid $f.to.d$i - -sticky w
+        incr i
+    }
+    ttk::radiobutton $f.to.other -variable tkbranches::bp(dest) -value other -text "Other checkout:" \
+        -command tkbranches::backportHow
+    ttk::entry $f.to.dir -textvariable tkbranches::bp(other) -width 50
+    grid $f.to.other $f.to.dir -sticky w
+    grid $f.to.dir -sticky ew
+    grid columnconfigure $f.to 1 -weight 1
+    ttk::labelframe $f.how -text How -padding 6
+    grid $f.how - -sticky ew -pady {6 0}
+    ttk::radiobutton $f.how.pick -variable tkbranches::bp(how) -value cherrypick \
+        -text "Cherry-pick its check-ins (fossil merge --cherrypick), oldest first:"
+    ttk::radiobutton $f.how.merge -variable tkbranches::bp(how) -value merge \
+        -text "Merge the branch (fossil merge $name): also what it was based on"
+    grid $f.how.pick -sticky w
+    set i 0
+    foreach c $checkins {
+        lassign $c uuid date comment merge
+        set bp(ci,$i) [expr {!$merge}]
+        set bp(uuid,$i) $uuid
+        set text "[string range $uuid 0 9]  $date  [string range [lindex [split $comment \n] 0] 0 70]"
+        if {$merge} { set text "(a merge) $text" }
+        ttk::checkbutton $f.how.c$i -variable tkbranches::bp(ci,$i) -text $text
+        grid $f.how.c$i -sticky w -padx {20 0}
+        if {$merge} {
+            icons::tooltip $f.how.c$i "It merged something into the branch: cherry-picked, the merged\
+                changes would come too"
+        }
+        incr i
+    }
+    set bp(count) $i
+    grid $f.how.merge -sticky w -pady {4 0}
+    set bp(base) [dict get $b base]
+    backportHow
+    ttk::frame $f.b
+    ttk::button $f.b.ok -text Backport\u2026 -default active -command [list tkbranches::backportDone $name]
+    ttk::button $f.b.cancel -text Cancel -command [list destroy $w]
+    pack $f.b.cancel $f.b.ok -side right -padx {4 0}
+    grid $f.b - -sticky e -pady {10 0}
+}
+
+# How, by default, for the checkout chosen: merged if it is on the branch
+# the branch was made from, else cherry-picked.
+proc tkbranches::backportHow {} {
+    variable bp
+    variable bpDests
+    set branch ""
+    if {$bp(dest) ne "other"} { set branch [lindex $bpDests $bp(dest) 1] }
+    # (main and trunk: the same branch.)
+    set same [expr {$branch eq $bp(base) || ($branch in {main trunk} && $bp(base) in {main trunk})}]
+    set bp(how) [expr {$branch ne "" && $same ? "merge" : "cherrypick"}]
+}
+
+proc tkbranches::backportDone {name} {
+    variable bp
+    variable bpDests
+    variable repo
+    set w .branches.backport
+    if {![winfo exists $w]} return
+    if {$bp(dest) eq "other"} {
+        set dir [file normalize [string trim $bp(other)]]
+        lassign [fossil::run -dir $dir info] code out
+        if {[string trim $bp(other)] eq "" || ![file isdirectory $dir] || $code
+                || ![regexp -line {^repository:\s+(.*\S)} $out -> r]
+                || [file normalize $r] ne [file normalize $repo]} {
+            ui::infoBox -parent $w -title Backport "Not a checkout of [file tail $repo]:" $dir
+            return
+        }
+    } else {
+        set dir [lindex $bpDests $bp(dest) 0]
+    }
+    if {$bp(how) eq "merge"} {
+        destroy $w
+        merge branch $name $dir
+        return
+    }
+    set picks {}
+    for {set i 0} {$i < $bp(count)} {incr i} {
+        if {$bp(ci,$i)} { lappend picks $bp(uuid,$i) }
+    }
+    if {![llength $picks]} {
+        ui::infoBox -parent $w -title Backport "No check-in is checked."
+        return
+    }
+    # Dry runs, each on the files as they are now.
+    set dry {}
+    foreach uuid $picks {
+        lassign [fossil::run -dir $dir merge -n --cherrypick $uuid] code out
+        if {$code} {
+            ui::errorBox -parent $w -title Backport "fossil merge --cherrypick [string range $uuid 0 9] failed\
+                (dry run):" $out
+            return
+        }
+        lappend dry "fossil merge --cherrypick [string range $uuid 0 9]\n[string trim $out]"
+    }
+    if {![showOutput Backport "Cherry-pick [llength $picks] [expr {[llength $picks] == 1 ? "check-in" : "check-ins"}]\
+            of $name into $dir?  The files change; nothing is committed.  (Each dry run is on the\
+            files as they are now, before the ones above it.)" [join $dry \n\n] Backport]} return
+    destroy $w
+    set done 0
+    foreach uuid $picks {
+        lassign [fossil::run -dir $dir merge --cherrypick $uuid] code out
+        if {$code} {
+            showOutput Backport "fossil merge --cherrypick [string range $uuid 0 9] failed\
+                ($done of [llength $picks] done):" $out
+            return
+        }
+        incr done
+    }
+    if {[ui::ask -title Backport "Cherry-picked into $dir." \
+            "[llength $picks] check-ins of $name.\n\nShow that checkout, to review and commit?"]} {
+        tktaalik::openPath $dir
+        tktaalik::show commit
+    }
 }

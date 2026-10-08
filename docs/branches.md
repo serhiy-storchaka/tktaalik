@@ -282,6 +282,32 @@ pushed.
 To rename a branch from a check-in on, or to close a single leaf, use
 [Edit check-in](timeline.md#editing-check-ins) in the Timeline.
 
+## Backports
+
+**Backport to another checkout…** (branch menu) brings the branch into
+another checkout of the same repository — the one you keep on
+`core-8-6-branch` while this one is on main — without touching the
+checkout shown (Fossil's way: a checkout per line of work).  It lists the
+other checkouts that are at the tip of a merge target (with how many files
+they have changed); **Other checkout** takes any folder that is a checkout
+of this repository.  The one preselected is on a target the branch is not
+merged into yet.  How:
+
+- **Cherry-pick its check-ins** (`fossil merge --cherrypick`), oldest
+  first: the default when that checkout is on another branch than the one
+  the branch was made from, as for a fix made on main and backported to
+  8.6, where merging would bring the rest of main too.  Check-ins that
+  merged something into the branch are listed unchecked: cherry-picked,
+  what they merged would come too;
+- **Merge the branch** (`fossil merge`, with the options and the dry run of
+  [Update and merge](#update-and-merge)): the default when that checkout
+  is on the branch it was made from.
+
+**Backport…** shows Fossil's dry runs and asks (each cherry-pick's dry run
+is on the files as they are, before the others); then the files of that
+checkout change, nothing is committed, and you are asked whether to show
+that checkout, to review and commit there.
+
 ## Finishing a branch
 
 **Finish branch…** (branch menu, or the **Finish…** button by the branch's
