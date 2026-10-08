@@ -80,11 +80,12 @@ hash or a prefix of any post, or of any version of an edited post.
 asks for a title and the text; **Reply…**, after the name and date of each
 post, answers that post.  The text is written in the same editor as ticket
 comments, in Markdown (the default), Fossil wiki or plain text, with its
-**Preview**.  **Post** (or Ctrl+Return in the text) sends it, as below.
+**Preview**.  It is sent with one of the two buttons below (Ctrl+Return in
+the text presses the default one).
 
 Your own posts (by the user you post as) also have **Edit…** and
 **Delete…**.  **Edit…** opens the post's text in its format (and the
-thread's title, for the first post of a thread); **Save** sends a new
+thread's title, for the first post of a thread); saving sends a new
 version of the post, which the thread then shows, "edited".  **Delete…**
 replaces the text with nothing — a new, empty version, shown "(deleted)";
 the replies to it stay.  Neither takes anything back: the earlier versions
@@ -92,15 +93,31 @@ stay in the repository's history.  The server decides in the end: a closed
 thread cannot be edited, except by an administrator (whose **Edit…** for
 other people's posts is only in the web interface).
 
-Posts are sent to the server, as from its web pages: Tktaalik logs in
-there (with `curl`) and fills in the same forms, so anyone allowed to post
-on the website can post here, without the right to push.  The window asks
-for your user and password on the server: the user from the repository's
-server URL, else its default user, and the password Fossil saved for that
-URL's user (when you let it remember the password for sync), if any.  A
-password typed here is kept until Tktaalik is closed, never saved.
-**Post** (**Save**, **Delete**) asks first: it goes to the server at once.
-Then the repository pulls, and the thread is shown with the change.
+There are two ways to send a post (an edit, a deletion), a button each:
+
+- **Post via web** (**Save via web**, **Delete via web**): through the
+  server's web form, as from your browser, so anyone allowed to post on the
+  website can post here.  Then the repository pulls, and the thread shows
+  it.
+- **Post via repository**: the post is made here, in this repository, as
+  Fossil makes it, and is in the thread at once; your next push or sync
+  sends it to the server (nothing is sent from here).  This is for those
+  who may push there: Tktaalik asks the server (once a session) as soon as
+  it has your password, and shows the button only if you may; before that,
+  the button asks when pressed.  It is the default button when it is
+  shown.
+
+The window asks for your user and password on the server: the user from
+the repository's server URL, else its default user, and the password
+Fossil saved for that URL's user (when you let it remember the password
+for sync), if any.  A password typed here is kept, once it has logged in,
+until Tktaalik is closed, never saved.  Tktaalik logs in with `curl`.
+
+A repository without a server URL (or with only a non-web remote) has only
+**Post via repository**: the post is made in it, as its default user, and
+a sync sends it if it has a remote.
+
+Both ask first, saying what they do.
 
 If the server holds your posts for a moderator (users the forum does not
 yet trust), Tktaalik says so; the post shows here once it is approved and

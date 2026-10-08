@@ -1,6 +1,6 @@
 # Posting to a Fossil server's web forms, as a browser does: for what has
 # no command (forum posts), and for users who may post on the website but
-# not push to it.  curl does the HTTP (Tcl has no HTTPS of its own); it
+# not push to it; and whether one may push.  curl does the HTTP (Tcl has no HTTPS of its own); it
 # reads its options from stdin, so the password and the text are not on
 # a command line, and keeps the login cookie in a private temporary
 # directory, deleted at the end.
@@ -16,18 +16,56 @@
 #       {WEB LOGIN} (wrong user or password), {WEB DENIED} (the user may
 #       not post), {WEB CURL} (no curl, or the server not reached) or
 #       {WEB POST} (the server did not take the post).
+#
+#   web::canPush URL USER PASSWORD PROJECTCODE
+#       whether USER may push to the repository at URL: a sync request
+#       with only a "push" card (nothing sent), logged in as on the
+#       website.  Throws {WEB LOGIN} and {WEB CURL} as above.
 
 namespace eval web {}
+
+proc web::canPush {url user password projectCode} {
+    set url [string trimright $url /]
+    set dir [TempDir]
+    try {
+        Login $dir $url $user $password
+        set reply [Sync $dir $url "push [ServerCode] $projectCode\n"]
+        return [expr {![regexp -line {^error } $reply]}]
+    } finally {
+        file delete -force $dir
+    }
+}
+
+# Log in (the cookie kept in DIR).
+proc web::Login {dir url user password} {
+    lassign [Request $dir $url/login [dict create u $user p $password] $url/login] code to
+    # Logged in: redirected (to the home page); else 401.
+    if {$code == 401} { throw {WEB LOGIN} "The server did not take the user or the password." }
+    if {$code != 302} { throw {WEB CURL} "The login page answered $code." }
+}
+
+# A sync request (Fossil's /xfer, uncompressed): the cards TEXT.  The
+# reply.
+proc web::Sync {dir url text} {
+    set f [open $dir/request wb]
+    puts -nonewline $f $text
+    close $f
+    lassign [Request $dir $url/xfer {} "" $dir/request] code to
+    if {$code != 200} { throw {WEB CURL} "The sync answered $code." }
+    Body $dir
+}
+
+# A server code for a request: any, but Fossil's form (random hex).
+proc web::ServerCode {} {
+    format %08x%08x [expr {int(rand() * 0xffffffff)}] [expr {int(rand() * 0xffffffff)}]
+}
+
 
 proc web::forumPost {url user password fields} {
     set url [string trimright $url /]
     set dir [TempDir]
     try {
-        set jar [file join $dir cookies]
-        lassign [Request $dir $url/login [dict create u $user p $password] $url/login] code to
-        # Logged in: redirected (to the home page); else 401.
-        if {$code == 401} { throw {WEB LOGIN} "The server did not take the user or the password." }
-        if {$code != 302} { throw {WEB CURL} "The login page answered $code." }
+        Login $dir $url $user $password
         if {![dict exists $fields fpid]} {
             set page forume1
             set query ""
@@ -81,8 +119,9 @@ proc web::forumPost {url user password fields} {
 }
 
 # One request with the cookies kept in DIR: a POST of FORM (a dict) if not
-# empty, else a GET.  The body goes to DIR/body.  {status redirection}.
-proc web::Request {dir url form referer} {
+# empty, or of the file BODY (a sync request) if given, else a GET.  The
+# answer goes to DIR/body.  {status redirection}.
+proc web::Request {dir url form referer {body ""}} {
     set curl [auto_execok curl]
     if {$curl eq ""} { throw {WEB CURL} "Posting needs curl, which was not found." }
     set config ""
@@ -93,6 +132,10 @@ proc web::Request {dir url form referer} {
     if {$referer ne ""} { append config "referer = \"[Quote $referer]\"\n" }
     dict for {name value} $form {
         append config "data-urlencode = \"[Quote $name=$value]\"\n"
+    }
+    if {$body ne ""} {
+        append config "header = \"Content-Type: application/x-fossil-uncompressed\"\n"
+        append config "data-binary = \"[Quote @$body]\"\n"
     }
     append config "silent\nshow-error\n"
     set chan [open |[list {*}$curl -K - 2>@1] r+]

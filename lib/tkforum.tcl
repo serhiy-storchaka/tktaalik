@@ -3,8 +3,10 @@
 # after the post they answer, indented), each the newest version of it,
 # rendered by Fossil (Markdown, wiki or plain text).  Links to other posts
 # open their thread here, links to tickets in the Tickets tab, others in
-# the browser.  New threads, replies, edits and deletions are sent to the
-# server through its web forms (web::forumPost), then pulled.
+# the browser.  New threads, replies, edits and deletions are sent through
+# the server's web forms (web::forumPost), then pulled; or, by those who
+# may push there (or without a server), stored in the repository
+# (fossil::importArtifact), for the next push or sync.
 
 source [file join [file dirname [file normalize [info script]]] fossil.tcl]
 source [file join [file dirname [file normalize [info script]]] tablecols.tcl]
@@ -35,6 +37,7 @@ namespace eval tkforum {
     variable webUser          ;# server URL -> the user to post as
     variable webPassword ""   ;# in the window
     variable passwords        ;# server URL -> password (this session only)
+    variable pushers          ;# server URL,user -> whether the user may push
     variable config {}
     variable configFile [config::path forum]
 }
@@ -396,8 +399,9 @@ proc tkforum::showThread {froot} {
 # kept for the session only.  Then a pull brings the post here.
 
 proc tkforum::canPost {} {
+    variable repo
     variable remote
-    expr {$remote ne "" && [auto_execok curl] ne ""}
+    expr {$repo ne "" && ($remote eq "" || [auto_execok curl] ne "")}
 }
 
 # Who posts: the user given in this session, else the user of the server
@@ -427,13 +431,14 @@ proc tkforum::compose {{mode new} {hash ""}} {
     variable passwords
     if {$repo eq ""} return
     if {![canPost]} {
-        if {$remote eq ""} {
-            ui::infoBox -title Forum "Posting needs the server." \
-                "This repository has no server URL to post to (fossil remote)."
-        } else {
-            ui::infoBox -title Forum "Posting needs curl." \
-                "Posts are sent with curl, which was not found."
-        }
+        ui::infoBox -title Forum "Posting needs curl." \
+            "Posts are sent to the server with curl, which was not found."
+        return
+    }
+    if {$remote eq "" && [poster] in {"" anonymous nobody}} {
+        ui::infoBox -title Forum "Posts need a user." \
+            "This repository has no server and no default user to record them as\
+            (fossil user default)."
         return
     }
     set w .forum.compose
@@ -489,7 +494,7 @@ proc tkforum::compose {{mode new} {hash ""}} {
         grid $f.editor - -sticky news
         grid rowconfigure $f [lindex [grid info $f.editor] [expr {[lsearch [grid info $f.editor] -row] + 1}]] -weight 1
         if {$mode eq "edit"} { [formattext::widget $f.editor] insert end $text }
-        bind [formattext::widget $f.editor] <Control-Return> "[list tkforum::post $mode $hash]; break"
+        bind [formattext::widget $f.editor] <Control-Return> "tkforum::postDefault; break"
     }
     # The password given before in this session, else the one Fossil saved
     # for the user of the server URL.
@@ -503,36 +508,109 @@ proc tkforum::compose {{mode new} {hash ""}} {
         set webPassword ""
     }
     ttk::frame $f.login
-    ttk::label $f.login.lu -text "[expr {$mode eq "delete" ? "On" : "Post to"}] $remote as"
-    ttk::entry $f.login.user -textvariable tkforum::webUser($remote) -width 16
-    ttk::label $f.login.lp -text Password
-    ttk::entry $f.login.password -textvariable tkforum::webPassword -show * -width 16
-    pack $f.login.lu $f.login.user $f.login.lp $f.login.password -side left -padx {0 6}
+    if {$remote eq ""} {
+        # (No server: here, as the default user.)
+        ttk::label $f.login.lu -text "As $who, in this repository" -foreground gray35
+        pack $f.login.lu -side left
+    } else {
+        ttk::label $f.login.lu -text "[expr {$mode eq "delete" ? "On" : "Post to"}] $remote as"
+        ttk::entry $f.login.user -textvariable tkforum::webUser($remote) -width 16
+        ttk::label $f.login.lp -text Password
+        ttk::entry $f.login.password -textvariable tkforum::webPassword -show * -width 16
+        pack $f.login.lu $f.login.user $f.login.lp $f.login.password -side left -padx {0 6}
+        bind $f.login.password <Return> tkforum::postDefault
+        # (Another user or password: whether it may push, again.)
+        bind $f.login.user <FocusOut> tkforum::checkPush
+        bind $f.login.password <FocusOut> tkforum::checkPush
+    }
     grid $f.login - -sticky w -pady {8 0}
+    # Two ways: through the server's web form, or made in this repository
+    # (sent by the next push or sync): for those who may push there (asked
+    # when the password is known; else when pressed), and without a server.
     ttk::frame $f.b
-    ttk::button $f.b.post -text [dict get {new Post reply Post edit Save delete Delete} $mode] \
-        -default active -command [list tkforum::post $mode $hash]
+    set verb [dict get {new Post reply Post edit Save delete Delete} $mode]
+    ttk::button $f.b.web -text "$verb via web" -command [list tkforum::post $mode $hash web]
+    ttk::button $f.b.repo -text "$verb via repository" -command [list tkforum::post $mode $hash repo]
     ttk::button $f.b.cancel -text Cancel -command [list destroy $w]
-    pack $f.b.cancel $f.b.post -side right -padx {4 0}
+    pack $f.b.cancel -side right -padx {4 0}
     grid $f.b - -sticky ew -pady {8 0}
-    bind $f.login.password <Return> [list tkforum::post $mode $hash]
     if {$mode eq "new"} {
         focus $f.title
     } elseif {$mode eq "delete"} {
-        focus $f.b.post
+        focus $f.b.cancel
     } else {
         focus [formattext::widget $f.editor]
+    }
+    checkPush
+}
+
+# The user may push to the server: 1, 0, or "" (not known: no password
+# yet, or the server not reached).
+proc tkforum::mayPush {} {
+    variable remote
+    variable pushers
+    set key $remote,[string trim [poster]]
+    expr {[info exists pushers($key)] ? $pushers($key) : ""}
+}
+
+# Ask the server (once a session for each user) if the password is
+# known, then show the buttons.
+proc tkforum::checkPush {} {
+    variable repo
+    variable remote
+    variable pushers
+    variable webPassword
+    set f .forum.compose.f
+    if {![winfo exists $f]} return
+    set user [string trim [poster]]
+    if {$remote ne "" && $user ne "" && $webPassword ne "" && [mayPush] eq ""} {
+        set project [lindex [fossil::sql $repo "SELECT value FROM config WHERE name='project-code'"] 0 0]
+        variable passwords
+        ui::busy {
+            # (Logged in: the password kept for the session.)
+            if {![catch { set pushers($remote,$user) [web::canPush $remote $user $webPassword $project] }]} {
+                set passwords($remote) $webPassword
+            }
+        }
+    }
+    showButtons
+}
+
+# Via web with a server; via repository without one, or for those who
+# may push (or may not be known yet).  The default: the repository's if
+# it is sure.
+proc tkforum::showButtons {} {
+    variable remote
+    set f .forum.compose.f
+    if {![winfo exists $f]} return
+    set may [mayPush]
+    pack forget $f.b.web $f.b.repo
+    set shown {}
+    if {$remote eq "" || $may ne "0"} { lappend shown $f.b.repo }
+    if {$remote ne ""} { lappend shown $f.b.web }
+    foreach b $shown { pack $b -side right -padx {4 0} -after $f.b.cancel }
+    set default [expr {$remote eq "" || $may eq "1" ? "$f.b.repo" : "$f.b.web"}]
+    foreach b [list $f.b.web $f.b.repo] {
+        $b configure -default [expr {$b eq $default ? "active" : "normal"}]
+    }
+}
+
+proc tkforum::postDefault {} {
+    set f .forum.compose.f
+    foreach b [list $f.b.repo $f.b.web] {
+        if {[winfo ismapped $b] && [$b cget -default] eq "active"} { $b invoke; return }
     }
 }
 
 # Send what the window has (see compose): asked first, then sent, then
 # pulled here.
-proc tkforum::post {mode hash} {
+proc tkforum::post {mode hash {how web}} {
     variable repo
     variable remote
     variable postTitle
     variable webPassword
     variable passwords
+    variable pushers
     set w .forum.compose
     if {![winfo exists $w]} return
     set f $w.f
@@ -547,63 +625,154 @@ proc tkforum::post {mode hash} {
         ui::infoBox -parent $w -title Forum "The post is empty."
         return
     }
-    if {$user eq "" || $webPassword eq ""} {
+    if {$remote ne "" && ($user eq "" || $webPassword eq "")} {
         ui::infoBox -parent $w -title Forum "Posting needs your user and password on the server."
         focus [expr {$user eq "" ? "$f.login.user" : "$f.login.password"}]
         return
     }
-    set fields [dict create]
-    if {$mode ne "delete"} {
-        dict set fields content $text
-        dict set fields mimetype [formattext::mimetype $f.editor]
-    }
-    if {$mode ne "new"} {
-        dict set fields fpid $hash
-        dict set fields action $mode
-    }
-    # (A thread's first post: its title; "" when deleted.)
-    if {[winfo exists $f.title]} {
-        dict set fields title $title
-    } elseif {$mode eq "delete" && $postTitle ne ""} {
-        dict set fields title ""
+    set mimetype [expr {$mode eq "delete" ? "text/x-fossil-wiki" : [formattext::mimetype $f.editor]}]
+    set project [lindex [fossil::sql $repo "SELECT value FROM config WHERE name='project-code'"] 0 0]
+    # Via repository with a server: only for those who may push there.
+    if {$how eq "repo" && $remote ne ""} {
+        if {[mayPush] eq ""} {
+            try {
+                ui::busy {
+                    set pushers($remote,$user) [web::canPush $remote $user $webPassword $project]
+                }
+                set passwords($remote) $webPassword
+            } trap {WEB LOGIN} msg {
+                ui::errorBox -parent $w -title Forum "Not logged in." $msg
+                focus $f.login.password
+                return
+            } trap {WEB} msg {
+                ui::errorBox -parent $w -title Forum "The server was not reached." $msg
+                return
+            }
+        }
+        if {![mayPush]} {
+            showButtons
+            ui::errorBox -parent $w -title Forum "$user may not push to $remote." \
+                "Use \"[$f.b.web cget -text]\": the server's web form."
+            return
+        }
+        set how push
     }
     set what [dict get {new "Start the thread" reply "Post this reply" edit "Save this edit"
         delete "Delete this post"} $mode]
     if {$mode eq "new"} { append what " \"$title\"" }
-    if {![ui::confirm -parent $w -title Forum "$what on $remote?" \
-            "As $user.  It goes to the server now and cannot be taken back (an edit or\
-            a deletion is a new version; the earlier ones stay); then this repository\
-            pulls it."]} return
-    try {
-        ui::busy {
-            lassign [web::forumPost $remote $user $webPassword $fields] newHash held
+    switch $how {
+        repo {
+            set where "in [file tail $repo]"
+            set detail "As $user.  It is stored in this repository (it has no server to\
+                post to; a sync sends it if it has another remote)."
         }
-    } trap {WEB LOGIN} msg {
-        ui::errorBox -parent $w -title Forum "Not logged in." $msg
-        focus $f.login.password
-        return
-    } trap {WEB} msg {
-        ui::errorBox -parent $w -title Forum "The post was not sent." $msg
-        return
+        push {
+            set where "in [file tail $repo]"
+            set detail "As $user, who may push to $remote: it is stored in this\
+                repository, and your next push or sync sends it there."
+        }
+        web {
+            set where "on $remote"
+            set detail "As $user.  It goes to the server now, through its web form; then\
+                this repository pulls it."
+        }
     }
-    set passwords($remote) $webPassword
-    destroy $w
-    if {$held} {
-        ui::infoBox -title Forum "Sent; it waits for a moderator." \
-            "It shows here once a moderator of $remote has approved it\
-            and the repository has pulled it."
-        return
-    }
-    ui::busy {
-        lassign [fossil::run pull -R $repo] code out
-    }
-    if {$code} {
-        ui::errorBox -title Forum "Sent, but the pull failed." [string trim $out]
-        return
+    append detail "  It cannot be taken back (an edit or a deletion is a new version;\
+        the earlier ones stay)."
+    if {![ui::confirm -parent $w -title Forum "$what $where?" $detail]} return
+    if {$how eq "web"} {
+        set fields [dict create]
+        if {$mode ne "delete"} {
+            dict set fields content $text
+            dict set fields mimetype $mimetype
+        }
+        if {$mode ne "new"} {
+            dict set fields fpid $hash
+            dict set fields action $mode
+        }
+        # (A thread's first post: its title; "" when deleted.)
+        if {[winfo exists $f.title]} {
+            dict set fields title $title
+        } elseif {$mode eq "delete" && $postTitle ne ""} {
+            dict set fields title ""
+        }
+        try {
+            ui::busy {
+                lassign [web::forumPost $remote $user $webPassword $fields] newHash held
+            }
+        } trap {WEB LOGIN} msg {
+            ui::errorBox -parent $w -title Forum "Not logged in." $msg
+            focus $f.login.password
+            return
+        } trap {WEB} msg {
+            ui::errorBox -parent $w -title Forum "The post was not sent." $msg
+            return
+        }
+        set passwords($remote) $webPassword
+        destroy $w
+        if {$held} {
+            ui::infoBox -title Forum "Sent; it waits for a moderator." \
+                "It shows here once a moderator of $remote has approved it\
+                and the repository has pulled it."
+            return
+        }
+        ui::busy {
+            lassign [fossil::run pull -R $repo] code out
+        }
+        if {$code} {
+            ui::errorBox -title Forum "Sent, but the pull failed." [string trim $out]
+            return
+        }
+    } else {
+        set cards [Cards $mode $hash $title $mimetype $user $text]
+        set dir [fossil::tempDir]
+        try {
+            ui::busy {
+                set newHash [fossil::buildArtifact $repo $cards $dir/artifact]
+                fossil::importArtifact $repo $dir/artifact $newHash
+            }
+            destroy $w
+        } trap {FOSSIL ARTIFACT} msg {
+            ui::errorBox -parent $w -title Forum "Not stored." $msg
+            return
+        } finally {
+            file delete -force $dir
+        }
     }
     tktaalik::navigate
     reload
     showPost $newHash 0
+}
+
+# The cards of a post made here, as Fossil makes them (forum_post() in
+# its forum.c), but the Z card: D, G (the thread), H (the title of a
+# thread's first post), I (the post replied to), N (unless Fossil wiki),
+# P (the version edited), U, W.
+proc tkforum::Cards {mode hash title mimetype user text} {
+    variable repo
+    set cards "D [clock format [clock seconds] -format %Y-%m-%dT%H:%M:%S.000 -gmt 1]\n"
+    if {$mode ne "new"} {
+        lassign [lindex [fossil::sql $repo "SELECT (SELECT uuid FROM blob WHERE rid=f.froot),
+            coalesce((SELECT uuid FROM blob WHERE rid=f.firt),''), f.firt IS NULL
+            FROM forumpost f WHERE f.fpid=(SELECT rid FROM blob WHERE uuid=[fossil::sqlstr $hash])"] 0] \
+            root firt first
+        append cards "G $root\n"
+    }
+    switch $mode {
+        new { append cards "H [fossil::card $title]\n" }
+        reply { append cards "I $hash\n" }
+        edit - delete {
+            if {$first} {
+                append cards "H [fossil::card [expr {$mode eq "delete" ? "" : $title}]]\n"
+            } else {
+                append cards "I $firt\n"
+            }
+        }
+    }
+    if {$mimetype ne "text/x-fossil-wiki"} { append cards "N [fossil::card $mimetype]\n" }
+    if {$mode in {edit delete}} { append cards "P $hash\n" }
+    append cards "U [fossil::card $user]\n"
+    append cards "W [string length [encoding convertto utf-8 $text]]\n$text\n"
 }
 
 proc tkforum::hashLink {match hash} {

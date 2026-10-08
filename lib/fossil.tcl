@@ -6,6 +6,16 @@
 #                               tables too: vvar, vfile, stash, ...)
 #   fossil::hasSearch REPO      whether "fossil sql" has Fossil's search
 #                               functions (search_init, title, body...)
+#   fossil::card TEXT           TEXT as an argument of an artifact's card
+#                               (fossilized: \s for a space...)
+#   fossil::buildArtifact REPO TEXT PATH
+#                               the artifact TEXT (its cards but the Z
+#                               card) written to PATH with its Z card:
+#                               its hash (REPO's hash policy)
+#   fossil::importArtifact REPO PATH HASH
+#                               the artifact in PATH stored in REPO,
+#                               public (for what no command makes)
+#   fossil::tempDir             a new private temporary directory
 #   fossil::sqlstr TEXT         TEXT as an SQL string literal
 #   fossil::outcol EXPR         a text column safe for fossil::sql
 #   fossil::arg TEXT            TEXT checked to be safe as an exec argument
@@ -424,6 +434,79 @@ proc fossil::hasSearch {repo} {
         set hasSearch [expr {![string match "*no such function*" $out]}]
     }
     return $hasSearch
+}
+
+proc fossil::card {text} {
+    string map [list \\ \\\\ " " \\s \n \\n \r \\r \t \\t \v \\v \f \\f] $text
+}
+
+proc fossil::buildArtifact {repo text path} {
+    set dir [tempDir]
+    try {
+        WriteBytes $dir/pre $text
+        lassign [run md5sum $dir/pre] code out
+        if {$code || ![regexp {^([0-9a-f]{32})\M} $out -> md5]} {
+            throw {FOSSIL ARTIFACT} "fossil md5sum: [string trim $out]"
+        }
+    } finally {
+        file delete -force $dir
+    }
+    WriteBytes $path "${text}Z $md5\n"
+    # The hash of the repository's policy (SHA1 only where it says so).
+    set policy [lindex [sql $repo "SELECT value FROM config WHERE name='hash-policy'"] 0 0]
+    set sum [expr {$policy eq "sha1" ? "sha1sum" : "sha3sum"}]
+    lassign [run $sum $path] code out
+    if {$code || ![regexp {^([0-9a-f]{40,64})\M} $out -> hash]} {
+        throw {FOSSIL ARTIFACT} "fossil $sum: [string trim $out]"
+    }
+    return $hash
+}
+
+# Brought in as a bundle of its own ("fossil bundle import --publish"
+# checks its hash, stores it and reads it as if a sync had brought it).
+# Throws {FOSSIL ARTIFACT} if it was not taken.
+proc fossil::importArtifact {repo path hash} {
+    set dir [tempDir]
+    try {
+        set code [lindex [sql $repo "SELECT value FROM config WHERE name='project-code'"] 0 0]
+        # The bundle, as "fossil bundle export" makes them (bundle.c).
+        set bundle $dir/post.bundle
+        lassign [run -input "ATTACH [sqlstr $bundle] AS b;
+            CREATE TABLE b.bconfig(bcname TEXT, bcvalue ANY);
+            CREATE TABLE b.bblob(blobid INTEGER PRIMARY KEY, uuid TEXT NOT NULL, sz INT NOT NULL,
+                delta ANY, notes TEXT, data BLOB);
+            INSERT INTO b.bconfig VALUES('project-code', [sqlstr $code]);
+            INSERT INTO b.bblob(uuid, sz, delta, notes, data) VALUES([sqlstr $hash],
+                length(readfile([sqlstr $path])), NULL, 'tktaalik', compress(readfile([sqlstr $path])));
+            " sql --no-repository] code out
+        if {$code || [string match "*rror*" $out]} {
+            throw {FOSSIL ARTIFACT} "the bundle: [string trim $out]"
+        }
+        lassign [run bundle import $bundle --publish -R $repo] code out
+        if {$code} { throw {FOSSIL ARTIFACT} "fossil bundle import: [string trim $out]" }
+    } finally {
+        file delete -force $dir
+    }
+}
+
+proc fossil::tempDir {} {
+    foreach var {TMPDIR TEMP TMP} {
+        if {[info exists ::env($var)] && [file isdirectory $::env($var)]} {
+            set base $::env($var)
+            break
+        }
+    }
+    if {![info exists base]} { set base /tmp }
+    set dir [file join $base tktaalik-[pid]-[clock clicks]]
+    file mkdir $dir
+    if {$::tcl_platform(platform) eq "unix"} { file attributes $dir -permissions 0700 }
+    return $dir
+}
+
+proc fossil::WriteBytes {path text} {
+    set f [open $path wb]
+    puts -nonewline $f [encoding convertto utf-8 $text]
+    close $f
 }
 
 proc fossil::sqlFinish {chan} {
