@@ -311,8 +311,9 @@ ticket: file, size, user, date and comment.  An attachment whose content
 is not in the local repository is greyed out.
 
 - Double-click (or Return) views a text attachment, a patch as a diff, in
-  Tktaalik's diff viewer (see [Diffs](diffs.md)); an attachment that is
-  not here opens on the server.
+  Tktaalik's diff viewer (see [Diffs](diffs.md)), and an image in a window
+  of its own (see [Images](#images)); an attachment that is not here
+  opens on the server.
 - Right-click: **View**, **Save…**, **Apply to the checkout…** (for
   `.patch` and `.diff` files), **Open in browser**, **Copy file name**,
   **Delete…** (see [Deleting attachments](#deleting-attachments)).
@@ -322,6 +323,23 @@ is not in the local repository is greyed out.
 It finds whether the patch applies with `-p0` or `-p1`, shows the dry run
 and asks first; afterwards it offers to show the Commit tab.  The files
 of the checkout change; nothing is committed.
+
+### Images
+
+An attached image opens in a window of its own, at its size (scrolled
+if it is larger than most of the screen); **Fit to the window** makes it
+smaller to fit.  Escape or Close closes it.  Each image has a window of
+its own, so several can be open side by side; viewing one that is open
+already brings its window to the front.  The same holds for the
+attachments of wiki pages and technotes.
+
+Tk reads PNG, GIF and PPM images itself, and SVG with Tk 9.  With the Img
+extension (tkimg: the package `libtk-img` on Debian and Ubuntu) installed,
+Tktaalik also shows JPEG, BMP, TIFF, ICO, TGA, PCX, XBM, XPM, SGI and Sun
+raster images.  For an image it cannot show (without Img, an SVG with Tk
+8.6, and formats such as WEBP), **View** is greyed out and a double-click
+opens the attachment on the server; **Save…** it to look at it with
+another program.
 
 ### Attaching files
 

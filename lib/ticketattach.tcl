@@ -73,7 +73,8 @@ proc tktsearch::openAttachment {i} {
     variable shownTicket
     if {$i eq "" || ![info exists attached($i)]} return
     set a $attached($i)
-    if {[dict get $a here]} {
+    # (An image that cannot be viewed here: on the server, as one not here.)
+    if {[dict get $a here] && [imageview::kind [dict get $a name]] ne "unsupported"} {
         viewAttachment [dict get $a src] [dict get $a name]
     } else {
         openUrl attachview?tkt=$shownTicket&file=[fossil::urlquery [dict get $a name]]
@@ -92,7 +93,8 @@ proc tktsearch::attachmentMenu {tv x y X Y} {
     set m .tickets.attctx
     if {![winfo exists $m]} { menu $m }
     $m delete 0 end
-    $m add command -label View -state $here -command [list tktsearch::viewAttachment $src $name]
+    set canView [expr {$here eq "normal" && [imageview::kind $name] ne "unsupported" ? "normal" : "disabled"}]
+    $m add command -label View -state $canView -command [list tktsearch::viewAttachment $src $name]
     $m add command -label Save\u2026 -state $here -command [list tktsearch::saveAttachment $src $name]
     if {[isPatch $name]} {
         $m add command -label "Apply to the checkout\u2026" -state $here \
@@ -105,7 +107,7 @@ proc tktsearch::attachmentMenu {tv x y X Y} {
     $m add separator
     $m add command -label "Delete\u2026" -state [expr {[canWrite] ? "normal" : "disabled"}] \
         -command [list tktsearch::deleteAttachment $shownTicket $name]
-    popup::default $m [expr {$here eq "normal" ? "View" : "Open in browser"}]
+    popup::default $m [expr {$canView eq "normal" ? "View" : "Open in browser"}]
     tk_popup $m $X $Y
 }
 
@@ -136,6 +138,10 @@ proc tktsearch::attachmentText {src} {
 }
 
 proc tktsearch::viewAttachment {src name} {
+    if {[imageview::kind $name] ne ""} {
+        imageview::showArtifact $::tickets::repo $src $name -parent .tickets
+        return
+    }
     set text [attachmentText $src]
     if {$text eq ""} return
     diffview::show $name $text

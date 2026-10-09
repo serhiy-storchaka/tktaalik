@@ -28,6 +28,8 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   `lib/ticketattach.tcl` (Tickets), `lib/branchops.tcl` (Branches),
   `lib/bisect.tcl`, `lib/pull.tcl` (Timeline),
   `lib/goto.tcl` (Go to: what a hash or name is, and the tab for it),
+  `lib/imageview.tcl` (an attached image in a window; JPEG and other
+  formats only with the optional Img extension, loaded when needed),
   `lib/formattext.tcl` (a text in a chosen format with its preview: use it
   wherever text can be written in more than one format),
   `lib/tagwrite.tcl` (tag, amend and reparent dialogs: `tagwrite::apply`
@@ -128,8 +130,10 @@ tickets, branches and comments, and only read it.  The tests that write
 (Settings, Stash, applying attachments) get a scratch copy made by
 `tests/scratch.sh`, and every test has its own `FOSSIL_HOME`.  Optional:
 `TKTAALIK_REPO2` (a repository with another ticket schema),
-`TKTAALIK_FORUM` (a copy of the Fossil forum, for `forum`) and the XTEST
-helper `tests/xbutton.c`, which `run.sh` compiles if it can.  See
+`TKTAALIK_FORUM` (a copy of the Fossil forum, for `forum`), the XTEST
+helper `tests/xbutton.c`, which `run.sh` compiles if it can, and the Img
+extension on the `TCLLIBPATH` (`attach-images` then views a JPEG; without
+it, checks that View is disabled: run it both ways).  See
 `tests/common.tcl`.  `FOSSIL` runs them with another Fossil (the
 application uses it, and `run.sh` puts it first on the `PATH` for the
 tests): check a change with an old and a new Fossil too

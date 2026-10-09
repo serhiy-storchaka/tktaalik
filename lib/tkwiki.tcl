@@ -741,7 +741,8 @@ proc tkwiki::openAttachment {i} {
     variable attached
     if {$i eq "" || ![info exists attached($i)]} return
     set a $attached($i)
-    if {[dict get $a here]} {
+    # (An image that cannot be viewed here: on the server, as one not here.)
+    if {[dict get $a here] && [imageview::kind [dict get $a name]] ne "unsupported"} {
         viewAttachment [dict get $a src] [dict get $a name]
     } else {
         browseAttachment [dict get $a name]
@@ -760,7 +761,8 @@ proc tkwiki::attachmentMenu {tv x y X Y} {
     set m .wiki.attctx
     if {![winfo exists $m]} { menu $m }
     $m delete 0 end
-    $m add command -label View -state $here -command [list tkwiki::viewAttachment $src $name]
+    set canView [expr {$here eq "normal" && [imageview::kind $name] ne "unsupported" ? "normal" : "disabled"}]
+    $m add command -label View -state $canView -command [list tkwiki::viewAttachment $src $name]
     $m add command -label Save\u2026 -state $here -command [list tkwiki::saveAttachment $src $name]
     $m add separator
     $m add command -label "Open in browser" -state [expr {$remote ne "" ? "normal" : "disabled"}] \
@@ -768,7 +770,7 @@ proc tkwiki::attachmentMenu {tv x y X Y} {
     $m add command -label "Copy file name" -command [list ui::copy $name]
     $m add separator
     $m add command -label "Delete\u2026" -command [list tkwiki::deleteAttachment $name]
-    popup::default $m [expr {$here eq "normal" ? "View" : "Open in browser"}]
+    popup::default $m [expr {$canView eq "normal" ? "View" : "Open in browser"}]
     tk_popup $m $X $Y
 }
 
@@ -801,6 +803,10 @@ proc tkwiki::deleteAttachment {name} {
 
 proc tkwiki::viewAttachment {src name} {
     variable repo
+    if {[imageview::kind $name] ne ""} {
+        imageview::showArtifact $repo $src $name -parent .wiki
+        return
+    }
     lassign [fossil::run artifact -R $repo $src] code out
     if {$code} {
         tk_messageBox -parent .wiki -icon error -title Attachment -message "Cannot read the attachment:" \

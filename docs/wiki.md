@@ -116,9 +116,10 @@ The files attached to the page or technote shown are listed under it, if
 it has any: attachment, size, user, date and comment.  An attachment
 whose content is not in the local repository says "not local".
 
-- Double-click (or Return) views a text attachment in the diff viewer; one
-  that is not here opens on the server.  A binary file cannot be viewed:
-  save it.
+- Double-click (or Return) views a text attachment in the diff viewer,
+  and an image in a window of its own (see
+  [Images](tickets.md#images)); one that is not here opens on the
+  server.  Another binary file cannot be viewed: save it.
 - Right-click: **View**, **Save…**, **Open in browser**, **Copy file name**,
   **Delete…** (see [Deleting attachments](tickets.md#deleting-attachments):
   the same for pages and technotes).

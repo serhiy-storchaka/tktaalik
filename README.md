@@ -28,6 +28,8 @@ alone.
 - Optional: `patch`, to apply patches attached to tickets (on Windows, Git for
   Windows has one)
 - Optional: `curl`, to post to a forum through its web site
+- Optional: the Img extension (tkimg), to view attached JPEG, BMP, TIFF and
+  other images that Tk does not read itself
 
 ## Running
 

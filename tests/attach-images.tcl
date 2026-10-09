@@ -1,0 +1,140 @@
+# Attached images shown in a window, on a ticket and on a wiki page: PNG,
+# GIF, PPM, SVG with Tk 9, and with the Img extension (tkimg) JPEG, BMP...
+# Images that cannot be viewed (no Img, SVG with Tk 8.6, WEBP): View
+# disabled, a double-click opens the server's page.  With Img on the
+# TCLLIBPATH the JPEG part is shown, else it is checked disabled.  On a
+# scratch copy.
+source [file join [file dirname [info script]] common.tcl]
+need scratch
+set W $T(scratch)
+set R $W/tk.fossil
+set img9 [package vsatisfies [package provide Tk] 9]
+set withImg [expr {![catch {package require img::jpeg}]}]
+puts "  Img: [expr {$withImg ? [package provide img::jpeg] : "none"}]"
+# A PNG of 40x20, red with a blue corner, made by Tk; a JPEG of it with
+# Img (else bytes that only claim to be one); an SVG; a WEBP.
+set img [image create photo -width 40 -height 20]
+$img put red -to 0 0 40 20
+$img put blue -to 0 0 4 4
+$img write $T(tmp)/shot.png -format png
+if {$withImg} {
+    $img write $T(tmp)/photo.jpg -format jpeg
+} else {
+    set f [open $T(tmp)/photo.jpg wb]; puts -nonewline $f "\xff\xd8\xff\xe0 not really"; close $f
+}
+image delete $img
+set f [open $T(tmp)/draw.svg w]
+puts $f {<svg xmlns="http://www.w3.org/2000/svg" width="30" height="10"><rect width="30" height="10" fill="#00ff00"/></svg>}
+close $f
+set f [open $T(tmp)/pic.webp wb]; puts -nonewline $f "RIFF\0\0\0\0WEBP"; close $f
+
+set uuid [lindex [sql "SELECT tkt_uuid FROM ticket ORDER BY tkt_mtime DESC LIMIT 1" $R] 0 0]
+start tickets $R
+set ::urls {}
+proc tktsearch::openUrl {path} { lappend ::urls $path }
+proc tk_popup {m args} { set ::posted $m }
+tktsearch::setQuery id:[string range $uuid 0 9]; update
+waitUntil {$tktsearch::shownTicket eq $uuid}
+set ::openFrom [list $T(tmp)/shot.png $T(tmp)/photo.jpg $T(tmp)/draw.svg $T(tmp)/pic.webp]
+whenOpen .tickets.attach {set ::ui::done ok}
+tktsearch::attachFiles $uuid
+set tv .tickets.main.details.nb.attachments.tv
+proc item {name} {
+    foreach i [$::tv children {}] { if {[$::tv set $i file] eq $name} { return $i } }
+}
+# The window of the attachment NAME's image.
+proc win {name} { imageview::windowFor .tickets [dict get $tktsearch::attached([item $name]) src] }
+proc imageWindows {} { lsearch -all -inline -glob [winfo children .tickets] .tickets.image* }
+# The state of View in the context menu of NAME, and the entry in bold.
+proc menuOf {name} {
+    set i [item $name]
+    $::tv see $i; update
+    lassign [$::tv bbox $i] x y
+    set ::posted ""
+    tktsearch::attachmentMenu $::tv [expr {$x + 5}] [expr {$y + 3}] 0 0
+    set m $::posted
+    set bold ""
+    for {set k 0} {$k <= [$m index end]} {incr k} {
+        if {[$m type $k] eq "command" && [$m entrycget $k -font] ne ""} { set bold [$m entrycget $k -label] }
+    }
+    list [$m entrycget View -state] $bold
+}
+.tickets.main.details.nb select .tickets.main.details.nb.attachments; update
+check "kinds: [lmap n {a.PNG b.jpg c.svg d.webp e.txt} {imageview::kind $n}]" \
+    {[imageview::kind a.PNG] eq "image" && [imageview::kind e.txt] eq "" && [imageview::kind d.webp] eq "unsupported"
+     && [imageview::kind b.jpg] eq [expr {$withImg ? "image" : "unsupported"}]
+     && [imageview::kind c.svg] eq [expr {$img9 ? "image" : "unsupported"}]}
+
+# A PNG: View; double-click shows it in a window.
+check "PNG: [menuOf shot.png]" {[menuOf shot.png] eq {normal View}}
+tktsearch::openAttachment [item shot.png]; update
+set w [win shot.png]
+check "a window: [expr {[winfo exists $w] ? [wm title $w] : ""}]" {[winfo exists $w] && [wm title $w] eq "shot.png — 40 × 20"}
+set shown [$w.c itemcget [lindex [$w.c find all] 0] -image]
+check "the image: [image width $shown]x[image height $shown]" {[image width $shown] == 40 && [image height $shown] == 20}
+check "its pixels: [$shown get 1 1] [$shown get 30 10]" {[$shown get 1 1] eq {0 0 255} && [$shown get 30 10] eq {255 0 0}}
+# Another image beside it; the first one again: raised, not twice.
+set other [expr {$img9 ? "draw.svg" : $withImg ? "photo.jpg" : ""}]
+if {$other ne ""} {
+    tktsearch::openAttachment [item $other]; update
+    check "two windows: [imageWindows]" {[llength [imageWindows]] == 2 && [winfo exists $w] && [winfo exists [win $other]]}
+    destroy [win $other]; update
+}
+tktsearch::openAttachment [item shot.png]; update
+check "the same one again: one window, its image kept" \
+    {[llength [imageWindows]] == 1 && [$w.c itemcget [lindex [$w.c find all] 0] -image] eq $shown}
+destroy $w; update
+check "closed: its image deleted" {$shown ni [image names]}
+
+# Fitted to a smaller window: made smaller (a large image, whatever the
+# smallest window is).
+set big [image create photo -width 1600 -height 900]
+$big put green -to 0 0 1600 900
+imageview::window .big "big" $big
+wm geometry .big 400x300; update
+set imageview::fit(.big) 1; imageview::Layout .big; update
+set small [.big.c itemcget [lindex [.big.c find all] 0] -image]
+check "fitted: [image width $small]x[image height $small] in [winfo width .big.c]x[winfo height .big.c]" \
+    {[image width $small] <= [winfo width .big.c] && [image height $small] <= [winfo height .big.c] && [image width $small] < 1600}
+destroy .big; update
+check "closed: both images deleted" {$big ni [image names] && $small ni [image names]}
+
+# Images that can or cannot be viewed: JPEG (Img), SVG (Tk 9), WEBP (none).
+foreach {name can} [list photo.jpg $withImg draw.svg $img9 pic.webp 0] {
+    set ::urls {}
+    if {$can} {
+        check "$name: [menuOf $name]" {[menuOf $name] eq {normal View}}
+        tktsearch::openAttachment [item $name]; update
+        set w [win $name]
+        set shown [expr {[winfo exists $w] ? [$w.c itemcget [lindex [$w.c find all] 0] -image] : ""}]
+        check "$name shown: [expr {$shown eq "" ? "no" : "[image width $shown]x[image height $shown]"}]" \
+            {$shown ne "" && [image width $shown] == ($name eq "draw.svg" ? 30 : 40)}
+        destroy $w; update
+    } else {
+        check "$name: View disabled, the browser in bold: [menuOf $name]" {[menuOf $name] eq {disabled {Open in browser}}}
+        tktsearch::openAttachment [item $name]; update
+        check "$name: double-click opens the server's page: $::urls" \
+            {![llength [imageWindows]] && [string match "attachview?tkt=*&file=$name" [lindex $::urls end]]}
+    }
+}
+
+# A wiki page's image; and one it cannot view.
+fossilIn $W attachment add "Migrating scripts to Tk 9" $T(tmp)/shot.png -R $R
+fossilIn $W attachment add "Migrating scripts to Tk 9" $T(tmp)/pic.webp -R $R
+tktaalik::show wiki; update
+.wiki.main.list.t selection set [list "wiki-Migrating scripts to Tk 9"]; update
+set att .wiki.main.page.att.tv
+proc witem {name} {
+    foreach i [$::att children {}] { if {[$::att set $i file] eq $name} { return $i } }
+}
+tkwiki::openAttachment [witem shot.png]; update
+set ww [imageview::windowFor .wiki [dict get $tkwiki::attached([witem shot.png]) src]]
+check "the wiki's image: [expr {[winfo exists $ww] ? [wm title $ww] : ""}]" \
+    {[winfo exists $ww] && [string match "shot.png*40*20" [wm title $ww]]}
+destroy $ww
+$att see [witem pic.webp]; update
+lassign [$att bbox [witem pic.webp]] x y
+set ::posted ""
+tkwiki::attachmentMenu $att [expr {$x + 5}] [expr {$y + 3}] 0 0
+check "the wiki's WEBP: View [$::posted entrycget View -state]" {[$::posted entrycget View -state] eq "disabled"}
+done

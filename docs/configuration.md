@@ -87,7 +87,10 @@ Requirements:
   [Environment variables](#environment-variables)); a recent version: the
   full-text search uses Fossil's own search functions;
 - for opening links in the web browser: `xdg-open` on Linux and other
-  Unix desktops (Windows and macOS have their own).
+  Unix desktops (Windows and macOS have their own);
+- optional: the Img extension (tkimg), to view attached JPEG, BMP, TIFF
+  and other images that Tk does not read itself (see
+  [Images](tickets.md#images)).
 
 Nothing needs to be built or installed: run the `tktaalik` script from its
 directory, with `wish` (it starts with `#!/usr/bin/env wish`):
