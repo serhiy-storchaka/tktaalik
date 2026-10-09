@@ -129,7 +129,10 @@ tickets, branches and comments, and only read it.  The tests that write
 `TKTAALIK_REPO2` (a repository with another ticket schema),
 `TKTAALIK_FORUM` (a copy of the Fossil forum, for `forum`) and the XTEST
 helper `tests/xbutton.c`, which `run.sh` compiles if it can.  See
-`tests/common.tcl`.
+`tests/common.tcl`.  `FOSSIL` runs them with another Fossil (the
+application uses it, and `run.sh` puts it first on the `PATH` for the
+tests): check a change with an old and a new Fossil too
+(docs/configuration.md, Environment variables).
 
 - `tests/smoke.sh REPOSITORY...` opens every tab and window on any
   repositories (only read) and fails on an error; worth running on a few

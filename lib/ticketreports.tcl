@@ -142,7 +142,7 @@ proc ticketreports::query {sql} {
 proc ticketreports::sqlWithNames {sql} {
     variable repo
     set script ".mode ascii\n.headers on\n$sql\n;\n"
-    set chan [open |[list fossil sql -R $repo --readonly 2>@1] r+]
+    set chan [open |[list [fossil::exe] sql -R $repo --readonly 2>@1] r+]
     fconfigure $chan -encoding utf-8 -translation lf
     puts -nonewline $chan $script
     chan close $chan write

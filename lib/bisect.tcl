@@ -166,7 +166,7 @@ proc tktimeline::bisectCommand {} {
             -title Bisect "The checkout has changes." \
             "The bisect run updates the checkout to each check-in to test, and\
                 Fossil merges the changes into it each time."]} return
-    if {[catch {fossil::inDir $root { set bisectChan [open |[list fossil bisect run $command 2>@1] r+] }} msg]} {
+    if {[catch {fossil::inDir $root { set bisectChan [open |[list [fossil::exe] bisect run $command 2>@1] r+] }} msg]} {
         set bisectChan ""
         ui::errorBox -title Bisect $msg
         return

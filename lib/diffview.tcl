@@ -240,7 +240,7 @@ proc diffview::start {w} {
     set versions [expr {[dict get $data($w) command] eq {fossil diff -i} ? "-h" : ""}]
     fossil::inDir [dict get $data($w) dir] {
         # (The options before the arguments: those can end with file names.)
-        set chan [open |[list {*}[dict get $data($w) command] {*}$versions {*}[optionArgs $w] \
+        set chan [open |[list {*}[fossil::command [dict get $data($w) command]] {*}$versions {*}[optionArgs $w] \
             {*}[dict get $data($w) args] << "" 2>@1] r]
     }
     dict set data($w) chan $chan
@@ -270,7 +270,7 @@ proc diffview::external {w} {
     # (Not -i: with it Fossil ignores gdiff-command, and prints a diff.)
     set args [lsearch -all -inline -not -exact [dict get $data($w) args] -i]
     if {[catch {fossil::inDir [dict get $data($w) dir] {
-        exec {*}$g {*}[optionArgs $w] {*}$args << "" &
+        exec {*}[fossil::command $g] {*}[optionArgs $w] {*}$args << "" &
     }} msg]} {
         ui::errorBox -parent $w -title "External diff" "fossil gdiff failed:" $msg
     }

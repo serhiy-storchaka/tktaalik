@@ -83,8 +83,9 @@ On macOS, Control-click opens the pop-up too.
 Requirements:
 
 - Tcl/Tk 8.6 or 9.0 (the `wish` program);
-- the `fossil` executable on the `PATH` (a recent version: the full-text
-  search uses Fossil's own search functions);
+- the `fossil` executable on the `PATH`, or the one `FOSSIL` names (see
+  [Environment variables](#environment-variables)); a recent version: the
+  full-text search uses Fossil's own search functions;
 - for opening links in the web browser: `xdg-open` on Linux and other
   Unix desktops (Windows and macOS have their own).
 
@@ -106,6 +107,18 @@ checkout used last; the first time it asks for a repository file.  If what
 it should open cannot be opened, it says why and asks.  It starts on the
 tab used last (the Tickets tab the first time, or if the last one needs a
 checkout and there is none).
+
+### Environment variables
+
+| Variable | What it does |
+|---|---|
+| `FOSSIL` | The Fossil to run: a path, or a name on the `PATH` (default `fossil`).  For trying another version: `FOSSIL=~/src/fossil-trunk/fossil ./tktaalik`.  The tests (`tests/run.sh`) use it too, for everything they run |
+| `WISH` | The Tk shells `tests/run.sh` and `tests/smoke.sh` run with, one or more (default `wish8.6 wish9.0`): `WISH=wish9.0 tests/run.sh`.  Tktaalik itself runs with the `wish` on the `PATH`, or the one it is started with (`wish9.0 tktaalik`); `install.sh --wish` chooses it for an installed copy |
+
+It also reads the usual ones: `XDG_CONFIG_HOME` (else `HOME`) for where
+its settings go, `FOSSIL_HOME` to find Fossil's global settings as Fossil
+does, and `TMPDIR` (or `TEMP`, `TMP`) for temporary files.  Fossil, run by
+Tktaalik, reads its own (`FOSSIL_USER`, `FOSSIL_HOME`, …) as usual.
 
 ### Installed
 

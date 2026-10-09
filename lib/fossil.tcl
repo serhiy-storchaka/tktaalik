@@ -28,6 +28,18 @@ namespace eval fossil {
 # -input TEXT), so that it cannot wait for an answer.  Return {exit-code
 # output}.  The arguments must not look like exec redirections: see
 # fossil::arg.
+# The Fossil executable: $FOSSIL if set (a path, or a name on PATH), else
+# "fossil" from PATH.
+proc fossil::exe {} {
+    expr {[info exists ::env(FOSSIL)] && $::env(FOSSIL) ne "" ? $::env(FOSSIL) : "fossil"}
+}
+
+# COMMAND (a list) to run: "fossil" first replaced by the executable.
+proc fossil::command {command} {
+    if {[lindex $command 0] eq "fossil"} { lset command 0 [exe] }
+    return $command
+}
+
 proc fossil::run {args} {
     set opts [Options args {-dir -input}]
     set input [expr {[dict exists $opts -input] ? [dict get $opts -input] : ""}]
@@ -55,6 +67,8 @@ proc fossil::arg {text} {
 #
 # New code runs Fossil through these, not with exec or cd of its own:
 #
+#   fossil::exe                the Fossil executable ($FOSSIL, else fossil)
+#   fossil::command LIST        LIST with its "fossil" replaced by it
 #   fossil::run ?-dir DIR? ?-input TEXT? ARG...
 #                               in DIR if given (the cwd restored even on
 #                               errors), stdin TEXT (default empty):
@@ -119,7 +133,7 @@ proc fossil::Options {argsVar names} {
 
 proc fossil::Exec {input argv} {
     set code [catch {
-        exec fossil {*}$argv << $input 2>@1
+        exec [exe] {*}$argv << $input 2>@1
     } out opts]
     if {$code && [lindex [dict get $opts -errorcode] 0] ne "CHILDSTATUS"} {
         # Not an exit status: fossil could not be run at all.
@@ -154,7 +168,7 @@ proc fossil::start {args} {
     set here [pwd]
     if {$dir ne ""} { cd $dir }
     try {
-        set chan [open |[list {*}$command << "" 2>@1] r]
+        set chan [open |[list {*}[command $command] << "" 2>@1] r]
     } finally {
         cd $here
     }
@@ -390,7 +404,7 @@ proc fossil::urlDecode {text} {
 proc fossil::sql {repo statement} {
     set script ".mode ascii\n[string map {\n { } \r { }} $statement];\n"
     try {
-        set out [exec fossil sql -R $repo --readonly << $script]
+        set out [exec [exe] sql -R $repo --readonly << $script]
     } on error msg {
         throw {FOSSIL DB} [string trim [lindex [split $msg \n] 0]]
     }
@@ -403,7 +417,7 @@ proc fossil::checkoutSql {dir statement} {
     set here [pwd]
     cd $dir
     try {
-        set out [exec fossil sql --readonly << $script]
+        set out [exec [exe] sql --readonly << $script]
     } on error msg {
         throw {FOSSIL DB} [string trim [lindex [split $msg \n] 0]]
     } finally {
@@ -418,7 +432,7 @@ proc fossil::checkoutSql {dir statement} {
 # running a slow query beside others.
 proc fossil::sqlStart {repo statement} {
     set script ".mode ascii\n[string map {\n { } \r { }} $statement];\n"
-    set chan [open |[list fossil sql -R $repo --readonly 2>@1] r+]
+    set chan [open |[list [exe] sql -R $repo --readonly 2>@1] r+]
     fconfigure $chan -encoding utf-8 -translation lf
     puts -nonewline $chan $script
     chan close $chan write
@@ -562,7 +576,7 @@ proc fossil::render {repo mimetype text} {
         fconfigure $f -encoding utf-8
         puts -nonewline $f $text
         close $f
-        set p [open |[list fossil {*}$command -R $repo $name 2>@1] r]
+        set p [open |[list [exe] {*}$command -R $repo $name 2>@1] r]
         fconfigure $p -encoding utf-8
         set html [read $p]
         close $p
@@ -612,7 +626,7 @@ proc fossil::hashLinks {repo texts} {
 # The server of the repository (its remote URL without the user name), for
 # opening pages in the browser; "" if there is none.
 proc fossil::remoteUrl {repo} {
-    if {[catch {exec fossil remote -R $repo} url] || ![regexp {^https?://} $url]} {
+    if {[catch {exec [exe] remote -R $repo} url] || ![regexp {^https?://} $url]} {
         return ""
     }
     regsub {^(https?://)[^/@]*@} $url {\1} url
@@ -621,7 +635,7 @@ proc fossil::remoteUrl {repo} {
 
 # The user in the server URL of REPO ("" if none).
 proc fossil::remoteUser {repo} {
-    if {[catch {exec fossil remote -R $repo} url] || ![regexp {^https?://([^/@:]+)(?::[^/@]*)?@} $url -> user]} {
+    if {[catch {exec [exe] remote -R $repo} url] || ![regexp {^https?://([^/@:]+)(?::[^/@]*)?@} $url -> user]} {
         return ""
     }
     return $user

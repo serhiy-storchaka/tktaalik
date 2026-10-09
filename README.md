@@ -20,8 +20,12 @@ alone.
 ## Requirements
 
 - Tcl/Tk 8.6 or 9.0
-- Fossil 2.x on the `PATH` (tested with 2.26)
+- Fossil 2.x on the `PATH`, or the one the `FOSSIL` environment variable
+  names (`FOSSIL=/opt/fossil/bin/fossil ./tktaalik`; see
+  [Environment variables](docs/configuration.md#environment-variables));
+  tested with 2.26 and 2.28
 - Optional: `patch`, to apply patches attached to tickets
+- Optional: `curl`, to post to a forum through its web site
 
 ## Running
 
@@ -59,6 +63,9 @@ Plain Tcl/Tk, no build step.  The tests run under Xvfb with Tk 8.6 and 9.0:
 TKTAALIK_REPO=path/to/tk.fossil tests/run.sh   # the tests
 tests/smoke.sh REPOSITORY...                   # on any repositories
 ```
+
+`WISH` chooses the Tk shells they run with and `FOSSIL` the Fossil
+([Environment variables](docs/configuration.md#environment-variables)).
 
 [AGENTS.md](AGENTS.md) has the layout of the code and the rules for
 changing it.

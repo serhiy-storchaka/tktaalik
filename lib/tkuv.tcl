@@ -209,7 +209,7 @@ proc tkuv::arg {name} {
 proc tkuv::content {name} {
     variable repo
     if {[catch {
-        set p [open |[list fossil uv cat [fossil::arg $name] -R $repo 2>@1] rb]
+        set p [open |[list [fossil::exe] uv cat [fossil::arg $name] -R $repo 2>@1] rb]
         set data [read $p]
         close $p
     } msg]} {

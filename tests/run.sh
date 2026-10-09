@@ -7,7 +7,9 @@
 # TKTAALIK_REPO is a copy of the Tk repository: the tests read it (and
 # expect its tickets and branches), the ones that write use a scratch copy.
 # See tests/common.tcl for the other settings.  Each test gets its own
-# FOSSIL_HOME, so ~/.fossil is not touched.
+# FOSSIL_HOME, so ~/.fossil is not touched.  FOSSIL, if set, is the Fossil
+# to test with (a path, or a name on PATH): the application uses it, and
+# it comes first on PATH for the tests and scratch.sh.
 #
 # At the end, the slowest tests and their times (seconds).
 #
@@ -67,6 +69,16 @@ TKTAALIK_TMP=${TKTAALIK_TMP:-${TMPDIR:-/tmp}/tktaalik-tests}
 export TKTAALIK_REPO TKTAALIK_TMP
 mkdir -p "$TKTAALIK_TMP"
 WISH=${WISH:-wish8.6 wish9.0}
+# Another Fossil: first on PATH, as "fossil".
+if [ -n "${FOSSIL:-}" ]; then
+    exe=$(command -v "$FOSSIL") || { echo "FOSSIL: $FOSSIL not found"; exit 1; }
+    case $exe in /*) ;; *) exe=$(pwd)/$exe ;; esac
+    mkdir -p "$TKTAALIK_TMP/fossil-bin"
+    ln -sf "$exe" "$TKTAALIK_TMP/fossil-bin/fossil"
+    PATH=$TKTAALIK_TMP/fossil-bin:$PATH
+    export FOSSIL PATH
+    echo "With $(fossil version | head -1)"
+fi
 if [ -z "$jobs" ]; then
     jobs=$(nproc 2>/dev/null || echo 4)
     [ "$jobs" -gt 8 ] && jobs=8

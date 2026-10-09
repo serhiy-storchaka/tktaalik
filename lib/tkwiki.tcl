@@ -263,7 +263,7 @@ proc tkwiki::kind {tag} {
 # E date and id of a technote, N mimetype, U user, D date) and its text.
 proc tkwiki::artifact {uuid} {
     variable repo
-    set p [open |[list fossil artifact $uuid -R $repo] rb]
+    set p [open |[list [fossil::exe] artifact $uuid -R $repo] rb]
     set data [read $p]
     close $p
     set cards {}
@@ -497,7 +497,7 @@ proc tkwiki::diff {how} {
             # The label of the version, as in the menu.
             lappend labels "version [expr {$n - $which}], $date[expr {$user ne "" ? ", $user" : ""}]"
         }
-        set p [open |[list fossil xdiff {*}$files 2>@1] r]
+        set p [open |[list [fossil::exe] xdiff {*}$files 2>@1] r]
         fconfigure $p -encoding utf-8
         set out [read $p]
         close $p

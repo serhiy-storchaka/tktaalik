@@ -380,7 +380,7 @@ proc tkfiles::grep {} {
     }
     set g .files.main.right.nb.grep
     if {[catch {
-        set grepPipe [open |[list fossil grep -R $repo {*}$opts -- $pattern \
+        set grepPipe [open |[list [fossil::exe] grep -R $repo {*}$opts -- $pattern \
             {*}[lmap n $all { fossil::arg $n }] << "" 2>@1] r]
     } msg]} {
         $g.status configure -text "Cannot search: $msg"
@@ -667,7 +667,7 @@ proc tkfiles::loadBlame {} {
     $b configure -state disabled
     lassign [target] version name
     fossil::inDir $root {
-        set blamePipe [open |[list fossil blame {*}[blameOptions] -r $version [fossil::arg $name] \
+        set blamePipe [open |[list [fossil::exe] blame {*}[blameOptions] -r $version [fossil::arg $name] \
             << "" 2>@1] r]
     }
     fconfigure $blamePipe -blocking 0 -encoding utf-8

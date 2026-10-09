@@ -90,4 +90,26 @@ check "autosync -R: [fossil::autosync -R $D/r.fossil commit]" {[fossil::autosync
 set s "a b/[encoding convertfrom utf-8 \xc3\xa9]"
 check "urlquery: [fossil::urlquery $s]" {[fossil::urlquery $s] eq "a%20b%2F%C3%A9" && [fossil::urlquery $s /] eq "a%20b/%C3%A9"}
 check "urlDecode" {[fossil::urlDecode "a%20b+%2F%C3%A9"] eq "a b /[encoding convertfrom utf-8 \xc3\xa9]"}
+# FOSSIL: the executable to run, for every way of running it.
+set real [auto_execok fossil]
+set log $T(tmp)/calls.log
+set wrapper $T(tmp)/myfossil
+set f [open $wrapper w]
+puts $f "#!/bin/sh\necho \"\$1\" >> $log\nexec [list {*}$real] \"\$@\""
+close $f
+file attributes $wrapper -permissions 0755
+set saved [expr {[info exists ::env(FOSSIL)] ? $::env(FOSSIL) : ""}]
+set ::env(FOSSIL) $wrapper
+check "exe: \$FOSSIL" {[fossil::exe] eq $wrapper && [fossil::command {fossil diff -i}] eq [list $wrapper diff -i]
+    && [fossil::command {patch -p0}] eq {patch -p0}}
+fossil::run version
+fossil::sql $T(repo) "SELECT 1"
+set done 0
+fossil::start -onDone {::apply {{args} { set ::done 1 }}} version
+vwait ::done
+set f [open $log]; set calls [split [string trim [read $f]] \n]; close $f
+check "run, sql, start through it: $calls" {$calls eq {version sql version}}
+unset ::env(FOSSIL)
+check "unset: fossil from PATH" {[fossil::exe] eq "fossil"}
+if {$saved ne ""} { set ::env(FOSSIL) $saved }
 done

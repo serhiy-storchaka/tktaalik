@@ -323,7 +323,7 @@ proc help::render {text} {
         fconfigure $f -encoding utf-8
         puts -nonewline $f $text
         close $f
-        set p [open |[list fossil test-markdown-render $name 2>@1] r]
+        set p [open |[list [fossil::exe] test-markdown-render $name 2>@1] r]
         fconfigure $p -encoding utf-8
         set html [read $p]
         close $p
