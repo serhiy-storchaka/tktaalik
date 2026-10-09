@@ -680,6 +680,7 @@ proc tktsearch::startFixDone {uuid} {
             ui::errorBox -parent $w -title "Start fix" "fossil update failed:" $out
             return
         }
+        tkcommit::remember $root
     } else {
         if {![ui::confirm -parent $w -title "Start fix" "Open a new checkout of\
                 [file tail $repo] at the tip of $fixBase in $dir, for the new branch $name?" \

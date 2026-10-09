@@ -905,6 +905,8 @@ proc tktimeline::updateTo {rid} {
     lassign [inCheckout update --nosync $uuid] code out
     if {$code} {
         tk_messageBox -icon error -title Update -message "fossil update failed:" -detail $out
+    } else {
+        tkcommit::remember $::tktaalik::root
     }
     search
 }

@@ -43,7 +43,7 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   long command with its output shown, `valueProblem`, `argOk`, `opt`,
   `mask`, `autosync`, `urlquery`, `urlDecode`; no `exec fossil`, `cd` or
   `open |fossil` of its own) and makes its dialogs only through `ui::`
-  (`confirm`, `ask`, `errorBox`, `infoBox`, `copy`, `openServer`, `dialog`,
+  (`confirm`, `ask`, `askCancel`, `errorBox`, `infoBox`, `copy`, `openServer`, `dialog`,
   `buttons`, `form` with `-preview` and `-help`, `later`, `setText`,
   `textWindow`, `busy` and `busyHold`/`busyRelease` while waiting; no
   `tk_messageBox`, `clipboard`, modal loop or `. configure -cursor watch`

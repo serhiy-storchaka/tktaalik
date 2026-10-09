@@ -171,4 +171,24 @@ proc tktimeline::pullOutput {} {
         set query [string trim "[lindex [splitView $query] 1] [viewTerm $v]"]
     }
     changedHere
+    # The pull moved the check-in of the checkout to another branch (a tag
+    # change: the next commit or update would go there): said, and an
+    # update to the old branch offered.
+    set root $::tktaalik::root
+    if {!$failed && $root ne ""} {
+        set moved [tkcommit::branchMoved $root $pullBefore]
+        if {[llength $moved]} {
+            lassign $moved to from user date
+            set detail "It was moved[expr {$from ne "" ? " from $from" : ""}] by $user on $date (a tag\
+                change, as \"fossil amend --branch\" makes), so the next commit or update of the\
+                checkout would go to $to."
+            if {$from eq "" || [catch {fossil::arg $from}]} {
+                ui::infoBox -title Pull "The pull moved the check-in of the checkout to $to." $detail
+            } elseif {[ui::ask -title Pull -icon warning "The pull moved the check-in of the checkout to $to." \
+                    "$detail\n\nUpdate the checkout to the newest check-in of $from now?"]} {
+                tktaalik::show commit
+                tkcommit::updateCheckout $from
+            }
+        }
+    }
 }

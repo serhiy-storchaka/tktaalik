@@ -14,7 +14,8 @@ the `autosync` setting says: the new check-in stays in the local
 repository until you push it yourself.  The line at the top of the tab
 shows the checkout's directory, its branch, the check-in it is on and the
 autosync setting (as written, for example `on,commit=off`), with the
-reminder that it is never used here.
+reminder that it is never used here; and, with ⚠, if the check-in was
+moved to its branch later (see [Committing](#committing)).
 
 Every operation that changes the checkout asks first.  Where Fossil has a
 dry run for it, the dialog shows that dry run ("What it does (dry run):")
@@ -94,6 +95,25 @@ press **Commit** (or Ctrl+Return).  The comment is required.
 
 **Dry run** shows what the commit would do (`fossil commit --dry-run`)
 without committing: the output appears in a window.
+
+A commit goes to the branch of the check-in the checkout is on.  If that
+check-in was moved to its branch by a later tag change — someone ran
+`fossil amend --branch` on it, as reverting a merge may do — the checkout
+follows it there, and a commit would land on a branch you did not expect.
+The line at the top of the tab then says where it was moved from, by whom
+and when, and **Commit** asks first ("This commit goes to the branch …",
+No by default).  To commit to the old branch instead, update to it first
+([Branches](branches.md)), or give a new branch.  **Update…** asks too,
+since it would follow the check-in's new branch: Yes updates to the
+newest check-in of the old branch instead, No along the new one.
+
+Tktaalik also remembers the branch each checkout was on when you last
+updated or committed in it here.  If the checkout went on to another
+branch since by plain updates (`fossil update` follows a branch along
+its history, also across a check-in moved to another branch further
+back), the line at the top says "on … since an update: it was on …"
+and **Commit** asks the same way.  Switching to another branch, and
+starting a new one, are not taken for such a change.
 
 Fossil sometimes asks a question during a commit (about line endings,
 binary files, a fork, a comment that looks wrong).  Here such a question

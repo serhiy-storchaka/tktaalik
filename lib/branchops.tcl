@@ -272,6 +272,8 @@ proc tkbranches::updateTo {name {label ""}} {
     }
     if {![showOutput "Update to $name" $message "Dry run:\n$out" Update]} return
     lassign [inCheckout update --nosync $arg] code out
+    # (The branch worked on now: tkcommit::branchChanged.)
+    if {!$code} { tkcommit::remember $::tktaalik::root }
     reload
     showOutput "Update to $name" [expr {$code ? "fossil update failed:" : "Updated to $label."}] $out
 }

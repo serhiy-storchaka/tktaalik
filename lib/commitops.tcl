@@ -837,17 +837,38 @@ proc tkcommit::updateOpts {{latestToo 1}} {
 }
 
 # Update the checkout to the newest check-in of its branch (fossil update,
-# no pull), after its dry run.
-proc tkcommit::updateCheckout {} {
+# no pull), or of the branch TARGET, after its dry run.
+proc tkcommit::updateCheckout {{target ""}} {
     variable latest 0
-    set w [dialog .commit.update "Update" "Update the checkout to the newest check-in of\
-        its branch (nothing is pulled first).  Uncommitted changes are merged into the\
-        new version." Update {tkcommit::dryRun update --nosync -n {*}[tkcommit::updateOpts]}]
+    variable updateTo $target
+    # The check-in moved to another branch since (tkcommit::branchMoved):
+    # the update would follow it there; to the old branch instead?
+    set moved [expr {$target eq "" ? [branchMoved] : {}}]
+    if {[llength $moved]} {
+        lassign $moved to from user date
+        if {$from ne "" && ![catch {fossil::arg $from}]} {
+            switch [ui::askCancel -title Update -icon warning -default yes \
+                    "The check-in of the checkout was moved to $to." \
+                    "It was moved from $from by $user on $date (a tag change, as \"fossil\
+                    amend --branch\" makes), and an update follows the branch of the\
+                    check-in: along $to.\n\nUpdate to the newest check-in of $from instead\
+                    (Yes), or along $to (No)?"] {
+                yes { set updateTo $from }
+                no {}
+                default return
+            }
+        }
+    }
+    set what [expr {$updateTo eq "" ? "the newest check-in of its branch" : "the newest check-in of $updateTo"}]
+    set w [dialog .commit.update "Update" "Update the checkout to $what (nothing is\
+        pulled first).  Uncommitted changes are merged into the new version." Update \
+        {tkcommit::dryRun update --nosync -n {*}[tkcommit::updateOpts] {*}$::tkcommit::updateTo}]
     checkField $w latest "To the newest check-in of any branch (--latest)" tkcommit::latest
     checkField $w mtime "Set the times of the files to their check-ins' (--setmtime)" tkcommit::setmtime
     checkField $w keep "On a merge conflict, keep the files of the three versions (-K)" tkcommit::keepMerge
     if {![waitDialog $w]} return
-    lassign [fossil update --nosync {*}[updateOpts]] code out
+    lassign [fossil update --nosync {*}[updateOpts] {*}$updateTo] code out
+    if {!$code} { remember }
     if {[finish $code $out "fossil update"]} {
         set ::tkcommit::status [lindex [split [string trim $out] \n] 0]
         showLog Updated $out

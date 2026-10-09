@@ -5,6 +5,8 @@
 #                               OK or Cancel (Cancel the default): 1 if OK
 #   ui::ask ?-parent W? ?-title T? ?-icon I? ?-default D? MESSAGE ?DETAIL?
 #                               Yes or No: 1 if Yes
+#   ui::askCancel ?-parent W? ?-title T? ?-icon I? ?-default D? MESSAGE ?DETAIL?
+#                               yes, no or cancel
 #   ui::errorBox ?-parent W? ?-title T? MESSAGE ?DETAIL?
 #   ui::infoBox ?-parent W? ?-title T? MESSAGE ?DETAIL?
 #   ui::copy TEXT               to the clipboard
@@ -58,6 +60,11 @@ proc ui::confirm {args} {
 
 proc ui::ask {args} {
     expr {[Box question yesno $args] eq "yes"}
+}
+
+# A question of three answers: yes, no or cancel.
+proc ui::askCancel {args} {
+    Box question yesnocancel $args
 }
 
 proc ui::errorBox {args} {

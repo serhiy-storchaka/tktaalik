@@ -12,6 +12,10 @@ source [file join [file dirname [file normalize [info script]]] commitops.tcl]
 
 namespace eval tkcommit {
     variable root ""            ;# the checkout's top directory
+    # The check-in and branch each checkout was last seen on, by Tktaalik's
+    # own updates and commits (tkcommit::branchChanged).
+    variable configFile [config::path checkouts]
+    variable seen ""            ;# checkout -> {uuid branch}; "" not read yet
     variable files {}           ;# path -> status, in Fossil's order
     variable checked            ;# array: path -> 1 if to be committed
     variable merging 0          ;# a merge is in progress: all or nothing
@@ -123,6 +127,103 @@ proc tkcommit::loadInfo {} {
     append info "  \u00b7  check-in $hash  \u00b7  autosync $sync (never used here)"
     if {$::tkcommit::from ne ""} { append info "  \u00b7  diffs against $::tkcommit::from" }
     if {$forks > 1} { append info "  \u00b7  the branch has $forks leaves (Commit \u25b8 Merge fork\u2026)" }
+    set moved [branchMoved]
+    if {[llength $moved]} {
+        lassign $moved to from user date
+        append info "  \u00b7  \u26a0 moved to $to[expr {$from ne "" ? " from $from" : ""}] by $user on $date"
+    } elseif {[llength [set changed [branchChanged]]]} {
+        append info "  \u00b7  \u26a0 on [lindex $changed 1] since an update: it was on [lindex $changed 0]"
+    }
+}
+
+# The check-in of the checkout ROOT: {uuid branch started}, started 1 if
+# the check-in itself began its branch (a commit to a new branch).
+proc tkcommit::current {root} {
+    if {[catch {fossil::checkoutSql $root "SELECT b.uuid, [fossil::outcol "coalesce(x.value,'')"],
+        coalesce(x.srcid=b.rid OR x.origid=b.rid, 0)
+        FROM blob b LEFT JOIN tagxref x ON x.rid=b.rid AND x.tagtype>0
+            AND x.tagid=(SELECT tagid FROM tag WHERE tagname='branch')
+        WHERE b.rid=(SELECT value FROM vvar WHERE name='checkout')"} rows]} {
+        return {}
+    }
+    lindex $rows 0
+}
+
+# Remember the check-in and branch of the checkout ROOT (default: the
+# Commit tab's), as the one worked on.
+proc tkcommit::remember {{root ""}} {
+    variable seen
+    variable configFile
+    if {$root eq ""} { set root $::tkcommit::root }
+    if {$root eq ""} return
+    if {$seen eq ""} { set seen [config::get $configFile checkouts] }
+    set now [lrange [current $root] 0 1]
+    if {![llength $now] || ([dict exists $seen $root] && [dict get $seen $root] eq $now)} return
+    dict set seen $root $now
+    config::put $configFile $seen
+}
+
+# Whether the checkout ROOT went on to another branch since Tktaalik last
+# saw it, by an update along its history (as when a check-in on the way
+# was moved to another branch): {old new}, else {}.  Other changes (no
+# record yet, the same branch, a switch to another branch, a new branch
+# begun by the check-in) are remembered instead.
+proc tkcommit::branchChanged {{root ""}} {
+    variable seen
+    variable configFile
+    if {$root eq ""} { set root $::tkcommit::root }
+    if {$root eq ""} { return {} }
+    if {$seen eq ""} { set seen [config::get $configFile checkouts] }
+    lassign [current $root] uuid branch started
+    if {$uuid eq ""} { return {} }
+    if {![dict exists $seen $root]} {
+        remember $root
+        return {}
+    }
+    lassign [dict get $seen $root] oldUuid oldBranch
+    if {$branch eq $oldBranch || $started} {
+        remember $root
+        return {}
+    }
+    # Gone on from the check-in seen (a descendant of it): not a switch.
+    set n 0
+    catch {
+        set n [lindex [fossil::checkoutSql $root "WITH RECURSIVE a(rid) AS (
+            SELECT value FROM vvar WHERE name='checkout'
+            UNION SELECT p.pid FROM plink p JOIN a ON p.cid=a.rid LIMIT 20000)
+            SELECT count(*) FROM a JOIN blob b ON b.rid=a.rid WHERE b.uuid=[fossil::sqlstr $oldUuid]"] 0 0]
+    }
+    if {!$n} {
+        remember $root
+        return {}
+    }
+    list $oldBranch $branch
+}
+
+# Whether the check-in of the checkout was moved to its branch by a later
+# tag change (fossil amend --branch, or a tag edit): {branch from user
+# date}, else {}; "from" is a branch tag the change cancelled, its
+# parent's branch if one is.  ROOT: the checkout (the Commit tab's by
+# default); SINCE: an rcvid, for a change received after it only.  A commit then goes to that branch, which its author may
+# not expect: the checkout follows the branch of its check-in.
+proc tkcommit::branchMoved {{root ""} {since ""}} {
+    if {$root eq ""} { set root $::tkcommit::root }
+    # (SINCE: only a change received after that rcvid, as by a pull.)
+    set new [expr {$since eq "" ? "" : "AND (SELECT rcvid FROM blob WHERE rid=x.srcid)>$since"}]
+    if {[catch {fossil::checkoutSql $root "SELECT [fossil::outcol x.value],
+        [fossil::outcol "coalesce((SELECT substr(t.tagname,5) FROM tagxref c JOIN tag t ON t.tagid=c.tagid
+            WHERE c.rid=x.rid AND c.srcid=x.srcid AND c.tagtype=0 AND t.tagname GLOB 'sym-*'
+            ORDER BY substr(t.tagname,5)=(SELECT y.value FROM plink p JOIN tagxref y ON y.rid=p.pid
+                AND y.tagid=(SELECT tagid FROM tag WHERE tagname='branch') AND y.tagtype>0
+                WHERE p.cid=c.rid AND p.isprim) DESC LIMIT 1),'')"],
+        [fossil::outcol "coalesce(e.user,'')"], strftime('%Y-%m-%d %H:%M', x.mtime)
+        FROM tagxref x JOIN event e ON e.objid=x.srcid
+        WHERE x.rid=(SELECT value FROM vvar WHERE name='checkout')
+        AND x.tagid=(SELECT tagid FROM tag WHERE tagname='branch') AND x.tagtype>0
+        AND x.srcid<>x.rid AND e.type<>'ci' $new"} rows]} {
+        return {}
+    }
+    lindex $rows 0
 }
 
 # How many open leaves the branch has: more than one is a fork.
@@ -412,6 +513,30 @@ proc tkcommit::commit {{dryRun 0}} {
         tk_messageBox -icon error -title Commit -message "Not a branch name: $branch"
         return
     }
+    # The checkout's check-in moved to another branch since, or the
+    # checkout went on to another branch: the commit would go there, asked
+    # first.
+    if {$branch eq "" && !$dryRun} {
+        set moved [branchMoved]
+        set changed [expr {[llength $moved] ? {} : [branchChanged]}]
+        if {[llength $changed]} {
+            lassign $changed old new
+            if {![ui::ask -title Commit -icon warning -default no "This commit goes to the branch $new." \
+                    "The checkout was on $old when you last updated or committed here with\
+                    Tktaalik; an update since took it on to $new (perhaps along a check-in\
+                    that was moved to $new).  To commit to $old instead, update to it first\
+                    (Branches tab), or give a new branch here.\n\nCommit to $new?"]} return
+        }
+        if {[llength $moved]} {
+            lassign $moved to from user date
+            if {![ui::ask -title Commit -icon warning -default no "This commit goes to the branch $to." \
+                    "The check-in the checkout is at was moved to $to[expr {$from ne "" ? " from $from" : ""}]\
+                    by $user on $date (a tag change, as \"fossil amend --branch\" makes), and\
+                    a commit goes to the branch of its check-in.  To commit to\
+                    [expr {$from ne "" ? $from : "the other branch"}] instead, update to it first\
+                    (Branches tab), or give a new branch here.\n\nCommit to $to?"]} return
+        }
+    }
 
     # The message in a file: no quoting or redirection issues.
     set f [file tempfile tmp]
@@ -448,6 +573,7 @@ proc tkcommit::commit {{dryRun 0}} {
     .commit.bottom.msg.text delete 1.0 end
     set branch ""
     resetOpts
+    remember
     refresh
     set ::tkcommit::status "Committed [string range $hash 0 9]"
     showLog "Committed [string range $hash 0 9]" $out

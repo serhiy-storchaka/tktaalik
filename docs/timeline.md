@@ -448,5 +448,12 @@ dialog; **Stop** stops it (also quitting Tktaalik does).  When it ends, the Time
 something new came from a server (else All), and the other tabs read the
 repository again when you open them.  Back returns to where you were.
 
+If the pull brought a tag change that moved the check-in of the checkout
+to another branch (`fossil amend --branch`, as reverting a merge may do),
+the next commit or update would go there.  Tktaalik then says so, with
+who moved it and when, and offers to update the checkout to the newest
+check-in of the branch it was on (the Commit tab's
+[Update](commit.md#updating), with its dry run).
+
 Without a remote, Pull tells you to add one in
 **Repository ▸ Remotes**.

@@ -526,7 +526,7 @@ proc tkstash::goBack {} {
         lassign [fossil update --nosync $hash] code out2
         append out \n$out2
     }
-    if {!$code} { setReturn "" }
+    if {!$code} { setReturn ""; tkcommit::remember $::tktaalik::root }
     reload
     if {$code} {
         tk_messageBox -icon error -title Stash -message "Going back failed:" -detail $out
