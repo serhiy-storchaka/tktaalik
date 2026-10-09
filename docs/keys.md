@@ -16,8 +16,7 @@ These work in every tab.
 | Ctrl+O | open a repository file |
 | Ctrl+Q | quit (the settings are saved) |
 
-The Commit and Stash tabs need a checkout: without one, their keys only
-beep.
+The Commit and Stash tabs need a checkout: without one, their keys only beep.
 
 ## Keys in the tabs
 
@@ -43,8 +42,8 @@ beep.
 
 The pages of the tabs describe their keys in detail.
 
-In the windows of the Repository menu, and in the Go to and Ticket reports
-windows:
+In the windows of the Repository menu,
+and in the Go to and Ticket reports windows:
 
 | Key | Action |
 |---|---|

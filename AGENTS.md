@@ -104,7 +104,9 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   `page#anchor`; an anchor is the heading lowercased, other characters
   runs as "-").  A new dialog or window gets an entry there and a section
   to point at; `tests/help.tcl` checks that every page, required section,
-  link and F1 target exists.
+  link and F1 target exists.  README.md and the manual use semantic line
+  breaks: each sentence on a line of its own, a long one broken after a
+  clause (a comma, a semicolon, a colon); not in tables and code.
 - **Fossil's options**: a feature that runs a Fossil command should offer
   what its options do where that makes sense in a window, and say why not
   otherwise.  Anything that writes asks first, with Fossil's dry run (`-n`)

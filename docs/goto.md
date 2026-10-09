@@ -1,14 +1,15 @@
 # Go to
 
-**Go to** opens anything in the repository that has a name: a hash, a
-ticket id, a tag, a branch.  It works out what the name is and shows it in
-the tab where it belongs.
+**Go to** opens anything in the repository that has a name: a hash, a ticket id,
+a tag, a branch.
+It works out what the name is and shows it in the tab where it belongs.
 
-Open it with **Ctrl+G**, or File ▸ **Go to…** in any tab.  Type the name and
-press Return (or click **Go**).  If the name means one thing, the window
-closes and that thing is shown; **Back** (Alt+Left) returns to where you
-were.  The box remembers the last 30 names (its drop-down list).  Escape
-closes the window.
+Open it with **Ctrl+G**, or File ▸ **Go to…** in any tab.
+Type the name and press Return (or click **Go**).
+If the name means one thing, the window closes and that thing is shown;
+**Back** (Alt+Left) returns to where you were.
+The box remembers the last 30 names (its drop-down list).
+Escape closes the window.
 
 ## What it accepts
 
@@ -47,17 +48,17 @@ which knows its other names of check-ins and dates:
 | `merge-in:BRANCH` | the check-in of the parent branch most recently merged into the branch |
 | `tag:NAME` | the newest check-in with the tag, also when NAME looks like a hash |
 
-In the list of [several matches](#several-matches) these show with the
-hash they mean, as "tip (2641646046)".
+In the list of [several matches](#several-matches) these show with the hash they
+mean, as "tip (2641646046)".
 
-If nothing has the name, the window stays open and says so, and you can
-correct it.
+If nothing has the name, the window stays open and says so,
+and you can correct it.
 
 ## Several matches
 
-A short hash prefix can match several things, and a name can be both a
-branch and a tag, for example.  Then the window lists them all instead of
-choosing:
+A short hash prefix can match several things,
+and a name can be both a branch and a tag, for example.
+Then the window lists them all instead of choosing:
 
 | Column | What it shows |
 |---|---|
@@ -65,9 +66,10 @@ choosing:
 | Name | the name or the start of the hash |
 | (description) | the date, user and comment, the title, the file name and check-in… |
 
-Double-click one, or choose it with the arrow keys (Down from the box goes to
-the list) and press Return.  An "Artifact" without anything to show (a
-control artifact or a cluster, Fossil's own records) is listed in grey and
-cannot be opened.
+Double-click one, or choose it with the arrow keys
+(Down from the box goes to the list) and press Return.
+An "Artifact" without anything to show
+(a control artifact or a cluster,
+Fossil's own records) is listed in grey and cannot be opened.
 
 A longer prefix narrows the list; with the full hash there is only one.

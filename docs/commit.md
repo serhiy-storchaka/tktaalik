@@ -1,31 +1,34 @@
 # Commit
 
-The Commit tab shows what changed in the checkout, the diff of each
-changed file, and commits the files you choose.  It also does the other
-things one does to a checkout before committing: adding, renaming and
-removing files, deleting unmanaged ones, reverting, undoing, looking at a
-merge in progress, and saving or applying patches.
+The Commit tab shows what changed in the checkout,
+the diff of each changed file, and commits the files you choose.
+It also does the other things one does to a checkout before committing: adding,
+renaming and removing files, deleting unmanaged ones, reverting, undoing,
+looking at a merge in progress, and saving or applying patches.
 
-The tab needs a checkout.  When only a repository file is open, the tab
-is disabled; open a checkout with **File ▸ Open checkout…**.
+The tab needs a checkout.
+When only a repository file is open, the tab is disabled;
+open a checkout with **File ▸ Open checkout…**.
 
-**Nothing is ever pushed.**  Commits are made with `--nosync`, whatever
-the `autosync` setting says: the new check-in stays in the local
-repository until you push it yourself.  The line at the top of the tab
-shows the checkout's directory, its branch, the check-in it is on and the
-autosync setting (as written, for example `on,commit=off`), with the
-reminder that it is never used here; and, with ⚠, if the check-in was
-moved to its branch later (see [Committing](#committing)).
+**Nothing is ever pushed.**
+Commits are made with `--nosync`, whatever the `autosync` setting says:
+the new check-in stays in the local repository until you push it yourself.
+The line at the top of the tab shows the checkout's directory, its branch,
+the check-in it is on and the autosync setting
+(as written, for example `on,commit=off`),
+with the reminder that it is never used here; and, with ⚠,
+if the check-in was moved to its branch later (see [Committing](#committing)).
 
-Every operation that changes the checkout asks first.  Where Fossil has a
-dry run for it, the dialog shows that dry run ("What it does (dry run):")
-and runs it again as you change the options, so you see exactly what will
-happen before you press the button.
+Every operation that changes the checkout asks first.
+Where Fossil has a dry run for it,
+the dialog shows that dry run
+("What it does (dry run):") and runs it again as you change the options,
+so you see exactly what will happen before you press the button.
 
 ## Changed files
 
-The list on the left shows the changed files of the checkout, as `fossil
-changes` classifies them:
+The list on the left shows the changed files of the checkout,
+as `fossil changes` classifies them:
 
 | Status | Meaning |
 |---|---|
@@ -39,32 +42,36 @@ changes` classifies them:
 | EXTRA | not managed by Fossil (only with "Show unmanaged files", in grey) |
 | UNCHANGED | not changed (only with "Show unchanged files") |
 
-The first column is a check box: the checked files are committed.  Click
-it, or select files and press Space, to check or uncheck them.  Several
-files can be selected (Shift-click, Control-click): Remove, Revert, Undo
-and Redo for files, Add, Rename (moving them into a directory) and Update
-files to a version then act on all of them.  Files that
-can be committed start checked; EXTRA, MISSING and UNCHANGED files start
-unchecked and are never committed (EXTRA ones can be added first; see
-[File operations](#file-operations)).  Your choices are kept when the
-list is read again, as long as a file's status stays the same.  The
-status line counts the checked files.  Of an edited file you can also
-commit only some of its changes: see [Committing part of a
-file](#committing-part-of-a-file).
+The first column is a check box: the checked files are committed.
+Click it, or select files and press Space, to check or uncheck them.
+Several files can be selected (Shift-click, Control-click): Remove, Revert,
+Undo and Redo for files, Add,
+Rename (moving them into a directory) and Update files to a version then act on
+all of them.
+Files that can be committed start checked; EXTRA,
+MISSING and UNCHANGED files start unchecked and are never committed
+(EXTRA ones can be added first; see [File operations](#file-operations)).
+Your choices are kept when the list is read again,
+as long as a file's status stays the same.
+The status line counts the checked files.
+Of an edited file you can also commit only some of its changes:
+see [Committing part of a file](#committing-part-of-a-file).
 
 Two check boxes under the comment change what is listed:
 
-- **Show unmanaged files**: also the files Fossil does not manage, as
-  `fossil extras` lists them: not those of the ignore-glob setting, nor
-  dot files unless the dotfiles setting is on, or **with dot files** is
-  checked beside it (`--dotfiles`).  (The fields of the Add new and Delete
-  unmanaged files dialogs do not change this list.)  Selecting one shows
-  the start of its text instead of a diff.
+- **Show unmanaged files**: also the files Fossil does not manage,
+  as `fossil extras` lists them: not those of the ignore-glob setting,
+  nor dot files unless the dotfiles setting is on,
+  or **with dot files** is checked beside it (`--dotfiles`).
+  (The fields of the Add new and Delete unmanaged files dialogs do not change
+  this list.)
+  Selecting one shows the start of its text instead of a diff.
 - **Show unchanged files**: also the managed files that did not change,
   so that you can rename or remove them here too.
 
-Select a file to see its diff on the right.  Double-click it for a
-side-by-side diff in a window of its own.  Right-click it for:
+Select a file to see its diff on the right.
+Double-click it for a side-by-side diff in a window of its own.
+Right-click it for:
 
 | Entry | What it does |
 |---|---|
@@ -77,120 +84,134 @@ side-by-side diff in a window of its own.  Right-click it for:
 | Undo for these files…, Redo for these files… | see [Undo and redo](#undo-and-redo) |
 | Copy names | the selected files' paths, to the clipboard |
 
-The **Commit** menu has them too (Undo for the selected files…, Redo for
-the selected files…, Copy names of the selected files).
+The **Commit** menu has them too
+(Undo for the selected files…, Redo for the selected files…,
+Copy names of the selected files).
 
-The list is read again when you come back to the tab, after every
-operation, and with **Refresh** (F5).
+The list is read again when you come back to the tab, after every operation,
+and with **Refresh** (F5).
 
 ## Committing
 
-Type the check-in comment in the box at the bottom, check the files, and
-press **Commit** (or Ctrl+Return).  The comment is required.
+Type the check-in comment in the box at the bottom, check the files,
+and press **Commit** (or Ctrl+Return).
+The comment is required.
 
-- **New branch**: a branch name to commit to a new branch, starting with
-  this check-in (`--branch`).  Leave it empty to commit to the branch the
-  checkout is on.  The name cannot contain spaces or start with `-`, `<`,
-  `>` or `|`.
-- **Ignore warnings**: no warnings about the files' contents (CR/LF line
-  endings, binary data, …) and no check of the comment (`--no-warnings
-  --no-verify-comment`; Fossil 2.21 checks no comments).
-- **More options**: the rest of Fossil's commit options; see
-  [Commit options](#commit-options).
+- **New branch**: a branch name to commit to a new branch,
+  starting with this check-in (`--branch`).
+  Leave it empty to commit to the branch the checkout is on.
+  The name cannot contain spaces or start with `-`, `<`, `>` or `|`.
+- **Ignore warnings**:
+  no warnings about the files' contents
+  (CR/LF line endings, binary data, …) and no check of the comment
+  (`--no-warnings --no-verify-comment`; Fossil 2.21 checks no comments).
+- **More options**: the rest of Fossil's commit options;
+  see [Commit options](#commit-options).
 
-**Dry run** shows what the commit would do (`fossil commit --dry-run`)
-without committing: the output appears in a window.
+**Dry run** shows what the commit would do
+(`fossil commit --dry-run`) without committing: the output appears in a window.
 
 ## Committing part of a file
 
-Fossil commits whole files: it has no staging area.  In the Commit tab
-you can still commit only some changes of an edited file.  Its diff has a
-check box on each hunk (each `@@` line), ticked as long as the file is
-checked: click one to untick it, or put the cursor in a hunk and press
-Space.  An unticked hunk is greyed.  A file with some hunks unticked is
-marked ▣ in the list, and the status line counts it ("1 of them in
-part").  Unticking all the hunks of a file unchecks it; ticking a hunk of
-an unchecked file checks it with only that hunk.  Checking or unchecking
-the file itself takes the whole file again.
+Fossil commits whole files: it has no staging area.
+In the Commit tab you can still commit only some changes of an edited file.
+Its diff has a check box on each hunk (each `@@` line),
+ticked as long as the file is checked: click one to untick it,
+or put the cursor in a hunk and press Space.
+An unticked hunk is greyed.
+A file with some hunks unticked is marked ▣ in the list,
+and the status line counts it ("1 of them in part").
+Unticking all the hunks of a file unchecks it;
+ticking a hunk of an unchecked file checks it with only that hunk.
+Checking or unchecking the file itself takes the whole file again.
 
-**Commit** then asks first, naming how many changes of each such file
-are committed.  Tktaalik:
+**Commit** then asks first,
+naming how many changes of each such file are committed.
+Tktaalik:
 
 1. keeps all the changes in a stash (`fossil stash snapshot`);
-2. writes each such file with only its ticked changes, taken from the
-   file byte for byte (line ends, encodings and the end of the file stay
-   as they are);
+2. writes each such file with only its ticked changes,
+   taken from the file byte for byte
+   (line ends, encodings and the end of the file stay as they are);
 3. commits as usual (`fossil commit --nosync` with the files);
-4. writes the files back with all their changes, whether the commit
-   worked or not, then drops the stash.  If a file cannot be written
-   back, the stash is kept and a message says which: Apply it in the
-   [Stash](stash.md) tab.
+4. writes the files back with all their changes,
+   whether the commit worked or not, then drops the stash.
+   If a file cannot be written back, the stash is kept and a message says which:
+   Apply it in the [Stash](stash.md) tab.
 
-The changes not ticked stay in the checkout, ready for the next commit.
-**Dry run** does the same with `--dry-run`, without asking.
+The changes not ticked stay in the checkout,
+ready for the next commit. **Dry run** does the same with `--dry-run`,
+without asking.
 
 Hunks can be chosen only:
 
-- for edited files (not added, removed or renamed ones, nor binary
-  files: those are committed whole);
+- for edited files (not added, removed or renamed ones, nor binary files:
+  those are committed whole);
 - without a merge in progress (Fossil commits all the files then);
-- with the plain diff: not with **Ignore white space**, **Ignore white
-  space at line ends**, **Ignore CR at line ends** or **Inverted** in
-  Commit ▸ Diff options, nor with the diff against another version.  The
-  context lines can be chosen: fewer give smaller hunks.
+- with the plain diff: not with **Ignore white space**,
+  **Ignore white space at line ends**,
+  **Ignore CR at line ends** or **Inverted** in Commit ▸ Diff options,
+  nor with the diff against another version.
+  The context lines can be chosen: fewer give smaller hunks.
 
-If a file's diff does not give the file back (a change the diff does not
-show), it can only be committed whole, and Commit says so.
+If a file's diff does not give the file back (a change the diff does not show),
+it can only be committed whole, and Commit says so.
 
 ### Stashing part of the changes
 
 **Commit ▸ Stash the checked changes…** stashes the checked files
-(`fossil stash save` with their names), of the files in part only the
-hunks ticked, and takes them out of the checkout; the rest stays.  It
-asks for the stash's comment first.  The same stash of all the changes
-is kept meanwhile, and dropped once the files are written.  Apply the
-stash later in the [Stash](stash.md) tab.
+(`fossil stash save` with their names),
+of the files in part only the hunks ticked, and takes them out of the checkout;
+the rest stays.
+It asks for the stash's comment first.
+The same stash of all the changes is kept meanwhile,
+and dropped once the files are written.
+Apply the stash later in the [Stash](stash.md) tab.
 
-A commit goes to the branch of the check-in the checkout is on.  If that
-check-in was moved to its branch by a later tag change — someone ran
-`fossil amend --branch` on it, as reverting a merge may do — the checkout
-follows it there, and a commit would land on a branch you did not expect.
-The line at the top of the tab then says where it was moved from, by whom
-and when, and **Commit** asks first ("This commit goes to the branch …",
-No by default).  To commit to the old branch instead, update to it first
-([Branches](branches.md)), or give a new branch.  **Update…** asks too,
-since it would follow the check-in's new branch: Yes updates to the
-newest check-in of the old branch instead, No along the new one.
+A commit goes to the branch of the check-in the checkout is on.
+If that check-in was moved to its branch by a later tag change
+— someone ran `fossil amend --branch` on it, as reverting a merge may do
+— the checkout follows it there,
+and a commit would land on a branch you did not expect. The line at the top of
+the tab then says where it was moved from, by whom and when,
+and **Commit** asks first ("This commit goes to the branch …", No by default).
+To commit to the old branch instead,
+update to it first ([Branches](branches.md)), or give a new branch.
+**Update…** asks too, since it would follow the check-in's new branch:
+Yes updates to the newest check-in of the old branch instead,
+No along the new one.
 
-Tktaalik also remembers the branch each checkout was on when you last
-updated or committed in it here.  If the checkout went on to another
-branch since by plain updates (`fossil update` follows a branch along
-its history, also across a check-in moved to another branch further
-back), the line at the top says "on … since an update: it was on …"
-and **Commit** asks the same way.  Switching to another branch, and
-starting a new one, are not taken for such a change.
+Tktaalik also remembers the branch each checkout was on when you last updated or
+committed in it here.
+If the checkout went on to another branch since by plain updates
+(`fossil update` follows a branch along its history,
+also across a check-in moved to another branch further back),
+the line at the top says "on … since an update:
+it was on …" and **Commit** asks the same way.
+Switching to another branch, and starting a new one,
+are not taken for such a change.
 
-Fossil sometimes asks a question during a commit (about line endings,
-binary files, a fork, a comment that looks wrong).  Here such a question
-cancels the commit (`--no-prompt`), and Fossil's message is shown in a
-window, so that you can decide: fix the cause, or check **Ignore
-warnings** or the matching option under **More options** and commit
-again.
+Fossil sometimes asks a question during a commit
+(about line endings, binary files, a fork, a comment that looks wrong).
+Here such a question cancels the commit (`--no-prompt`),
+and Fossil's message is shown in a window, so that you can decide:
+fix the cause, or check **Ignore warnings** or the matching option under **More
+options** and commit again.
 
-After a successful commit the window shows Fossil's output, the status
-line says `Committed` and the new check-in's hash, the comment box, the
-New branch box and the one-shot options are cleared, and the list is read
-again.
+After a successful commit the window shows Fossil's output,
+the status line says `Committed` and the new check-in's hash, the comment box,
+the New branch box and the one-shot options are cleared,
+and the list is read again.
 
-While a merge is in progress (see [Merges](#merges)), Fossil commits all
-changed files: the check boxes cannot be changed, and a note in red says
-what is being merged.
+While a merge is in progress (see [Merges](#merges)),
+Fossil commits all changed files: the check boxes cannot be changed,
+and a note in red says what is being merged.
 
 ## Commit options
 
 **More options** opens a panel with the rest of Fossil's commit options
-(the button then reads **Fewer options**).  Hover over a field for a
-short explanation.
+(the button then reads **Fewer options**).
+Hover over a field for a short explanation.
 
 | Field | Fossil option | Meaning |
 |---|---|---|
@@ -213,25 +234,26 @@ short explanation.
 | Check by hashing | `--hash` | find changed files by their hashes, not their times (the list of changed files too: a file edited without changing its size within the same second shows up) |
 | Skip hooks | `--no-verify` | do not run the before-commit hooks |
 
-The values typed are checked first: a tag cannot have spaces or
-`<>|"'&`, a colour is `#RRGGBB` (or a colour name), a date is `YYYY-MM-DD
-HH:MM:SS`, and nothing starts with `-`; a value that cannot be passed is
-named, and nothing is committed.
+The values typed are checked first: a tag cannot have spaces or `<>|"'&`,
+a colour is `#RRGGBB` (or a colour name), a date is `YYYY-MM-DD HH:MM:SS`,
+and nothing starts with `-`; a value that cannot be passed is named,
+and nothing is committed.
 
-Most of these are **one-shot**: they are cleared after a successful
-commit, so that a tag, a colour, a date or an "allow" does not end up on
-the next check-in by accident.  The ones that are preferences rather than
-choices for one check-in stay set: **Allow big files**, **Ignore clock
-skew**, **Check by hashing**, **Don't sign** and **Skip hooks**.
+Most of these are **one-shot**: they are cleared after a successful commit,
+so that a tag, a colour,
+a date or an "allow" does not end up on the next check-in by accident.
+The ones that are preferences rather than choices for one check-in stay set:
+**Allow big files**, **Ignore clock skew**, **Check by hashing**,
+**Don't sign** and **Skip hooks**.
 
 ## Diffs
 
-The right side of the tab shows the diff of the selected file: added
-lines in green, removed ones in red, the hunk headers in blue.  An
-unmanaged file shows the start of its text, a missing one a note.
+The right side of the tab shows the diff of the selected file:
+added lines in green, removed ones in red, the hunk headers in blue.
+An unmanaged file shows the start of its text, a missing one a note.
 
-The **Commit** menu has more diffs, each in the diff window (see
-[Diffs](diffs.md)):
+The **Commit** menu has more diffs,
+each in the diff window (see [Diffs](diffs.md)):
 
 | Entry | What it shows |
 |---|---|
@@ -242,22 +264,23 @@ The **Commit** menu has more diffs, each in the diff window (see
 | Diff since before the last undoable command | the changes since the state before the last update, merge, revert, stash or clean (`fossil diff --undo`) |
 | Diff options | the submenu below |
 
-**Compare with version…** asks for a check-in, branch or tag: from then
-on all the diffs of the tab (the pane, Side-by-side, Diff of all changes)
-show the files against that version instead of the check-in the checkout
-is on (`fossil diff --from`).  The line at the top says `diffs against
-…` while it is set.  Leave the field empty to compare with the checkout's
-check-in again.
+**Compare with version…** asks for a check-in, branch or tag:
+from then on all the diffs of the tab
+(the pane, Side-by-side,
+Diff of all changes) show the files against that version instead of the check-in
+the checkout is on (`fossil diff --from`).
+The line at the top says `diffs against …` while it is set.
+Leave the field empty to compare with the checkout's check-in again.
 
 **Compare two versions…** asks for **From** and **To**: check-ins,
-branches or tags (`fossil diff --from --to`).  **To** left empty compares
-with the files of the checkout as they are now.  **From** can also be a
-directory (**Directory…** chooses one): a tree of files elsewhere, for
-example an unpacked release, compared with the checkout or the version
-To.
+branches or tags (`fossil diff --from --to`).
+**To** left empty compares with the files of the checkout as they are now.
+**From** can also be a directory (**Directory…** chooses one):
+a tree of files elsewhere, for example an unpacked release,
+compared with the checkout or the version To.
 
-**Commit ▸ Diff options** changes how all diffs of the Commit and Stash
-tabs compare; the diff pane is shown again at once:
+**Commit ▸ Diff options** changes how all diffs of the Commit and Stash tabs
+compare; the diff pane is shown again at once:
 
 | Entry | Fossil option | Meaning |
 |---|---|---|
@@ -269,83 +292,94 @@ tabs compare; the diff pane is shown again at once:
 
 ## File operations
 
-All of these are in the **Commit** menu; the ones for a single file also
-in the file's context menu.  They change the checkout only; nothing is
-committed until you commit.
+All of these are in the **Commit** menu;
+the ones for a single file also in the file's context menu.
+They change the checkout only; nothing is committed until you commit.
 
-**Add** adds the checked unmanaged files to Fossil, or if none are
-checked, the selected unmanaged file.  (Check **Show unmanaged files**
-to see them.)  If some of them match the ignore-glob setting, Tktaalik
-asks whether to add them anyway (`fossil add -f`).  If some names are
-reserved on Windows (`aux`, `con`, `nul`, …), it warns that such files
-cannot be checked out on Windows and asks whether to add them anyway
-(`--allow-reserved`).
+**Add** adds the checked unmanaged files to Fossil, or if none are checked,
+the selected unmanaged file.
+(Check **Show unmanaged files** to see them.)
+If some of them match the ignore-glob setting,
+Tktaalik asks whether to add them anyway (`fossil add -f`).
+If some names are reserved on Windows (`aux`, `con`, `nul`, …),
+it warns that such files cannot be checked out on Windows and asks whether to
+add them anyway (`--allow-reserved`).
 
-**Rename or move…** asks for the new name of the selected file, or a
-directory to move it into.  With several files selected it asks for the
-directory to move them all into (made if needed).  **Also rename the file on disk** (on by
-default) renames the file itself too (`fossil mv --hard`); unchecked,
-Fossil only records the new name and the file on disk stays as it is
-(`--soft`).  The dry run shows what will happen as you type.
+**Rename or move…** asks for the new name of the selected file,
+or a directory to move it into.
+With several files selected it asks for the directory to move them all into
+(made if needed).
+**Also rename the file on disk** (on by default) renames the file itself too
+(`fossil mv --hard`); unchecked,
+Fossil only records the new name and the file on disk stays as it is (`--soft`).
+The dry run shows what will happen as you type.
 
-**Rename or move a directory…** and **Remove a directory…** do the same
-for a whole directory of the checkout and all the files in it (the
-directory of the selected file to start with).
+**Rename or move a directory…** and **Remove a directory…** do the same for a
+whole directory of the checkout and all the files in it
+(the directory of the selected file to start with).
 
-**Remove…** removes the selected files from the repository: from the next
-commit on, Fossil no longer has it.  An added file is only no longer
-added.  **Also delete the file on disk** (off by default) deletes the
-file too (`fossil rm --hard`); otherwise the file stays on disk and is
-only forgotten (`--soft`, the same as `fossil forget`).
+**Remove…** removes the selected files from the repository:
+from the next commit on, Fossil no longer has it.
+An added file is only no longer added.
+**Also delete the file on disk** (off by default) deletes the file too
+(`fossil rm --hard`);
+otherwise the file stays on disk and is only forgotten
+(`--soft`, the same as `fossil forget`).
 
-**Add new and remove missing…** adds all unmanaged files (except those of
-the ignore-glob setting) and removes all missing ones
-(`fossil addremove`).  Its options:
+**Add new and remove missing…** adds all unmanaged files
+(except those of the ignore-glob setting) and removes all missing ones
+(`fossil addremove`).
+Its options:
 
 - **Include files whose names begin with a dot** (`--dotfiles`);
 - **Also ignore**: more glob patterns of files not to add (`--ignore`);
 - **And these**: more glob patterns of the clean-glob kind (`--clean`).
 
-The patterns are comma-separated, and are added to those of the settings
-(the versioned `.fossil-settings` file, or the setting): Fossil's
-`--ignore` and `--clean` replace the settings, so the app passes both.
+The patterns are comma-separated,
+and are added to those of the settings
+(the versioned `.fossil-settings` file, or the setting):
+Fossil's `--ignore` and `--clean` replace the settings, so the app passes both.
 
-**Reset adds and removes…** undoes the adds and removes not committed
-yet: files added are no longer added, files removed no longer removed.
-The files on disk stay as they are (`fossil addremove --reset`).
-**Reset adds…** undoes only the adds (`fossil add --reset`), **Reset
-removes…** only the removes (`fossil rm --reset`); each shows its dry run.
+**Reset adds and removes…** undoes the adds and removes not committed yet:
+files added are no longer added,
+files removed no longer removed. The files on disk stay as they are
+(`fossil addremove --reset`). **Reset adds…** undoes only the adds
+(`fossil add --reset`),
+**Reset removes…** only the removes (`fossil rm --reset`);
+each shows its dry run.
 
-**Set the times of files…** sets the modification times of the selected
-files, or of all managed files when none is selected, to now, to the time
-of the check-in that last changed each, or to the time of the checked-out
-version (`fossil touch`, after its dry run).  The files are not changed;
-build tools may then see them as new or old.
+**Set the times of files…** sets the modification times of the selected files,
+or of all managed files when none is selected, to now,
+to the time of the check-in that last changed each,
+or to the time of the checked-out version (`fossil touch`, after its dry run).
+The files are not changed; build tools may then see them as new or old.
 
-**Switch the version, keep the files…** makes the checkout a checkout of
-another version without changing any file on disk (`fossil checkout
---keep`): what differs from that version then shows as changes, for
-example to commit a tree made elsewhere onto it.  Fossil has no dry run
-for this, and refuses when files are edited; Undo cannot take it back
-(switch again to the version shown in the dialog).
+**Switch the version,
+keep the files…** makes the checkout a checkout of another version without
+changing any file on disk (`fossil checkout --keep`):
+what differs from that version then shows as changes,
+for example to commit a tree made elsewhere onto it.
+Fossil has no dry run for this, and refuses when files are edited;
+Undo cannot take it back (switch again to the version shown in the dialog).
 
-**Revert…** throws away the changes of the selected files.  **To the
-version** reverts it to another check-in, branch or tag instead of the
-check-in the checkout is on (`fossil revert -r`).  **Revert all…** throws
-away all changes of the checkout; the dialog lists the files it reverts.
-A revert can be undone (see [Undo and redo](#undo-and-redo)) until the
-next update or commit.
+**Revert…** throws away the changes of the selected files.
+**To the version** reverts it to another check-in,
+branch or tag instead of the check-in the checkout is on (`fossil revert -r`).
+**Revert all…** throws away all changes of the checkout;
+the dialog lists the files it reverts. A revert can be undone
+(see [Undo and redo](#undo-and-redo)) until the next update or commit.
 
 ## Delete unmanaged files
 
-**Commit ▸ Delete unmanaged files…** deletes files that Fossil does not
-manage: build products, editor backups, leftovers of merges.  It is the
-most destructive operation of the tab, so it goes in two steps.
+**Commit ▸ Delete unmanaged files…** deletes files that Fossil does not manage:
+build products, editor backups, leftovers of merges.
+It is the most destructive operation of the tab, so it goes in two steps.
 
-The first dialog lists what would be deleted (Fossil's dry run, `fossil
-clean -n`), each file or directory with a check box: uncheck the ones to
-keep (click the box, or select and press Space).  The options change
-which files are listed, and the list is made again as you change them:
+The first dialog lists what would be deleted
+(Fossil's dry run, `fossil clean -n`), each file or directory with a check box:
+uncheck the ones to keep (click the box, or select and press Space).
+The options change which files are listed,
+and the list is made again as you change them:
 
 | Option | Fossil option | Meaning |
 |---|---|---|
@@ -358,52 +392,55 @@ which files are listed, and the list is made again as you change them:
 | Also ignore | `--ignore` | glob patterns of files not to delete, added to the ignore-glob setting's |
 | Also keep | `--keep` | glob patterns of files to keep, added to the keep-glob setting's |
 
-Files of the ignore-glob and keep-glob settings are never listed (except
-with **Everything not managed**), also with patterns typed in **Also
-ignore** and **Also keep**.
+Files of the ignore-glob and keep-glob settings are never listed
+(except with **Everything not managed**),
+also with patterns typed in **Also ignore** and **Also keep**.
 
-**Delete…** then shows a second confirmation that names every file and
-directory to be deleted, with Cancel as the default button; with **Also
-delete empty directories**, also the directories that become empty when
-those files go.  The files are deleted by `fossil clean`; the empty
-directories by Tktaalik, each only if it is empty: an unchecked directory
-stays.  It also says what can be
-brought back: Fossil's undo restores deleted files smaller than 10 MiB,
-except the ones of the clean-glob setting, which Fossil deletes without
-undo; the confirmation names the files that cannot be restored and
-why.  With **Everything not managed** nothing can be brought back,
-and the confirmation says so.  Only the files still checked are deleted.
+**Delete…** then shows a second confirmation that names every file and directory
+to be deleted, with Cancel as the default button;
+with **Also delete empty directories**,
+also the directories that become empty when those files go.
+The files are deleted by `fossil clean`; the empty directories by Tktaalik,
+each only if it is empty: an unchecked directory stays.
+It also says what can be brought back:
+Fossil's undo restores deleted files smaller than 10 MiB,
+except the ones of the clean-glob setting, which Fossil deletes without undo;
+the confirmation names the files that cannot be restored and why.
+With **Everything not managed** nothing can be brought back,
+and the confirmation says so.
+Only the files still checked are deleted.
 
 ## Undo and redo
 
-Fossil remembers the state of the checkout before the last **update,
-merge, revert, stash apply, stash drop, stash goto or clean**, and can go
-back to it.
+Fossil remembers the state of the checkout before the last **update, merge,
+revert, stash apply, stash drop, stash goto or clean**, and can go back to it.
 
 - **Commit ▸ Undo…** undoes the last such command.
 - **Commit ▸ Redo…** undoes the undo.
-- **Undo for these files…** (in a file's context menu; Commit ▸ Undo for
-  the selected files…) restores only the
-  selected files to their state before the last undoable command, and
-  leaves the rest of the update or merge in effect.  **Redo for these
-  files…** redoes it for them only.  (Fossil's dry run lists the whole
-  undo even then: the confirmation names the files that are undone.)
+- **Undo for these files…**
+  (in a file's context menu;
+  Commit ▸ Undo for the selected files…) restores only the selected files to
+  their state before the last undoable command,
+  and leaves the rest of the update or merge in effect.
+  **Redo for these files…** redoes it for them only.
+  (Fossil's dry run lists the whole undo even then:
+  the confirmation names the files that are undone.)
 
-Each first runs Fossil's dry run (`fossil undo -n`) and shows what it
-would do in the confirmation.  If there is nothing to undo (or redo), it
-says so and does nothing.
+Each first runs Fossil's dry run
+(`fossil undo -n`) and shows what it would do in the confirmation.
+If there is nothing to undo (or redo), it says so and does nothing.
 
-Commits cannot be undone this way, and the undo state is lost after a
-commit or another undoable command.  **Commit ▸ Diff since before the
-last undoable command** shows what the last undoable command (and
-anything since) changed; see [Diffs](#diffs).
+Commits cannot be undone this way,
+and the undo state is lost after a commit or another undoable command.
+**Commit ▸ Diff since before the last undoable command** shows what the last
+undoable command (and anything since) changed; see [Diffs](#diffs).
 
 ## Updating
 
-**Commit ▸ Update…** updates the checkout to the newest check-in of its
-branch (`fossil update --nosync`: nothing is pulled first).  Uncommitted
-changes are merged into the new version.  The dialog shows the dry run,
-with three options:
+**Commit ▸ Update…** updates the checkout to the newest check-in of its branch
+(`fossil update --nosync`: nothing is pulled first).
+Uncommitted changes are merged into the new version.
+The dialog shows the dry run, with three options:
 
 | Option | Fossil option | Meaning |
 |---|---|---|
@@ -411,74 +448,81 @@ with three options:
 | Set the times of the files to their check-ins' | `--setmtime` | for build systems that go by file times |
 | On a merge conflict, keep the files of the three versions | `-K` | the baseline, local and merged-in versions stay beside the file |
 
-**Update files to a version…** (also **Update to a version…** in the
-file's context menu) updates only the selected files to another
-check-in, branch or tag; their changes are merged into it, and the rest
-of the checkout stays (`fossil update VERSION FILE…`; only **-K** of the
-options above applies).  Unlike **Revert** with a version, local changes
-are kept.
+**Update files to a version…**
+(also **Update to a version…** in the file's context menu) updates only the
+selected files to another check-in, branch or tag;
+their changes are merged into it,
+and the rest of the checkout stays
+(`fossil update VERSION FILE…`; only **-K** of the options above applies).
+Unlike **Revert** with a version, local changes are kept.
 
-To update to another branch or check-in, see
-[Update and merge](branches.md#update-and-merge).
+To update to another branch or check-in,
+see [Update and merge](branches.md#update-and-merge).
 
 ## Merges
 
-Merges are made in the [Branches](branches.md) tab.  While a merge (or a
-cherry-pick, a back-out or an integrating merge) is in progress in the
-checkout, the Commit tab:
+Merges are made in the [Branches](branches.md) tab.
+While a merge (or a cherry-pick,
+a back-out or an integrating merge) is in progress in the checkout,
+the Commit tab:
 
-- says so in red under the comment, naming what is merged, for example
-  `A merge is in progress (merge of 3b1e0d5a2c): Fossil commits all
-  changed files.`;
-- checks all files that can be committed, and does not let you uncheck
-  them: a merge is committed whole;
+- says so in red under the comment, naming what is merged,
+  for example `A merge is in progress (merge of 3b1e0d5a2c): Fossil commits all changed files.`;
+- checks all files that can be committed, and does not let you uncheck them:
+  a merge is committed whole;
 - shows the **Merge details** button (also in the Commit menu).
 
 **Merge details** opens a window with what the merge did to each file
-(`fossil merge-info`, in Fossil 2.26 or newer), conflicts in red.  **All files the merge changed**
-(`-a`) also lists the files the merge changed without conflicts.  Click a
-file's line and **Three-way view** (or double-click it): four columns of
-the file, the baseline (the common ancestor), the checkout's version
-(local), the version merged in, and the result (`fossil merge-info
---tcl`, shown as Fossil's own `--tk` view shows it): lines changed
-locally in yellow, lines from the merged-in version in green, lines
-removed in red, an empty grey line where a version has no line, and
-"… N lines …" for unchanged lines left out.  Its buttons compare two of
-the versions whole in the diff window: **Baseline → local**, **Baseline →
-merged in**, **Local → merged in**.
+(`fossil merge-info`, in Fossil 2.26 or newer), conflicts in red.
+**All files the merge changed**
+(`-a`) also lists the files the merge changed without conflicts.
+Click a file's line and **Three-way view** (or double-click it):
+four columns of the file, the baseline (the common ancestor),
+the checkout's version (local), the version merged in,
+and the result (`fossil merge-info --tcl`,
+shown as Fossil's own `--tk` view shows it): lines changed locally in yellow,
+lines from the merged-in version in green, lines removed in red,
+an empty grey line where a version has no line,
+and "… N lines …" for unchanged lines left out.
+Its buttons compare two of the versions whole in the diff window:
+**Baseline → local**, **Baseline → merged in**, **Local → merged in**.
 
-**Commit ▸ Merge fork…** is enabled when the checkout's branch has more
-than one leaf (the line at the top says how many): it merges the other
-leaf into the checkout (`fossil merge` without a version, after its dry
-run, with `-K` as an option), and committing then joins the branch
-again.
+**Commit ▸ Merge fork…** is enabled when the checkout's branch has more than one
+leaf (the line at the top says how many):
+it merges the other leaf into the checkout
+(`fossil merge` without a version, after its dry run, with `-K` as an option),
+and committing then joins the branch again.
 
-Files with conflicts have the status CONFLICT.  Resolve the conflict
-marks in them, then commit; **Allow conflicts** under **More options**
-commits although some remain.  To abandon the merge, use **Undo…** or
-**Revert all…**.
+Files with conflicts have the status CONFLICT.
+Resolve the conflict marks in them, then commit;
+**Allow conflicts** under **More options** commits although some remain.
+To abandon the merge, use **Undo…** or **Revert all…**.
 
 ## Patches
 
-A Fossil patch file holds the uncommitted changes of a checkout, with the
-check-in they were made on, so that they can be applied to another
-checkout (`fossil patch`).
+A Fossil patch file holds the uncommitted changes of a checkout,
+with the check-in they were made on,
+so that they can be applied to another checkout (`fossil patch`).
 
-- **Commit ▸ Save changes as a patch…** saves all changes of the
-  checkout to a file you choose (`fossil patch create`).  The checkout
-  keeps its changes.
+- **Commit ▸ Save changes as a patch…** saves all changes of the checkout to a
+  file you choose (`fossil patch create`).
+  The checkout keeps its changes.
 - **Commit ▸ Apply a patch…** applies a patch file to the checkout:
-  Fossil updates the checkout to the check-in the patch was made on, then
-  makes its changes.  Fossil's update there syncs when autosync is on for
-  updates, so Tktaalik refuses then (the setting can name commands:
-  `on,update=off` lets patches be applied; turn it off to apply patches
-  here).  The dialog shows the patch's
-  header (`fossil patch view -v`: its baseline, who made it, on which
-  host, when, from which checkout).  The dialog shows the dry run (`fossil patch apply
-  -n`).  If the checkout has uncommitted changes, Fossil refuses unless
-  **Discard the uncommitted changes of the checkout first** is checked:
-  then those changes are lost.  Fossil's output is shown afterwards.
-- **Commit ▸ View a patch…** shows the changes of a patch file in a diff
-  window (`fossil patch diff`), who made it and when in its title,
-  without applying it; its Options and **External diff** work there.  It
-  works also when the repository does not have the patch's check-in.
+  Fossil updates the checkout to the check-in the patch was made on,
+  then makes its changes.
+  Fossil's update there syncs when autosync is on for updates,
+  so Tktaalik refuses then
+  (the setting can name commands: `on,update=off` lets patches be applied;
+  turn it off to apply patches here).
+  The dialog shows the patch's header
+  (`fossil patch view -v`: its baseline, who made it, on which host, when,
+  from which checkout).
+  The dialog shows the dry run (`fossil patch apply -n`).
+  If the checkout has uncommitted changes,
+  Fossil refuses unless **Discard the uncommitted changes of the checkout
+  first** is checked: then those changes are lost.
+  Fossil's output is shown afterwards.
+- **Commit ▸ View a patch…** shows the changes of a patch file in a diff window
+  (`fossil patch diff`), who made it and when in its title, without applying it;
+  its Options and **External diff** work there.
+  It works also when the repository does not have the patch's check-in.

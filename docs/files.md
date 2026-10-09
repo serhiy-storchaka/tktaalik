@@ -1,20 +1,21 @@
 # Files
 
-The Files tab shows the files of the repository as they were at any
-version, and for one file its history, its blame and its content.  It
-only reads the repository: nothing here changes the checkout or the
-repository.
+The Files tab shows the files of the repository as they were at any version,
+and for one file its history, its blame and its content.
+It only reads the repository:
+nothing here changes the checkout or the repository.
 
-The tab has three parts: the **Version** and **Find file** boxes at the
-top, the tree of files on the left, and on the right the selected file
-with four tabs of its own: **History**, **Blame**, **Content** and
-**Find in history**.  The
-status line at the bottom says how many files are shown and at which
+The tab has three parts: the **Version** and **Find file** boxes at the top,
+the tree of files on the left,
+and on the right the selected file with four tabs of its own: **History**,
+**Blame**, **Content** and **Find in history**.
+The status line at the bottom says how many files are shown and at which
 check-in.
 
 ## Versions
 
-The **Version** box chooses the version of the tree.  Its list offers:
+The **Version** box chooses the version of the tree.
+Its list offers:
 
 | Choice | What it shows |
 |---|---|
@@ -28,26 +29,30 @@ You can also type into the box and press Return:
   its newest check-in;
 - a check-in hash, or a unique prefix of one (at least 4 hex digits).
 
-If the name matches nothing, the status line says `No check-in "…"` in
-red, and the tree stays as it was.
+If the name matches nothing, the status line says `No check-in "…"` in red,
+and the tree stays as it was.
 
-The tree shows, for each file, when it **Last changed** before that
-version and its **Size** (as `fossil ls --age -v`); a directory shows
-the newest change of its files.  Click a heading to sort the tree by
-name, by date (newest first) or by size (biggest first), within each
-directory; click it again for the other order.
+The tree shows, for each file,
+when it **Last changed** before that version and its **Size**
+(as `fossil ls --age -v`); a directory shows the newest change of its files.
+Click a heading to sort the tree by name,
+by date (newest first) or by size (biggest first), within each directory;
+click it again for the other order.
 
 **Find file** narrows the tree to the files whose path contains the text
-(upper and lower case are the same).  The tree is filtered as you type;
-with a filter, the directories are shown open.  Ctrl+F goes to this box.
+(upper and lower case are the same).
+The tree is filtered as you type; with a filter, the directories are shown open.
+Ctrl+F goes to this box.
 
-When the version is `checkout` and the checkout has moved (an update, a
-merge, a commit in another tab or outside), the tree is read again when
-you come back to the tab.  **File ▸ Refresh** (F5) reads the version and
-the selected file again at any time.
+When the version is `checkout` and the checkout has moved
+(an update, a merge, a commit in another tab or outside),
+the tree is read again when you come back to the tab.
+**File ▸ Refresh** (F5) reads the version and the selected file again at any
+time.
 
-Select a file in the tree to show it on the right; its path is the title
-above the three tabs.  Right-click a file for its context menu:
+Select a file in the tree to show it on the right;
+its path is the title above the three tabs.
+Right-click a file for its context menu:
 
 | Entry | What it does |
 |---|---|
@@ -60,44 +65,49 @@ above the three tabs.  Right-click a file for its context menu:
 
 The **File** menu has more for the version and the file:
 
-- **History of the file**, **Find in the file's history…**, **Content of the
-  file**, **Blame of the file**, **Open the file in browser**, **Copy the
-  file's path**: the entries of the file's context menu;
-- **Find a local file in history…**: see [A local file in history](#a-local-file-in-history);
+- **History of the file**, **Find in the file's history…**,
+  **Content of the file**, **Blame of the file**, **Open the file in browser**,
+  **Copy the file's path**: the entries of the file's context menu;
+- **Find a local file in history…**:
+  see [A local file in history](#a-local-file-in-history);
 - **Save this version as an archive…**: see [Archives](#archives).
 
 ## Content
 
-The **Content** tab shows the text of the file, with line numbers, at the
-version of the tree.  A binary file shows `(not a text file)`.
+The **Content** tab shows the text of the file, with line numbers,
+at the version of the tree.
+A binary file shows `(not a text file)`.
 
 From the [History](#file-history) you can show the content of any earlier
-version: then the title says which, for example `README.md at
-8922a99ffb` (with the name the file had then).  Selecting another file in
-the tree, or **History of the file**, goes back to the version of the
-tree.
+version: then the title says which,
+for example `README.md at 8922a99ffb` (with the name the file had then).
+Selecting another file in the tree, or **History of the file**,
+goes back to the version of the tree.
 
 ## Blame
 
-The **Blame** tab shows, for each line of the file, the check-in that
-last changed it: its hash, its date, the user, the line number and the
-line.  Lines of the same check-in share a background shade, alternating
-between check-ins, so that runs of lines from one change stand out.
+The **Blame** tab shows, for each line of the file,
+the check-in that last changed it: its hash, its date, the user,
+the line number and the line.
+Lines of the same check-in share a background shade,
+alternating between check-ins, so that runs of lines from one change stand out.
 
 - **Double-click** a line for the diff of the check-in that changed it
-  (the file only, side by side; see [Diffs](diffs.md)).  The check-in is
-  also selected in the History tab.
-- **Ignore white space** (the check box under the blame) recomputes it
-  ignoring changes in white space only (`fossil blame -w`), so that a
-  re-indentation does not hide who wrote a line.
+  (the file only, side by side; see [Diffs](diffs.md)).
+  The check-in is also selected in the History tab.
+- **Ignore white space**
+  (the check box under the blame) recomputes it ignoring changes in white space
+  only (`fossil blame -w`),
+  so that a re-indentation does not hide who wrote a line.
 
-The blame needs a checkout: Fossil's `blame` command only works in one.
-Without a checkout the tab says so.  For a long history the blame takes a
-while; it is computed in the background (`Finding who changed each
-line…`) and you can go on working.
+The blame needs a checkout:
+Fossil's `blame` command only works in one. Without a checkout the tab says so.
+For a long history the blame takes a while;
+it is computed in the background
+(`Finding who changed each line…`) and you can go on working.
 
-Like the content, the blame can be shown for an earlier version of the
-file from its History (the title then says which).
+Like the content, the blame can be shown for an earlier version of the file from
+its History (the title then says which).
 
 Below the blame are its options (as `fossil blame`'s):
 
@@ -114,18 +124,21 @@ Return, or choosing from a list, computes the blame again.
 
 Right-click the Content or the Blame for:
 
-- **Copy line N** or **Copy lines N–M**: the selected lines (or the line
-  clicked), without the line numbers or the blame's columns;
-- **Copy link to lines N–M**: the address of these lines on the remote's
-  web site, as `fossil remote hyperlink` makes it (the file of the version
-  shown, `/info/HASH?ln=N,M`); only when the repository has a remote;
+- **Copy line N** or **Copy lines N–M**:
+  the selected lines (or the line clicked),
+  without the line numbers or the blame's columns;
+- **Copy link to lines N–M**:
+  the address of these lines on the remote's web site,
+  as `fossil remote hyperlink` makes it
+  (the file of the version shown, `/info/HASH?ln=N,M`);
+  only when the repository has a remote;
 - in the Blame, **Diff of the check-in of line N**.
 
 ## File history
 
-The **History** tab lists the check-ins, on all branches, that changed
-the file, newest first.  The tab's label counts them, for example
-`History (452)`.
+The **History** tab lists the check-ins, on all branches, that changed the file,
+newest first.
+The tab's label counts them, for example `History (452)`.
 
 | Column | Meaning |
 |---|---|
@@ -138,14 +151,15 @@ the file, newest first.  The tab's label counts them, for example
 | Name | the file's name in that check-in (only shown if the file was renamed) |
 | Comment | the check-in comment |
 
-The history follows the file through renames: when a check-in renamed the
-file, the check-ins that changed it under its earlier name, before the
-rename, are listed too, back to where the file was added.  The **Name**
-column appears only when the name changed somewhere in the history.
+The history follows the file through renames: when a check-in renamed the file,
+the check-ins that changed it under its earlier name, before the rename,
+are listed too, back to where the file was added.
+The **Name** column appears only when the name changed somewhere in the history.
 
-Double-click a version (or press Return) for its diff: the changes that
-check-in made to the file, side by side, under the name the file had in
-it.  Right-click a version for its context menu:
+Double-click a version (or press Return) for its diff:
+the changes that check-in made to the file, side by side,
+under the name the file had in it.
+Right-click a version for its context menu:
 
 | Entry | What it does |
 |---|---|
@@ -160,20 +174,20 @@ it.  Right-click a version for its context menu:
 
 Content, Blame and Save are disabled for a version that deletes the file.
 
-**File ▸ History of the file** returns to the history of the selected
-file, and to the version of the tree for its content and blame.
+**File ▸ History of the file** returns to the history of the selected file,
+and to the version of the tree for its content and blame.
 
-**Back** and **Forward** (Alt+Left, Alt+Right; see
-[Keys](keys.md)) remember the version of the tree, the filter, the file,
-the tab shown and the version of the file whose content or blame is
-shown.
+**Back** and **Forward**
+(Alt+Left, Alt+Right; see [Keys](keys.md)) remember the version of the tree,
+the filter, the file,
+the tab shown and the version of the file whose content or blame is shown.
 
 ## Find in history
 
-The **Find in history** tab searches all the versions of the selected
-file (also under its earlier names) for a regular expression (POSIX
-extended, as `fossil grep`), newest first.  Type it in **Find** and press
-Return or **Find**:
+The **Find in history** tab searches all the versions of the selected file
+(also under its earlier names) for a regular expression
+(POSIX extended, as `fossil grep`), newest first.
+Type it in **Find** and press Return or **Find**:
 
 | Option | What it does |
 |---|---|
@@ -181,25 +195,26 @@ Return or **Find**:
 | The newest match only | stop at the newest version that matches (`--once`) |
 | Versions without it | list the versions that do *not* match (`-v`) |
 
-Each version that matches is listed with its date, check-in and file
-name, and under it the lines that match, with their numbers.
-Double-click a version for its content; double-click a line for the
-content of that version at that line (selected).  The status line counts
-the lines and the versions.
+Each version that matches is listed with its date, check-in and file name,
+and under it the lines that match,
+with their numbers. Double-click a version for its content;
+double-click a line for the content of that version at that line (selected).
+The status line counts the lines and the versions.
 
 ## A local file in history
 
-**File ▸ Find a local file in history…** asks for a file on your disk and
-lists the check-ins that committed exactly its content (`fossil whatis
--f`), with the name the file had in each: the date, the check-in, the
-user, the name and the comment.  Double-click one (or **Show it**) for
-the Files tab at that check-in, with the file's content.  If the content
-is in no version of the repository, the window says so.
+**File ▸ Find a local file in history…** asks for a file on your disk and lists
+the check-ins that committed exactly its content (`fossil whatis -f`),
+with the name the file had in each: the date, the check-in, the user,
+the name and the comment.
+Double-click one (or **Show it**) for the Files tab at that check-in,
+with the file's content.
+If the content is in no version of the repository, the window says so.
 
 ## Archives
 
-**File ▸ Save this version as an archive…** saves the files of the
-version of the tree as an archive (`fossil zip`, `tarball` or `sqlar`):
+**File ▸ Save this version as an archive…** saves the files of the version of
+the tree as an archive (`fossil zip`, `tarball` or `sqlar`):
 
 | Field | What it does |
 |---|---|
@@ -208,5 +223,5 @@ version of the tree as an archive (`fossil zip`, `tarball` or `sqlar`):
 | Only files | patterns of the files to put in, separated by commas, like `doc/*,*.md` (`--include`); empty: all |
 | Without files | patterns of the files to leave out (`--exclude`) |
 
-**Save…** then asks where.  Only that file is written; the repository is
-not changed.
+**Save…** then asks where.
+Only that file is written; the repository is not changed.

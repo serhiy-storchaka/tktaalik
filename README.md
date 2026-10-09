@@ -3,33 +3,37 @@
 A Tk desktop application for [Fossil](https://fossil-scm.org) repositories,
 tuned for the Tcl/Tk projects but usable with any Fossil repository.
 
-The name comes from *Tiktaalik*, the fossil fish that came out of the water
-on its fins: Fossil, brought out of the command line.
+The name comes from *Tiktaalik*,
+the fossil fish that came out of the water on its fins: Fossil,
+brought out of the command line.
 
-**It never pushes.**  Everything it changes stays in the local repository or
-checkout, and is confirmed first.  Pushing stays your own step.
+**It never pushes.**
+Everything it changes stays in the local repository or checkout,
+and is confirmed first.
+Pushing stays your own step.
 
 ## What it does
 
 Tktaalik shows a Fossil repository in one window: its history, tickets,
-branches, tags, files, wiki, forum, the changes of the checkout, and a
-search over all of them.  Most of what the `fossil` command does day to day
-can be done from there.  It works on a checkout or on a repository file
-alone.
+branches, tags, files, wiki, forum, the changes of the checkout,
+and a search over all of them.
+Most of what the `fossil` command does day to day can be done from there.
+It works on a checkout or on a repository file alone.
 
 ## Requirements
 
 - Linux or another Unix desktop, or Windows; not tested on macOS
 - Tcl/Tk 8.6 or 9.0
-- Fossil 2.x on the `PATH`, or the one the `FOSSIL` environment variable
-  names (`FOSSIL=/opt/fossil/bin/fossil ./tktaalik`; see
-  [Environment variables](docs/configuration.md#environment-variables));
+- Fossil 2.x on the `PATH`,
+  or the one the `FOSSIL` environment variable names
+  (`FOSSIL=/opt/fossil/bin/fossil ./tktaalik`;
+  see [Environment variables](docs/configuration.md#environment-variables));
   2.21 or newer (tested with 2.21, 2.23, 2.26, 2.28 and trunk)
-- Optional: `patch`, to apply patches attached to tickets (on Windows, Git for
-  Windows has one)
+- Optional: `patch`, to apply patches attached to tickets
+  (on Windows, Git for Windows has one)
 - Optional: `curl`, to post to a forum through its web site
-- Optional: the Img extension (tkimg), to view attached JPEG, BMP, TIFF and
-  other images that Tk does not read itself
+- Optional: the Img extension (tkimg), to view attached JPEG, BMP,
+  TIFF and other images that Tk does not read itself
 
 ## Running
 
@@ -42,8 +46,8 @@ alone.
 
 ## Installing
 
-It runs from where it is unpacked.  To install it (the `tktaalik` command,
-and the application menu with its icon):
+It runs from where it is unpacked.
+To install it (the `tktaalik` command, and the application menu with its icon):
 
 ```sh
 ./install.sh                    # in ~/.local (as root: /usr/local)
@@ -56,12 +60,13 @@ and the application menu with its icon):
 
 ## The manual
 
-The manual is in [`docs/`](docs/index.md).  In the application, **F1** opens
-it at the part about what you are looking at.
+The manual is in [`docs/`](docs/index.md).
+In the application, **F1** opens it at the part about what you are looking at.
 
 ## Development
 
-Plain Tcl/Tk, no build step.  The tests run under Xvfb with Tk 8.6 and 9.0:
+Plain Tcl/Tk, no build step.
+The tests run under Xvfb with Tk 8.6 and 9.0:
 
 ```sh
 TKTAALIK_REPO=path/to/tk.fossil tests/run.sh   # the tests
@@ -71,8 +76,7 @@ tests/smoke.sh REPOSITORY...                   # on any repositories
 `WISH` chooses the Tk shells they run with and `FOSSIL` the Fossil
 ([Environment variables](docs/configuration.md#environment-variables)).
 
-[AGENTS.md](AGENTS.md) has the layout of the code and the rules for
-changing it.
+[AGENTS.md](AGENTS.md) has the layout of the code and the rules for changing it.
 
 ## License
 
