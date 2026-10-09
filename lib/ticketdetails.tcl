@@ -328,7 +328,8 @@ proc tktsearch::showDetails {uuid} {
         set attachments [::tickets::sql "SELECT a.src, [fossil::outcol a.filename],\
             [fossil::outcol "coalesce(a.user,'')"], datetime(a.mtime),\
             [fossil::outcol "coalesce(a.comment,'')"],\
-            coalesce((SELECT size FROM blob WHERE uuid=a.src),-1)\
+            coalesce((SELECT size FROM blob WHERE uuid=a.src),-1),\
+            [imageview::binarySql a.src]\
             FROM attachment a WHERE a.target=$u AND a.isLatest AND a.src<>''\
             ORDER BY a.mtime"]
     } trap {FOSSIL DB} msg {

@@ -1,4 +1,5 @@
-# Attached images shown in a window, on a ticket and on a wiki page: PNG,
+# The icons of attachments by their kind (patch, Tcl, C, text, image,
+# binary).  Attached images shown in a window, on a ticket and on a wiki page: PNG,
 # GIF, PPM, SVG with Tk 9, and with the Img extension (tkimg) JPEG, BMP...
 # Images that cannot be viewed (no Img, SVG with Tk 8.6, WEBP): View
 # disabled, a double-click opens the server's page.  With Img on the
@@ -27,6 +28,11 @@ set f [open $T(tmp)/draw.svg w]
 puts $f {<svg xmlns="http://www.w3.org/2000/svg" width="30" height="10"><rect width="30" height="10" fill="#00ff00"/></svg>}
 close $f
 set f [open $T(tmp)/pic.webp wb]; puts -nonewline $f "RIFF\0\0\0\0WEBP"; close $f
+# A file of each other kind: a patch, Tcl and C sources, text, binary.
+foreach {name data} {fix.diff "--- a\n+++ b\n" demo.tcl "puts hi\n" tkDemo.c "int x;\n"
+        notes.txt "text\n" data.bin "a\0b"} {
+    set f [open $T(tmp)/$name wb]; puts -nonewline $f [subst $data]; close $f
+}
 
 set uuid [lindex [sql "SELECT tkt_uuid FROM ticket ORDER BY tkt_mtime DESC LIMIT 1" $R] 0 0]
 start tickets $R
@@ -35,7 +41,9 @@ proc tktsearch::openUrl {path} { lappend ::urls $path }
 proc tk_popup {m args} { set ::posted $m }
 tktsearch::setQuery id:[string range $uuid 0 9]; update
 waitUntil {$tktsearch::shownTicket eq $uuid}
-set ::openFrom [list $T(tmp)/shot.png $T(tmp)/photo.jpg $T(tmp)/draw.svg $T(tmp)/pic.webp]
+set ::openFrom [lmap n {shot.png photo.jpg draw.svg pic.webp fix.diff demo.tcl tkDemo.c notes.txt data.bin} {
+    file join $T(tmp) $n
+}]
 whenOpen .tickets.attach {set ::ui::done ok}
 tktsearch::attachFiles $uuid
 set tv .tickets.main.details.nb.attachments.tv
@@ -64,6 +72,23 @@ check "kinds: [lmap n {a.PNG b.jpg c.svg d.webp e.txt} {imageview::kind $n}]" \
     {[imageview::kind a.PNG] eq "image" && [imageview::kind e.txt] eq "" && [imageview::kind d.webp] eq "unsupported"
      && [imageview::kind b.jpg] eq [expr {$withImg ? "image" : "unsupported"}]
      && [imageview::kind c.svg] eq [expr {$img9 ? "image" : "unsupported"}]}
+
+# Each with the icon of its kind (binary: content with a NUL byte, or an
+# image that cannot be viewed); View disabled only for binary.
+foreach {name kind} [list shot.png image photo.jpg [expr {$withImg ? "image" : "binary"}] \
+        draw.svg [expr {$img9 ? "image" : "binary"}] pic.webp binary fix.diff patch demo.tcl tcl \
+        tkDemo.c c notes.txt text data.bin binary] {
+    set got [$tv item [item $name] -image]
+    check "$name: the icon of $kind" {$got eq [icons::get a-$kind row]}
+    if {$kind ne "image"} {
+        check "$name: View [expr {$kind eq "binary" ? "disabled" : "normal"}]" \
+            {[lindex [menuOf $name] 0] eq [expr {$kind eq "binary" ? "disabled" : "normal"}]}
+    }
+}
+# (The icon in the tree column, with no room for an expander before it.)
+$tv see [item shot.png]; update
+lassign [$tv bbox [item shot.png] #0] x0 - w0
+check "the icon column: [expr {[icons::rowSize] + 8}] pixels" {$w0 == [icons::rowSize] + 8}
 
 # A PNG: View; double-click shows it in a window.
 check "PNG: [menuOf shot.png]" {[menuOf shot.png] eq {normal View}}

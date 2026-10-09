@@ -8,6 +8,19 @@
 #                               be viewed), unsupported (an image that
 #                               cannot: Img is missing, or SVG with Tk 8.6),
 #                               "" (not an image)
+#   imageview::fileKind NAME BINARY
+#                               what an attachment NAME is, for its icon
+#                               (icons a-KIND) and whether it can be
+#                               viewed: patch, tcl, c, text, image (can
+#                               be shown), binary (also an image that
+#                               cannot); BINARY: its content has NUL bytes
+#   imageview::canView KIND     whether a file of that kind can be viewed
+#   imageview::binarySql SRC    an SQL expression for "fossil sql": whether
+#                               the artifact SRC (a column) has a NUL byte
+#                               in its first 8 KB (0 if it is not here)
+#   imageview::listStyle        the style of the attachment lists: their
+#                               tree column holds the icon, with no room
+#                               for the expanders
 #   imageview::showArtifact REPO SRC NAME ?-parent W?
 #                               the artifact SRC of REPO (the content of
 #                               the attachment NAME) in a window of its
@@ -59,6 +72,40 @@ proc imageview::kind {name} {
         set loaded($package) [expr {![catch {package require $package}]}]
     }
     expr {$loaded($package) ? "image" : "unsupported"}
+}
+
+proc imageview::fileKind {name binary} {
+    set ext [string tolower [string trimleft [file extension $name] .]]
+    switch -- [kind $name] {
+        image { return image }
+        unsupported { return binary }
+    }
+    if {$ext in {patch diff}} { return patch }
+    if {$binary} { return binary }
+    if {$ext in {tcl tm test tk itcl}} { return tcl }
+    if {$ext in {c h m cpp cc cxx hpp hh mm}} { return c }
+    return text
+}
+
+proc imageview::binarySql {src} {
+    # (content() fails for an artifact that is not here: not called then.)
+    string cat "CASE WHEN coalesce((SELECT size FROM blob WHERE uuid=$src),-1) < 0 THEN 0" \
+        " ELSE instr(substr(content($src),1,8192),x'00')>0 END"
+}
+
+proc imageview::canView {kind} {
+    expr {$kind ne "binary"}
+}
+
+proc imageview::listStyle {} {
+    # (The layout of Treeview.Item without its indicator; of the theme in
+    # use, chosen at the start.)
+    ttk::style layout Attachments.Treeview.Item {
+        Treeitem.padding -sticky nswe -children {
+            Treeitem.image -side left -sticky {} Treeitem.text -sticky nswe
+        }
+    }
+    return Attachments.Treeview
 }
 
 proc imageview::windowFor {parent src} {

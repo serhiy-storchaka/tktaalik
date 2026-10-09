@@ -676,9 +676,11 @@ proc tkwiki::target {tag} {
 proc tkwiki::buildAttachments {f} {
     ttk::frame $f
     set tv $f.tv
-    ttk::treeview $tv -columns {file size user date comment} -show headings \
-        -selectmode browse -height 4 -yscrollcommand [list $f.y set]
+    # (The icon of the kind of file in the tree column.)
+    ttk::treeview $tv -columns {file size user date comment} -show {tree headings} \
+        -style [imageview::listStyle] -selectmode browse -height 4 -yscrollcommand [list $f.y set]
     ttk::scrollbar $f.y -command [list $tv yview]
+    $tv column #0 -width [expr {[icons::rowSize] + 8}] -stretch 0 -anchor center
     set char [font measure TkDefaultFont 0]
     foreach {col heading chars anchor} {
         file Attachment 24 w  size Size 9 e  user User 12 w  date Date 16 w  comment Comment 20 w
@@ -691,7 +693,7 @@ proc tkwiki::buildAttachments {f} {
     grid $tv $f.y -sticky news -pady {4 0}
     grid columnconfigure $f 0 -weight 1
     bind $tv <Double-1> {
-        if {[%W identify region %x %y] eq "cell"} {
+        if {[%W identify region %x %y] in {cell tree}} {
             tkwiki::openAttachment [%W identify item %x %y]
         }
     }
@@ -718,18 +720,20 @@ proc tkwiki::fillAttachments {tag} {
     if {$tag ne ""} {
         set rows [fossil::sql $repo "SELECT a.src, [fossil::outcol a.filename],\
             [fossil::outcol "coalesce(a.user,'')"], strftime('%Y-%m-%d %H:%M', a.mtime),\
-            [fossil::outcol "coalesce(a.comment,'')"], coalesce(b.size,-1)\
+            [fossil::outcol "coalesce(a.comment,'')"], coalesce(b.size,-1),\
+            [imageview::binarySql a.src]\
             FROM attachment a LEFT JOIN blob b ON b.uuid=a.src\
             WHERE a.target=[fossil::sqlstr [target $tag]] AND a.isLatest AND a.src<>''\
             ORDER BY a.mtime"]
     }
     set i 0
     foreach row $rows {
-        lassign $row src name user date comment size
+        lassign $row src name user date comment size binary
         # The content can be missing: the attachment arrived, the file not.
         set here [expr {$size >= 0}]
-        set attached($i) [dict create src $src name $name here $here]
-        $tv insert {} end -id $i -tags [expr {$here ? "" : "missing"}] \
+        set kind [imageview::fileKind $name $binary]
+        set attached($i) [dict create src $src name $name here $here kind $kind]
+        $tv insert {} end -id $i -tags [expr {$here ? "" : "missing"}] -image [icons::get a-$kind row] \
             -values [list $name [expr {$here ? [tktsearch::sizeText $size] : "not local"}] \
                 $user $date [fossil::oneLine $comment]]
         incr i
@@ -741,8 +745,8 @@ proc tkwiki::openAttachment {i} {
     variable attached
     if {$i eq "" || ![info exists attached($i)]} return
     set a $attached($i)
-    # (An image that cannot be viewed here: on the server, as one not here.)
-    if {[dict get $a here] && [imageview::kind [dict get $a name]] ne "unsupported"} {
+    # (One that cannot be viewed here: on the server, as one not here.)
+    if {[dict get $a here] && [imageview::canView [dict get $a kind]]} {
         viewAttachment [dict get $a src] [dict get $a name]
     } else {
         browseAttachment [dict get $a name]
@@ -761,7 +765,7 @@ proc tkwiki::attachmentMenu {tv x y X Y} {
     set m .wiki.attctx
     if {![winfo exists $m]} { menu $m }
     $m delete 0 end
-    set canView [expr {$here eq "normal" && [imageview::kind $name] ne "unsupported" ? "normal" : "disabled"}]
+    set canView [expr {$here eq "normal" && [imageview::canView [dict get $a kind]] ? "normal" : "disabled"}]
     $m add command -label View -state $canView -command [list tkwiki::viewAttachment $src $name]
     $m add command -label Save\u2026 -state $here -command [list tkwiki::saveAttachment $src $name]
     $m add separator

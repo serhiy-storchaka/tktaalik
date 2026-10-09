@@ -7,7 +7,8 @@
 #
 # The application: tktaalik (16 to 256 pixels, and tktaalik.ico).  Buttons: search, save,
 # clear, help.  Tickets: st-* (status), pr-*
-# (priority), sv-* (severity).  Timeline: k-* (event kinds).
+# (priority), sv-* (severity).  Timeline: k-* (event kinds).  Attachments:
+# a-* (the kind of file).
 import math, os, sys
 from PIL import Image, ImageDraw
 
@@ -158,6 +159,52 @@ def kind_icon(name, n):
         for y in (0.42,0.56): d.line([S*0.28,S*y,S*0.72,S*y], fill=ORANGE, width=int(w*0.8))
     return im.resize((n,n), Image.LANCZOS)
 
+# ------------------------------------------------------------ attachments
+
+# A page with a folded corner (as k-wiki), and what kind of file it holds:
+# a-patch (+ and -), a-tcl (braces), a-c (a C), a-text (lines), a-binary
+# (bits); a-image is a picture instead.
+def attach_icon(name, n):
+    S=n*8; im=Image.new('RGBA',(S,S),(0,0,0,0)); d=ImageDraw.Draw(im); w=max(int(S*0.09),6)
+    if name=='a-image':
+        # a picture: a frame, a mountain and the sun
+        m=S*0.08
+        d.rounded_rectangle([m,S*0.16,S-m,S*0.84], radius=S*0.06, fill=C('#dbeafe'), outline=BLUE, width=w)
+        d.polygon([(m+w,S*0.84-w),(S*0.40,S*0.42),(S*0.62,S*0.66),(S*0.72,S*0.54),(S-m-w,S*0.84-w)], fill=GREEN)
+        r=S*0.08; d.ellipse([S*0.68-r,S*0.34-r,S*0.68+r,S*0.34+r], fill=YELLOW)
+        return im.resize((n,n), Image.LANCZOS)
+    a,b,f=S*0.16,S*0.84,S*0.24
+    d.polygon([(a,S*0.06),(b-f,S*0.06),(b,S*0.06+f),(b,S*0.94),(a,S*0.94)], fill=WHITE, outline=GRAY, width=w)
+    d.polygon([(b-f,S*0.06),(b-f,S*0.06+f),(b,S*0.06+f)], fill=GRAY)
+    cx=(a+b)/2; t=int(w*1.3)
+    if name=='a-text':
+        for y in (0.42,0.58,0.74): d.line([a+S*0.12,S*y,b-S*0.12,S*y], fill=GRAY, width=int(w*0.9))
+    elif name=='a-patch':
+        # added and removed lines
+        r=S*0.14
+        d.line([cx-r,S*0.42,cx+r,S*0.42], fill=GREEN, width=t); d.line([cx,S*0.42-r,cx,S*0.42+r], fill=GREEN, width=t)
+        d.line([cx-r,S*0.76,cx+r,S*0.76], fill=RED, width=t)
+    elif name=='a-c':
+        # a C
+        r=S*0.22; y=S*0.58
+        d.arc([cx-r,y-r,cx+r,y+r], start=45, end=315, fill=BLUE, width=t)
+    elif name=='a-tcl':
+        # braces, as Tcl quotes with them
+        y0,y1,ym=S*0.36,S*0.82,S*0.59
+        for side in (-1,1):
+            # the stem, its ends turned inwards, its middle pointing out
+            xs=cx+side*S*0.13; xe=xs-side*S*0.08; xt=xs+side*S*0.08
+            d.line([(xe,y0),(xs,y0+S*0.07),(xs,ym-S*0.06),(xt,ym),(xs,ym+S*0.06),(xs,y1-S*0.07),(xe,y1)],
+                   fill=ORANGE, width=int(t*0.8), joint='curve')
+    elif name=='a-binary':
+        # bits: small squares
+        q=S*0.11; g=S*0.05
+        for row,bits in enumerate(('101','010','110')):
+            for col,bit in enumerate(bits):
+                x=cx-1.5*q-g+col*(q+g); y=S*0.36+row*(q+g)
+                d.rectangle([x,y,x+q,y+q], fill=DARK if bit=='1' else C('#c8ccd1'))
+    return im.resize((n,n), Image.LANCZOS)
+
 # ------------------------------------------------------- the application
 
 # Tiktaalik, crawling out of the water: a fossil on a sand tile.
@@ -236,6 +283,7 @@ TICKETS = ['st-open', 'st-pending', 'st-fixed', 'st-closed', 'st-duplicate',
            'pr-9', 'pr-8', 'pr-7', 'pr-6', 'pr-5', 'pr-low',
            'sv-critical', 'sv-severe', 'sv-major', 'sv-minor', 'sv-cosmetic']
 KINDS = ['k-checkin', 'k-ticket', 'k-tag', 'k-wiki', 'k-forum', 'k-technote']
+ATTACHMENTS = ['a-patch', 'a-tcl', 'a-c', 'a-text', 'a-image', 'a-binary']
 SIZES = (16, 24, 32)
 APP_SIZES = (16, 24, 32, 48, 64, 128, 256)
 
@@ -244,13 +292,15 @@ def draw(name, n):
         return BUTTONS[name](n)
     if name in TICKETS:
         return ticket_icon(name, n)
+    if name in ATTACHMENTS:
+        return attach_icon(name, n)
     return kind_icon(name, n)
 
 def main():
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'icons')
     out = os.environ.get('ICONS_DIR', out)
     os.makedirs(out, exist_ok=True)
-    names = list(BUTTONS) + TICKETS + KINDS
+    names = list(BUTTONS) + TICKETS + KINDS + ATTACHMENTS
     sheet = Image.new('RGBA', (len(names) * 36, len(SIZES) * 36), (255, 255, 255, 255))
     for i, name in enumerate(names):
         for j, n in enumerate(SIZES):

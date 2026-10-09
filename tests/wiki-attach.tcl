@@ -77,14 +77,23 @@ set i [lsearch -index 0 $rows notes.txt]
 tkwiki::openAttachment $i
 check "the new content" {[string trim [lindex $::viewed end 1]] eq "second notes"}
 
-# A binary file: not viewed.
+# A binary file: its icon; not viewed (View disabled), a double-click
+# opens it on the server.
 set ::openFiles [list $T(tmp)/in/blob.bin]
 tkwiki::attach; update
 set i [lsearch -index 0 [lmap i [$att children {}] {$att item $i -values}] blob.bin]
+check "binary: its kind and icon" {[dict get $tkwiki::attached($i) kind] eq "binary"
+    && [$att item $i -image] eq [icons::get a-binary row]}
+check "the text file's icon" {[$att item [lsearch -index 0 [lmap i [$att children {}] {$att item $i -values}] notes.txt] -image] eq [icons::get a-text row]}
 set ::boxes {}
+set ::browsed {}
 set n [llength $::viewed]
 tkwiki::openAttachment $i
-check "binary: not shown ([lindex $::boxes 0])" {[llength $::viewed] == $n && [string match "*not a text*" [lindex $::boxes 0]]}
+check "binary: not shown, the server instead: [lindex $::browsed end]" \
+    {[llength $::viewed] == $n && [string match "*attachview?page=*&file=blob.bin" [lindex $::browsed end]]}
+set bbox [$att bbox $i]
+tkwiki::attachmentMenu $att [expr {[lindex $bbox 0] + 5}] [expr {[lindex $bbox 1] + 5}] 0 0
+check "binary: View disabled" {[$::menu entrycget View -state] eq "disabled"}
 
 # Another page: its own (none).
 $t selection set [list "wiki-Fixing old binary attachments"]; update

@@ -113,13 +113,15 @@ Editing needs a default user in the repository (see
 ## Attachments
 
 The files attached to the page or technote shown are listed under it, if
-it has any: attachment, size, user, date and comment.  An attachment
-whose content is not in the local repository says "not local".
+it has any: attachment, size, user, date and comment, with an icon for
+the kind of file, as in the [Tickets](tickets.md#attachments) tab.  An
+attachment whose content is not in the local repository says "not local".
 
 - Double-click (or Return) views a text attachment in the diff viewer,
   and an image in a window of its own (see
   [Images](tickets.md#images)); one that is not here opens on the
-  server.  Another binary file cannot be viewed: save it.
+  server.  A binary file cannot be viewed (**View** is greyed out, a
+  double-click opens it on the server): save it.
 - Right-click: **View**, **Save…**, **Open in browser**, **Copy file name**,
   **Delete…** (see [Deleting attachments](tickets.md#deleting-attachments):
   the same for pages and technotes).

@@ -9,9 +9,11 @@
 proc tktsearch::buildAttachments {f} {
     ttk::frame $f
     set tv $f.tv
-    ttk::treeview $tv -columns {file size user date comment} -show headings \
-        -selectmode browse -yscrollcommand [list $f.y set]
+    # (The icon of the kind of file in the tree column.)
+    ttk::treeview $tv -columns {file size user date comment} -show {tree headings} \
+        -style [imageview::listStyle] -selectmode browse -yscrollcommand [list $f.y set]
     ttk::scrollbar $f.y -command [list $tv yview]
+    $tv column #0 -width [expr {[icons::rowSize] + 8}] -stretch 0 -anchor center
     set char [font measure TkDefaultFont 0]
     foreach {col heading chars anchor} {
         file File 24 w  size Size 9 e  user User 15 w  date Date 18 w  comment Comment 30 w
@@ -35,7 +37,7 @@ proc tktsearch::buildAttachments {f} {
     grid columnconfigure $f 0 -weight 1
     grid rowconfigure $f 0 -weight 1
     bind $tv <Double-1> {
-        if {[%W identify region %x %y] eq "cell"} {
+        if {[%W identify region %x %y] in {cell tree}} {
             tktsearch::openAttachment [%W identify item %x %y]
         }
     }
@@ -56,11 +58,12 @@ proc tktsearch::fillAttachments {attachments} {
     $tv delete [$tv children {}]
     set i 0
     foreach row $attachments {
-        lassign $row src name user date comment size
+        lassign $row src name user date comment size binary
         # The content can be missing: the attachment arrived, the file not.
         set here [expr {$size >= 0}]
-        set attached($i) [dict create src $src name $name here $here]
-        $tv insert {} end -id $i -tags [expr {$here ? "" : "missing"}] \
+        set kind [imageview::fileKind $name $binary]
+        set attached($i) [dict create src $src name $name here $here kind $kind]
+        $tv insert {} end -id $i -tags [expr {$here ? "" : "missing"}] -image [icons::get a-$kind row] \
             -values [list $name [expr {$here ? [sizeText $size] : "not local"}] $user $date \
                 [fossil::oneLine $comment]]
         incr i
@@ -73,8 +76,8 @@ proc tktsearch::openAttachment {i} {
     variable shownTicket
     if {$i eq "" || ![info exists attached($i)]} return
     set a $attached($i)
-    # (An image that cannot be viewed here: on the server, as one not here.)
-    if {[dict get $a here] && [imageview::kind [dict get $a name]] ne "unsupported"} {
+    # (One that cannot be viewed here: on the server, as one not here.)
+    if {[dict get $a here] && [imageview::canView [dict get $a kind]]} {
         viewAttachment [dict get $a src] [dict get $a name]
     } else {
         openUrl attachview?tkt=$shownTicket&file=[fossil::urlquery [dict get $a name]]
@@ -93,7 +96,7 @@ proc tktsearch::attachmentMenu {tv x y X Y} {
     set m .tickets.attctx
     if {![winfo exists $m]} { menu $m }
     $m delete 0 end
-    set canView [expr {$here eq "normal" && [imageview::kind $name] ne "unsupported" ? "normal" : "disabled"}]
+    set canView [expr {$here eq "normal" && [imageview::canView [dict get $a kind]] ? "normal" : "disabled"}]
     $m add command -label View -state $canView -command [list tktsearch::viewAttachment $src $name]
     $m add command -label Save\u2026 -state $here -command [list tktsearch::saveAttachment $src $name]
     if {[isPatch $name]} {

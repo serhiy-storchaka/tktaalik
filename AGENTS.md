@@ -28,8 +28,9 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   `lib/ticketattach.tcl` (Tickets), `lib/branchops.tcl` (Branches),
   `lib/bisect.tcl`, `lib/pull.tcl` (Timeline),
   `lib/goto.tcl` (Go to: what a hash or name is, and the tab for it),
-  `lib/imageview.tcl` (an attached image in a window; JPEG and other
-  formats only with the optional Img extension, loaded when needed),
+  `lib/imageview.tcl` (attachments: the kind of file and its icon, and
+  an image in a window; JPEG and other formats only with the optional Img
+  extension, loaded when needed),
   `lib/formattext.tcl` (a text in a chosen format with its preview: use it
   wherever text can be written in more than one format),
   `lib/tagwrite.tcl` (tag, amend and reparent dialogs: `tagwrite::apply`

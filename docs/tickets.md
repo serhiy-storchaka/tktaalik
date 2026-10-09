@@ -310,6 +310,13 @@ The Attachments tab lists the newest version of each file attached to the
 ticket: file, size, user, date and comment.  An attachment whose content
 is not in the local repository is greyed out.
 
+An icon before each file says what it is: a patch or diff (`.patch`,
+`.diff`), Tcl sources (`.tcl`, `.tm`, `.test`…), C sources (`.c`, `.h`,
+`.m`…), other text, an image that can be shown (see [Images](#images)),
+or a binary file (one with NUL bytes, or an image that cannot be shown).
+A binary file cannot be viewed: **View** is greyed out and a double-click
+opens it on the server; save it instead.
+
 - Double-click (or Return) views a text attachment, a patch as a diff, in
   Tktaalik's diff viewer (see [Diffs](diffs.md)), and an image in a window
   of its own (see [Images](#images)); an attachment that is not here
