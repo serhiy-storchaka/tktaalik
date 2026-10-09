@@ -48,7 +48,9 @@ check "asked first: [lindex $::boxes end]" {[string match "Set localauth for tk.
 .settings.main.details.edit.value delete 1.0 end
 .settings.main.details.edit.value insert end 1
 .settings.main.details.edit.b.global invoke; update
-check "global file named: [lindex $::boxes end]" {[string match "*for all repositories (in $::env(FOSSIL_HOME)/.fossil)*" [lindex $::boxes end]]}
+# (Its name on Windows: _fossil.)
+set gname [expr {$::tcl_platform(platform) eq "windows" ? "_fossil" : ".fossil"}]
+check "global file named: [lindex $::boxes end]" {[string match "*for all repositories (in $::env(FOSSIL_HOME)/$gname)*" [lindex $::boxes end]]}
 check "set globally: [dict get $tksettings::settings(localauth) global]" {[dict get $tksettings::settings(localauth) global] eq "1" && [$t set localauth from] eq "local"}
 # unset both
 .settings.main.details.edit.b.unlocal invoke; update

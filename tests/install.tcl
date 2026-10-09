@@ -2,6 +2,11 @@
 # under a prefix (here a temporary one); the installed copy runs; --destdir
 # for packages; --uninstall.
 source [file join [file dirname [info script]] common.tcl]
+if {$tcl_platform(platform) eq "windows"} {
+    # (On Windows a shortcut to Wish runs it: docs/configuration.md.)
+    puts "== $T(name): skipped (install.sh is for Unix desktops)"
+    exit 0
+}
 set top [file dirname $T(dir)]
 set p $T(tmp)/prefix
 set wish [info nameofexecutable]

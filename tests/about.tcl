@@ -24,6 +24,8 @@ check "an icon" {[.about.f.icon cget -image] ne ""}
 event generate .about.f.url <Button-1>; update
 check "the page in the browser: $::browsed" {[lindex $::browsed end] eq "https://github.com/serhiy-storchaka/tktaalik"}
 set img [.about.f.icon cget -image]
+# (Key events go to the focus: on Windows not yet the new window's.)
+focus -force .about; update
 event generate .about <Escape>; update
 check "Escape closes it, the icon freed" {![winfo exists .about] && $img ni [image names]}
 $m invoke [$m index "About Tktaalik"]; update

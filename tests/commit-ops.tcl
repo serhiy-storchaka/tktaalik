@@ -198,7 +198,7 @@ check "reverted: [status win/README]" {[status win/README] eq ""}
 set ::openFrom $::saveTo
 respond {.commit.patch 1 {}}
 tkcommit::applyPatch
-check "patch dry run: $::preview" {[string match "*fossil update*" $::preview]}
+check "patch dry run: $::preview" {[regexp {fossil(?:\.exe)? update} $::preview]}
 check "patch applied: [status win/README]" {[status win/README] eq "EDITED"}
 # Over changes: only with discarding them.
 respond {.commit.patch 0 {set ::refused $::preview; set ::tkcommit::discard 1; tkcommit::runPreview .commit.patch}}

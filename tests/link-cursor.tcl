@@ -43,6 +43,8 @@ event generate .t.x <Motion> -x [expr {$x + $w / 2}] -y [expr {$y + $h / 2}]; up
 event generate .t.x <1> -x [expr {$x + $w / 2}] -y [expr {$y + $h / 2}]
 event generate .t.x <ButtonRelease-1> -x [expr {$x + $w / 2}] -y [expr {$y + $h / 2}]; update
 check "clicking the arrow follows the link: $::followed" {$::followed eq "https://example.org/x"}
+# (Again: on Windows the real pointer, elsewhere, may have left the window.)
+event generate .t.x <Motion> -x [expr {$x + $w / 2}] -y [expr {$y + $h / 2}]; update
 check "the hand over the arrow" {[.t.x cget -cursor] eq $htmltext::linkCursor}
 # -external: the caller decides.
 .t.x delete 1.0 end

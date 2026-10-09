@@ -11,7 +11,8 @@ lassign [fossil::run init $D/r.fossil] code out
 check "run: init ($code)" {$code == 0 && [file exists $D/r.fossil]}
 file mkdir $D/co
 lassign [fossil::run -dir $D/co open $D/r.fossil] code out
-check "run -dir: opened there ($code)" {$code == 0 && [file exists $D/co/.fslckout]}
+# (The checkout's database: _FOSSIL_ on Windows.)
+check "run -dir: opened there ($code)" {$code == 0 && ([file exists $D/co/.fslckout] || [file exists $D/co/_FOSSIL_])}
 set here [pwd]
 lassign [fossil::run -dir $D/co info] code out
 check "run -dir: the cwd restored" {[pwd] eq $here && [string match "*checkout:*" $out]}
@@ -95,26 +96,40 @@ check "urlDecode" {[fossil::urlDecode "a%20b+%2F%C3%A9"] eq "a b /[encoding conv
 check "sql: control characters kept ([fossil::sqlMode])" {
     [lindex [fossil::sql $T(repo) "SELECT 'a'||char(2)||'b'||char(1)"] 0 0] eq "a\x02b\x01"}
 
-# FOSSIL: the executable to run, for every way of running it.
-set real [auto_execok fossil]
-set log $T(tmp)/calls.log
-set wrapper $T(tmp)/myfossil
-set f [open $wrapper w]
-puts $f "#!/bin/sh\necho \"\$1\" >> $log\nexec [list {*}$real] \"\$@\""
-close $f
-file attributes $wrapper -permissions 0755
-set saved [expr {[info exists ::env(FOSSIL)] ? $::env(FOSSIL) : ""}]
-set ::env(FOSSIL) $wrapper
-check "exe: \$FOSSIL" {[fossil::exe] eq $wrapper && [fossil::command {fossil diff -i}] eq [list $wrapper diff -i]
-    && [fossil::command {patch -p0}] eq {patch -p0}}
-fossil::run version
-fossil::sql $T(repo) "SELECT 1"
-set done 0
-fossil::start -onDone {::apply {{args} { set ::done 1 }}} version
-vwait ::done
-set f [open $log]; set calls [split [string trim [read $f]] \n]; close $f
-check "run (after info, to find its options), sql (once more, its mode), start through it: $calls" {$calls eq {info version sql sql version}}
-unset ::env(FOSSIL)
-check "unset: fossil from PATH" {[fossil::exe] eq "fossil"}
-if {$saved ne ""} { set ::env(FOSSIL) $saved }
+# Windows: words with * or ? (and no white space, which exec quotes) go
+# to an --args file, which fossil.exe does not expand against files
+# (fossil::ArgsFile; tried here with this Fossil).
+set c [fossil::ArgsFile [list [fossil::exe] test-echo a ..\\* *.md {b c} x]]
+set echoed [lmap l [split [exec {*}$c] \n] { if {[regexp {^argv\[(\d+)\] = \[(.*)\]$} $l -> i a] && $i >= 2} { set a } else continue }]
+check "ArgsFile: [lrange $c 1 end] -> $echoed" {[lindex $c 2] eq "a" && [lindex $c 3] eq "--args"
+    && [lindex $c end] eq "x" && $echoed eq [list a ..\\* *.md {b c} x]}
+check "ArgsFile: none without wildcards, nor with --args" {[fossil::ArgsFile {fossil diff a}] eq {fossil diff a}
+    && [fossil::ArgsFile {fossil ticket --args f *}] eq {fossil ticket --args f *}}
+check "ArgsFile: a word that cannot be a line: unchanged" {[fossil::ArgsFile {fossil grep * {-x y} *}] eq {fossil grep * {-x y} *}}
+
+# (The wrapper is a shell script: not on Windows.)
+if {$::tcl_platform(platform) ne "windows"} {
+    # FOSSIL: the executable to run, for every way of running it.
+    set real [auto_execok fossil]
+    set log $T(tmp)/calls.log
+    set wrapper $T(tmp)/myfossil
+    set f [open $wrapper w]
+    puts $f "#!/bin/sh\necho \"\$1\" >> $log\nexec [list {*}$real] \"\$@\""
+    close $f
+    file attributes $wrapper -permissions 0755
+    set saved [expr {[info exists ::env(FOSSIL)] ? $::env(FOSSIL) : ""}]
+    set ::env(FOSSIL) $wrapper
+    check "exe: \$FOSSIL" {[fossil::exe] eq $wrapper && [fossil::command {fossil diff -i}] eq [list $wrapper diff -i]
+        && [fossil::command {patch -p0}] eq {patch -p0}}
+    fossil::run version
+    fossil::sql $T(repo) "SELECT 1"
+    set done 0
+    fossil::start -onDone {::apply {{args} { set ::done 1 }}} version
+    vwait ::done
+    set f [open $log]; set calls [split [string trim [read $f]] \n]; close $f
+    check "run (after info, to find its options), sql (once more, its mode), start through it: $calls" {$calls eq {info version sql sql version}}
+    unset ::env(FOSSIL)
+    check "unset: fossil from PATH" {[fossil::exe] eq "fossil"}
+    if {$saved ne ""} { set ::env(FOSSIL) $saved }
+}
 done

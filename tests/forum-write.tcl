@@ -20,6 +20,12 @@ set server ""
 # fossil forked, all found before any is killed.
 proc stop {} {
     if {$::server eq ""} return
+    # (Windows: the tree of the process, by taskkill.)
+    if {$::tcl_platform(platform) eq "windows"} {
+        catch {exec taskkill /PID $::server /T /F}
+        set ::server ""
+        return
+    }
     set pids {}
     set todo $::server
     while {[llength $todo]} {
@@ -38,14 +44,19 @@ proc exit {{code 0}} {
 # A free port: tried until the server answers.
 for {set i 0} {$i < 20} {incr i} {
     set port [expr {20000 + int(rand() * 20000)}]
-    # (Watched: stopped as soon as this test ends, however it ends.)
-    set server [exec sh -c {fossil server --localhost --port "$1" "$2" & s=$!
-        while kill -0 "$3" 2>/dev/null; do sleep 1; done; kill $s} sh $port $S [pid] >& $T(tmp)/server.log &]
+    # (Watched: stopped as soon as this test ends, however it ends; on
+    # Windows by exit, see stop.)
+    if {$::tcl_platform(platform) eq "windows"} {
+        set server [exec fossil server --localhost --port $port $S >& $T(tmp)/server.log &]
+    } else {
+        set server [exec sh -c {fossil server --localhost --port "$1" "$2" & s=$!
+            while kill -0 "$3" 2>/dev/null; do sleep 1; done; kill $s} sh $port $S [pid] >& $T(tmp)/server.log &]
+    }
     set url http://127.0.0.1:$port
     set up 0
     for {set j 0} {$j < 50 && !$up} {incr j} {
         after 100
-        set up [expr {![catch {exec curl -s -o /dev/null $url/}]}]
+        set up [expr {![catch {exec curl -s -o [expr {$::tcl_platform(platform) eq "windows" ? "NUL" : "/dev/null"}] $url/}]}]
     }
     if {$up} break
     stop

@@ -12,6 +12,8 @@ export FOSSIL_HOME="$D/home"
 cp "$TKTAALIK_REPO" "$D/tk.fossil"
 fossil remote off -R "$D/tk.fossil" >/dev/null
 fossil settings autosync off -R "$D/tk.fossil" >/dev/null
+# (Without the checkouts of the original: the tests see only their own.)
+fossil sql -R "$D/tk.fossil" "DELETE FROM config WHERE name GLOB 'ckout:*'" >/dev/null
 user=$(fossil user list -R "$D/tk.fossil" | awk '{print $1}' |
     grep -v -x -e anonymous -e nobody -e developer -e reader | head -1)
 fossil user default "$user" -R "$D/tk.fossil" >/dev/null

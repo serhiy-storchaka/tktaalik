@@ -11,6 +11,28 @@
 #   TKTAALIK_XBUTTON  optional: the XTEST helper (tests/xbutton.c)
 
 set ::tktaalik_test 1
+# Windows: the files the tests write (open in their own scripts, at the
+# top level) with LF line endings, as on the other systems: Fossil refuses
+# to commit CR/LF ones, and diffs would be of every line.  The
+# application's own files are left as they are.
+if {$::tcl_platform(platform) eq "windows"} {
+    rename open ::TestsOpen
+    proc open {name args} {
+        set chan [::TestsOpen $name {*}$args]
+        if {[uplevel 1 {namespace current}] eq "::" && [lindex $args 0] in {w a w+ a+ r+}} {
+            fconfigure $chan -translation lf
+        }
+        return $chan
+    }
+    # A posted menu runs a loop of its own until the user closes it: a
+    # test would wait forever.  Only what opening it runs, the
+    # -postcommand; the entries can be read as on the other systems.  (Loaded
+    # first, so that menu.tcl does not bring the real one back.)
+    auto_load tk_popup
+    proc tk_popup {menu x y {entry {}}} {
+        uplevel #0 [$menu cget -postcommand]
+    }
+}
 fconfigure stdout -buffering line
 set T(dir) [file dirname [file normalize [info script]]]
 set T(name) [file rootname [file tail $::argv0]]

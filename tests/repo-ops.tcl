@@ -44,7 +44,7 @@ check "Close checkout disabled now" {[.menubar.checkout entrycget [.menubar.chec
 # A new checkout of it.
 answer [list dir $D/co2 version "" setmtime 1]
 repoops::newCheckout; update
-check "new checkout: $tktaalik::root" {$tktaalik::root eq [file normalize $D/co2] && [file exists $D/co2/.fslckout]}
+check "new checkout: $tktaalik::root" {$tktaalik::root eq [file normalize $D/co2] && ([file exists $D/co2/.fslckout] || [file exists $D/co2/_FOSSIL_])}
 # Back up.
 proc tk_getSaveFile {args} { return $::D/backup.fossil }
 repoops::backup; update

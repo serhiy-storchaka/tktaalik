@@ -4,6 +4,24 @@ source [file join [file dirname [info script]] common.tcl]
 start tickets "" 1200x800
 proc lseq0 {n} { set r {}; for {set i 0} {$i <= $n} {incr i} { lappend r $i }; return $r }
 set clone .#menubar
+# The menus posted when the menu bar's cascade I is opened.  A native menu
+# bar (Windows) cannot be opened from a script: its menu's -postcommand is
+# what opening it runs.
+proc postCascade {i} {
+    if {[tk windowingsystem] ne "x11"} {
+        set m [.menubar entrycget $i -menu]
+        uplevel #0 [$m cget -postcommand]; update
+        return [list $m]
+    }
+    $::clone activate $i; $::clone postcascade $i; update
+    lmap w [info commands .#menubar.*] {
+        if {[winfo exists $w] && [winfo ismapped $w]} {set w} else continue
+    }
+}
+proc unpost {} {
+    if {[tk windowingsystem] ne "x11"} return
+    $::clone postcascade none; $::clone activate none; update
+}
 foreach tab {timeline tickets branches tags files commit stash wiki forum search} {
     # (Commit and Stash need a checkout: disabled here.)
     if {[.nb tab .$tab -state] eq "disabled"} continue
@@ -19,14 +37,10 @@ foreach tab {timeline tickets branches tags files commit stash wiki forum search
     # and a Help menu with the manual, if the tab has none
     if {$h < 0} { lappend exp Help }
     set posted {}
-    for {set i 0} {$i <= [$clone index end]} {incr i} {
-        $clone activate $i; $clone postcascade $i; update
-        foreach w [info commands .#menubar.*] {
-            if {[winfo exists $w] && [winfo ismapped $w]} { lappend posted "[$clone entrycget $i -label]:[$w index end]" }
-        }
-        $clone postcascade none; update
+    for {set i 0} {$i <= [.menubar index end]} {incr i} {
+        foreach w [postCascade $i] { lappend posted "[.menubar entrycget $i -label]:[$w index end]" }
+        unpost
     }
-    $clone activate none
     check "$tab: menu bar [join $labels /], posted $posted" {$labels eq $exp && [llength $posted] == [llength $labels]}
 }
 set hm [.menubar entrycget [.menubar index end] -menu]
@@ -54,8 +68,7 @@ check "same menu bar throughout" {[. cget -menu] eq ".menubar"}
 tktaalik::show branches; update
 .branches.main.list.t selection set main; update
 set i [lsearch -exact [lmap k {0 1 2} {.menubar entrycget $k -label}] Branch]
-$clone activate $i; $clone postcascade $i; update
-set w [lindex [lmap w [info commands .#menubar.*] {if {[winfo ismapped $w]} {set w} else continue}] 0]
+set w [lindex [postCascade $i] 0]
 check "Branch menu filled for main: [$w entrycget 0 -label]" {[$w entrycget 0 -label] eq "Update checkout to main"}
-$clone postcascade none
+unpost
 done

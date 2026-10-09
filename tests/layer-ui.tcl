@@ -19,6 +19,9 @@ set b [lindex $::boxArgs end]
 check "errorBox" {[dict get $b -icon] eq "error" && [dict get $b -parent] eq "." && [dict get $b -message] eq "Failed"}
 ui::infoBox "Note"
 check "infoBox" {[dict get [lindex $::boxArgs end] -icon] eq "info"}
+# (Tk on Windows crashes in "clipboard clear" before the main window
+# exists; the application copies only once it is shown.)
+update
 ui::copy "copied text"
 check "copy" {[clipboard get] eq "copied text"}
 

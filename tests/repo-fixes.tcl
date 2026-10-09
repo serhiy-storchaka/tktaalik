@@ -27,7 +27,7 @@ proc waitRun {} {
     waitUntil {$::repoops::running eq ""}
     update
 }
-set G $::env(FOSSIL_HOME)/.fossil
+set G $::env(FOSSIL_HOME)/[expr {$tcl_platform(platform) eq "windows" ? "_fossil" : ".fossil"}]
 # (fossil sql reads its SQL from stdin.)
 proc knownInConfig {} {
     exec fossil sql --no-repository << "ATTACH '$::G' AS g;\nSELECT substr(name,6) FROM g.global_config WHERE name GLOB 'repo:*';\n"
