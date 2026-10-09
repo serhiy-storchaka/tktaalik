@@ -94,7 +94,7 @@ press **Commit** (or Ctrl+Return).  The comment is required.
   `>` or `|`.
 - **Ignore warnings**: no warnings about the files' contents (CR/LF line
   endings, binary data, …) and no check of the comment (`--no-warnings
-  --no-verify-comment`).
+  --no-verify-comment`; Fossil 2.21 checks no comments).
 - **More options**: the rest of Fossil's commit options; see
   [Commit options](#commit-options).
 

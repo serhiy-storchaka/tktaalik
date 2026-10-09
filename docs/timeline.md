@@ -248,7 +248,7 @@ about it, as `fossil amend` does.  The dialog shows the check-in as it is:
 | Field | Changes |
 |---|---|
 | Comment | The check-in comment (written to a file and passed with `-M`, so it can contain anything) |
-| Do not check the comment | Skip Fossil's check of links and markup in the comment (`--no-verify-comment`) |
+| Do not check the comment | Skip Fossil's check of links and markup in the comment (`--no-verify-comment`; greyed out with a Fossil that does not check comments, as 2.21) |
 | Author | Who made it (`--author`) |
 | Date (UTC) | When (`--date`): `YYYY-MM-DD HH:MM:SS`, optionally with `Z` or an offset `+HH:MM` |
 | Branch | Moves this check-in and its descendants to another branch name: the branch is renamed from here on (`--branch`) |

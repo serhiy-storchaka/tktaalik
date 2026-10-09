@@ -569,7 +569,11 @@ proc tkcommit::commit {{dryRun 0}} {
     if {$dryRun} { lappend args --dry-run }
     # (As --branch=NAME: a name cannot be taken for a redirection.)
     if {$branch ne ""} { lappend args --branch=$branch }
-    if {$noWarnings} { lappend args --no-warnings --no-verify-comment }
+    if {$noWarnings} {
+        lappend args --no-warnings
+        # (Fossil 2.21 checks no comments, and has no such option.)
+        if {[fossil::helpMatches commit *--no-verify-comment*]} { lappend args --no-verify-comment }
+    }
     if {[catch {commitOpts} opts]} {
         tk_messageBox -icon error -title Commit -message $opts
         return

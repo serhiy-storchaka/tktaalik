@@ -206,6 +206,11 @@ proc tagwrite::amend {repo rid {done ""}} {
     $w.m insert end $comment
     ttk::checkbutton $w.nv -text "Do not check the comment (links, markup)" \
         -variable tagwrite::f(noverify)
+    # (Fossil 2.21 checks no comments: no such option.)
+    if {![fossil::helpMatches amend *--no-verify-comment*]} {
+        $w.nv state disabled
+        icons::tooltip $w.nv "This Fossil does not check comments"
+    }
     ttk::label $w.ul -text "Author:"
     ttk::entry $w.u -textvariable tagwrite::f(user) -width 30
     ttk::label $w.dl -text "Date (UTC):"
@@ -335,7 +340,7 @@ proc tagwrite::amendOptions {} {
     if {$f(close)} { lappend opts --close }
     if {$f(hide)} { lappend opts --hide }
     if {[llength $opts] || [dict get $old comment] ne $f(comment)} {
-        if {$f(noverify)} { lappend opts --no-verify-comment }
+        if {$f(noverify) && [fossil::helpMatches amend *--no-verify-comment*]} { lappend opts --no-verify-comment }
     }
     return $opts
 }
