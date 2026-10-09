@@ -48,7 +48,9 @@ can be committed start checked; EXTRA, MISSING and UNCHANGED files start
 unchecked and are never committed (EXTRA ones can be added first; see
 [File operations](#file-operations)).  Your choices are kept when the
 list is read again, as long as a file's status stays the same.  The
-status line counts the checked files.
+status line counts the checked files.  Of an edited file you can also
+commit only some of its changes: see [Committing part of a
+file](#committing-part-of-a-file).
 
 Two check boxes under the comment change what is listed:
 
@@ -98,6 +100,56 @@ press **Commit** (or Ctrl+Return).  The comment is required.
 
 **Dry run** shows what the commit would do (`fossil commit --dry-run`)
 without committing: the output appears in a window.
+
+## Committing part of a file
+
+Fossil commits whole files: it has no staging area.  In the Commit tab
+you can still commit only some changes of an edited file.  Its diff has a
+check box on each hunk (each `@@` line), ticked as long as the file is
+checked: click one to untick it, or put the cursor in a hunk and press
+Space.  An unticked hunk is greyed.  A file with some hunks unticked is
+marked ▣ in the list, and the status line counts it ("1 of them in
+part").  Unticking all the hunks of a file unchecks it; ticking a hunk of
+an unchecked file checks it with only that hunk.  Checking or unchecking
+the file itself takes the whole file again.
+
+**Commit** then asks first, naming how many changes of each such file
+are committed.  Tktaalik:
+
+1. keeps all the changes in a stash (`fossil stash snapshot`);
+2. writes each such file with only its ticked changes, taken from the
+   file byte for byte (line ends, encodings and the end of the file stay
+   as they are);
+3. commits as usual (`fossil commit --nosync` with the files);
+4. writes the files back with all their changes, whether the commit
+   worked or not, then drops the stash.  If a file cannot be written
+   back, the stash is kept and a message says which: Apply it in the
+   [Stash](stash.md) tab.
+
+The changes not ticked stay in the checkout, ready for the next commit.
+**Dry run** does the same with `--dry-run`, without asking.
+
+Hunks can be chosen only:
+
+- for edited files (not added, removed or renamed ones, nor binary
+  files: those are committed whole);
+- without a merge in progress (Fossil commits all the files then);
+- with the plain diff: not with **Ignore white space**, **Ignore white
+  space at line ends**, **Ignore CR at line ends** or **Inverted** in
+  Commit ▸ Diff options, nor with the diff against another version.  The
+  context lines can be chosen: fewer give smaller hunks.
+
+If a file's diff does not give the file back (a change the diff does not
+show), it can only be committed whole, and Commit says so.
+
+### Stashing part of the changes
+
+**Commit ▸ Stash the checked changes…** stashes the checked files
+(`fossil stash save` with their names), of the files in part only the
+hunks ticked, and takes them out of the checkout; the rest stays.  It
+asks for the stash's comment first.  The same stash of all the changes
+is kept meanwhile, and dropped once the files are written.  Apply the
+stash later in the [Stash](stash.md) tab.
 
 A commit goes to the branch of the check-in the checkout is on.  If that
 check-in was moved to its branch by a later tag change — someone ran

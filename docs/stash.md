@@ -34,7 +34,9 @@ counted and listed: Fossil sometimes records every file of the checkout
 in a stash (after a rename), most of them unchanged.
 
 The context menu of a stash has the entries of the **Stash** menu, which
-also has **Copy comment**.
+also has **Copy comment**.  To stash only some files, or some changes of
+a file, use Commit ▸ Stash the checked changes… in the
+[Commit](commit.md#stashing-part-of-the-changes) tab.
 
 Double-click a stash, or press **Show diff**, for its diff in the diff
 window ([Diffs](diffs.md)).  **Stash ▸ Diff against checkout** shows

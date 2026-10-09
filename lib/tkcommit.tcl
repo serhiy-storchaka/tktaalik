@@ -9,6 +9,8 @@
 
 source [file join [file dirname [file normalize [info script]]] fossil.tcl]
 source [file join [file dirname [file normalize [info script]]] commitops.tcl]
+source [file join [file dirname [file normalize [info script]]] hunks.tcl]
+source [file join [file dirname [file normalize [info script]]] commithunks.tcl]
 
 namespace eval tkcommit {
     variable root ""            ;# the checkout's top directory
@@ -109,6 +111,12 @@ proc tkcommit::loadChanges {} {
             set checked($path) [expr {$what ni $uncommittable}]
         }
         if {$merging} { set checked($path) [expr {$what ni $uncommittable}] }
+    }
+    # (Hunks chosen: only of files still edited.)
+    foreach path [array names ::tkcommit::hunksOff] {
+        if {![dict exists $files $path] || [dict get $files $path] ne "EDITED"} {
+            unset ::tkcommit::hunksOff($path)
+        }
     }
     return 1
 }
@@ -305,7 +313,7 @@ proc tkcommit::refresh {} {
 
 proc tkcommit::mark {path} {
     variable checked
-    expr {$checked($path) ? "\u2611" : "\u2610"}
+    expr {[partly $path] ? "\u25a3" : $checked($path) ? "\u2611" : "\u2610"}
 }
 
 proc tkcommit::toggle {path} {
@@ -314,7 +322,10 @@ proc tkcommit::toggle {path} {
     variable files
     if {$path eq "" || $merging} return
     set checked($path) [expr {!$checked($path)}]
+    # (The whole file, or none of it.)
+    unset -nocomplain ::tkcommit::hunksOff($path)
     .commit.main.files.t set $path check [mark $path]
+    if {$path eq $::tkcommit::current} { showDiff $path }
     updateStatus
 }
 
@@ -327,8 +338,10 @@ proc tkcommit::toggleSelected {} {
     set to [expr {!$checked([lindex $paths 0])}]
     foreach path $paths {
         set checked($path) $to
+        unset -nocomplain ::tkcommit::hunksOff($path)
         .commit.main.files.t set $path check [mark $path]
     }
+    if {$::tkcommit::current in $paths} { showDiff $::tkcommit::current }
     updateStatus
 }
 
@@ -340,9 +353,12 @@ proc tkcommit::selectedFiles {} {
 proc tkcommit::updateStatus {} {
     variable files
     variable status
-    set n [llength [toCommit]]
+    set paths [toCommit]
+    set n [llength $paths]
     set total [dict size $files]
     set status "$n of $total [expr {$total == 1 ? "file" : "files"}] checked"
+    set part [llength [lmap p $paths { if {![partly $p]} continue; set p }]]
+    if {$part} { append status " ($part of them in part: the hunks ticked)" }
 }
 
 # The checked files that can be committed.
@@ -379,6 +395,7 @@ proc tkcommit::showDiff {path} {
     variable current
     variable root
     set current $path
+    set ::tkcommit::shownHunks {}
     set d .commit.main.diff.text
     $d configure -state normal
     $d delete 1.0 end
@@ -402,6 +419,11 @@ proc tkcommit::showDiff {path} {
                 \"fossil rm\" or restore it with Revert." heading
         } else {
             lassign [fossil diff -i -N {*}[diffArgs] [filearg $path]] code out
+            if {!$code && [hunksChoosable $path]} {
+                showHunks $d $path $out
+                $d configure -state disabled
+                return
+            }
             foreach line [split $out \n] {
                 switch -glob -- $line {
                     "+++ *" - "--- *" - "Index: *" - "=====*" { set tag meta }
@@ -557,8 +579,27 @@ proc tkcommit::commit {{dryRun 0}} {
     if {!$merging} {
         foreach path $paths { lappend args [filearg $path] }
     }
+    # Of some files only the hunks ticked: written so for the commit.
+    if {[catch {partialFiles $paths} parts]} {
+        file delete $tmp
+        ui::errorBox -title Commit "The changes cannot be committed in part." $parts
+        return
+    }
+    if {[llength $parts] && !$dryRun && ![askPartial Commit $parts committed]} {
+        file delete $tmp
+        return
+    }
     ui::busy {
-        lassign [fossil {*}$args] code out
+        if {[llength $parts]} {
+            if {![withPartial Commit $parts part work {
+                lassign [fossil {*}$args] code out
+            }]} {
+                file delete $tmp
+                return
+            }
+        } else {
+            lassign [fossil {*}$args] code out
+        }
     }
     file delete $tmp
 
@@ -572,6 +613,8 @@ proc tkcommit::commit {{dryRun 0}} {
     }
     .commit.bottom.msg.text delete 1.0 end
     set branch ""
+    # (What is left of the files committed in part: all ticked again.)
+    foreach p $parts { unset -nocomplain ::tkcommit::hunksOff([dict get $p path]) }
     resetOpts
     remember
     refresh
@@ -653,6 +696,7 @@ proc tkcommit::build {} {
         "Save changes as a patch\u2026"     tkcommit::savePatch     ""
         "Apply a patch\u2026"               tkcommit::applyPatch    ""
         "View a patch\u2026"                tkcommit::viewPatch     ""
+        "Stash the checked changes\u2026"   tkcommit::stashChecked  ""
         --                              {}                      ""
         "Dry run"                       {tkcommit::commit 1}    ""
         "Commit"                        tkcommit::commit        Ctrl+Return
@@ -724,6 +768,13 @@ proc tkcommit::build {} {
     $d tag configure hunk -foreground blue4
     $d tag configure meta -foreground gray45
     $d tag configure heading -font TkHeadingFont
+    # A hunk not ticked: greyed, over the colours of its lines.
+    $d tag configure off -foreground gray60 -background [$d cget -background]
+    $d tag configure box -font TkTextFont
+    $d tag bind box <ButtonPress-1> {tkcommit::toggleHunk [tkcommit::hunkAt @%x,%y]; break}
+    $d tag bind box <Enter> {.commit.main.diff.text configure -cursor hand2}
+    $d tag bind box <Leave> {.commit.main.diff.text configure -cursor xterm}
+    bind $d <space> {tkcommit::toggleHunk [tkcommit::hunkAt insert]; break}
     # The selection over the colours: tags made later are above it.
     $d tag raise sel
     .commit.main add .commit.main.files -weight 1
