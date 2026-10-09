@@ -33,6 +33,9 @@ its old name) or `changed`.  Only the files the stash really changes are
 counted and listed: Fossil sometimes records every file of the checkout
 in a stash (after a rename), most of them unchanged.
 
+The context menu of a stash has the entries of the **Stash** menu, which
+also has **Copy comment**.
+
 Double-click a stash, or press **Show diff**, for its diff in the diff
 window ([Diffs](diffs.md)).  **Stash ▸ Diff against checkout** shows
 instead how the files of the checkout would change if the stash were

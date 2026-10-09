@@ -60,7 +60,9 @@ above the three tabs.  Right-click a file for its context menu:
 
 The **File** menu has more for the version and the file:
 
-- **History of the file**, **Find in the file's history…**;
+- **History of the file**, **Find in the file's history…**, **Content of the
+  file**, **Blame of the file**, **Open the file in browser**, **Copy the
+  file's path**: the entries of the file's context menu;
 - **Find a local file in history…**: see [A local file in history](#a-local-file-in-history);
 - **Save this version as an archive…**: see [Archives](#archives).
 

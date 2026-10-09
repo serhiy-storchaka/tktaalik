@@ -160,7 +160,9 @@ title and id.
 
 Double-click a ticket (or press Return) to edit it: see
 [Editing tickets](#editing-tickets).  Its web page is in the context menu
-(Open in browser).  Right-click a ticket for:
+(Open in browser).  Right-click a ticket for the entries below; the
+**Ticket** menu has them too, for the ticket shown, but for Filter and
+Exclude:
 
 | Entry | What it does |
 |---|---|
@@ -168,6 +170,7 @@ Double-click a ticket (or press Return) to edit it: see
 | Open in browser | the ticket on the server |
 | Copy ticket id | to the clipboard |
 | Edit ticket… | see [Editing tickets](#editing-tickets) |
+| Close ticket…, Start fix… | see [Closing tickets](#closing-tickets), [Starting a fix](#starting-a-fix) |
 | Copy title | to the clipboard |
 
 ## Details

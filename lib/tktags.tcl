@@ -63,11 +63,8 @@ proc tktags::build {} {
     tktaalik::fileMenu .tags.menu.file
     .tags.menu.file add command -label Refresh -underline 0 -accelerator F5 -command tktags::reload
     tktaalik::quitEntry .tags.menu.file
-    .tags.menu add cascade -label Tag -underline 0 -menu [menu .tags.menu.tag]
-    .tags.menu.tag add command -label "Add tag\u2026" -underline 0 -command tktags::addTag
-    .tags.menu.tag add command -label "Cancel tag\u2026" -underline 0 -command tktags::cancelTag
-    .tags.menu.tag add separator
-    .tags.menu.tag add command -label "Save as archive\u2026" -underline 0 -command tktags::archive
+    .tags.menu add cascade -label Tag -underline 0 -menu [menu .tags.menu.tag \
+        -postcommand {popup::fill .tags.menu.tag tktags::popupMenu $tktags::selected}]
     loadConfig
     set filter [tktaalik::getdef $config filter ""]
     set showBranches [tktaalik::getdef $config showBranches 0]
@@ -438,7 +435,8 @@ proc tktags::popupMenu {m item} {
     $m add command -label "Save as archive\u2026" -command tktags::archive \
         -state [expr {[info exists tags($item)] && [dict get $tags($item) kind] eq "Tag" ? "normal" : "disabled"}]
     popup::separator $m
-    foreach b {add cancel} { popup::button $m .tags.b.$b }
+    popup::button $m .tags.b.add "Add tag\u2026"
+    popup::button $m .tags.b.cancel "Cancel tag\u2026"
     popup::separator $m
     popup::copy $m "Copy name" [string trim $item]
     popup::copy $m "Copy check-in" [expr {[info exists tags($item)] ? [dict get $tags($item) uuid] : ""}]

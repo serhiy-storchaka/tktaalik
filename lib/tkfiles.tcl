@@ -808,17 +808,27 @@ proc tkfiles::treeMenu {x y X Y} {
     $m delete 0 end
     $m add command -label "History of [file tail $file]" -command tkfiles::showHistory
     $m add command -label "Find in its history\u2026" -command tkfiles::showGrep
-    foreach {label tab} {Content content Blame blame} {
-        $m add command -label $label -command [list apply {{tab} {
-            tktaalik::navigate
-            .files.main.right.nb select .files.main.right.nb.$tab
-        }} $tab]
-    }
+    $m add command -label Content -command {tkfiles::showPane content}
+    $m add command -label Blame -command {tkfiles::showPane blame}
     $m add command -label "Open in browser" -state [expr {$remote eq "" ? "disabled" : "normal"}] \
-        -command [list fossil::browse $remote/finfo?name=[fossil::urlquery $file /]]
+        -command tkfiles::browseFile
     $m add separator
     $m add command -label "Copy path" -command [list ui::copy $file]
     tk_popup $m $X $Y
+}
+
+# The content or the blame of the file selected.
+proc tkfiles::showPane {tab} {
+    tktaalik::navigate
+    .files.main.right.nb select .files.main.right.nb.$tab
+}
+
+# The history of the file selected on the server's web pages.
+proc tkfiles::browseFile {} {
+    variable remote
+    variable file
+    if {$file eq ""} { bell; return }
+    ui::openServer $remote finfo?name=[fossil::urlquery $file /] -title Files
 }
 
 # Save the file as it was in a check-in ("fossil cat -o").
@@ -915,6 +925,11 @@ proc tkfiles::build {} {
     tktaalik::fileMenu .files.menu.file
     .files.menu.file add command -label "History of the file" -underline 0 -command tkfiles::showHistory
     .files.menu.file add command -label "Find in the file's history\u2026" -underline 0 -command tkfiles::showGrep
+    .files.menu.file add command -label "Content of the file" -command {tkfiles::showPane content}
+    .files.menu.file add command -label "Blame of the file" -command {tkfiles::showPane blame}
+    .files.menu.file add command -label "Open the file in browser" -command tkfiles::browseFile
+    .files.menu.file add command -label "Copy the file's path" \
+        -command {if {$tkfiles::file eq ""} bell else {ui::copy $tkfiles::file}}
     .files.menu.file add command -label "Find a local file in history\u2026" -underline 5 \
         -command tkfiles::findLocal
     .files.menu.file add command -label "Save this version as an archive\u2026" -underline 0 \

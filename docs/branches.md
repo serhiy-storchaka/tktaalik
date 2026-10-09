@@ -46,7 +46,7 @@ heading to choose the columns.  The Branch column is always shown.
 |---|---|
 | Click, Shift+click, Ctrl+click | Select one or several branches (closing and hiding work on all of them) |
 | Double-click | The diff of the branch in the [diff viewer](diffs.md) |
-| Right-click | The branch menu (also the **Branch** menu in the menu bar) |
+| Right-click | The branch menu (also the **Branch** menu in the menu bar, but for the Search entries) |
 | Ctrl+F | Go to the search box |
 | Escape in the search box | Clear the search |
 | F5, File ▸ Refresh | Read the repository again |

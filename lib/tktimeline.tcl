@@ -647,15 +647,34 @@ proc tktimeline::openUrl {path} {
 
 proc tktimeline::contextMenu {x y X Y} {
     variable rows
-    variable kinds
     set t .timeline.main.list.t
     if {[$t identify region $x $y] ni {cell tree}} return
     set rid [$t identify item $x $y]
     if {$rid eq "" || ![info exists rows($rid)]} return
     $t selection set $rid
-    set r $rows($rid)
     set m .timeline.ctx
     $m delete 0 end
+    fillEventMenu $m $rid
+    # (What a double-click on the row does: tktimeline::activateRow.)
+    switch -- [dict get $rows($rid) type] {
+        ci { popup::default $m Diff }
+        t { popup::default $m "Show ticket" }
+        w - e { popup::default $m "Show in Wiki" }
+        f { popup::default $m "Show in Forum" }
+    }
+    tk_popup $m $X $Y
+}
+
+# The entries for the event RID: the context menu, and the Event menu for
+# the one selected.
+proc tktimeline::fillEventMenu {m rid} {
+    variable rows
+    variable kinds
+    if {$rid eq "" || ![info exists rows($rid)]} {
+        $m add command -label "No event selected" -state disabled
+        return
+    }
+    set r $rows($rid)
     if {[dict get $r type] eq "ci"} {
         $m add command -label "Diff" -command [list tktimeline::diff [dict get $r uuid]]
         $m add command -label "Show branch [dict get $r branch]" \
@@ -725,30 +744,24 @@ proc tktimeline::contextMenu {x y X Y} {
     }
     $m add command -label "Open in browser" -command [list tktimeline::openUrl info/[dict get $r uuid]]
     $m add separator
-    $m add command -label "Search user:[dict get $r user]" \
-        -command [list tktimeline::addTerm user [dict get $r user] 0]
-    $m add command -label "Exclude user:[dict get $r user]" \
-        -command [list tktimeline::addTerm user [dict get $r user] 1]
-    if {[dict get $r branch] ne ""} {
-        $m add command -label "Search branch:[dict get $r branch]" \
-            -command [list tktimeline::addTerm branch [dict get $r branch] 0]
+    if {![popup::inBar]} {
+        $m add command -label "Search user:[dict get $r user]" \
+            -command [list tktimeline::addTerm user [dict get $r user] 0]
+        $m add command -label "Exclude user:[dict get $r user]" \
+            -command [list tktimeline::addTerm user [dict get $r user] 1]
+        if {[dict get $r branch] ne ""} {
+            $m add command -label "Search branch:[dict get $r branch]" \
+                -command [list tktimeline::addTerm branch [dict get $r branch] 0]
+        }
+        $m add command -label "Search kind:[dict get $kinds [dict get $r type]]" \
+            -command [list tktimeline::addTerm kind [dict get $kinds [dict get $r type]] 0]
+        $m add separator
     }
-    $m add command -label "Search kind:[dict get $kinds [dict get $r type]]" \
-        -command [list tktimeline::addTerm kind [dict get $kinds [dict get $r type]] 0]
-    $m add separator
     $m add command -label "Copy hash" -command [list ui::copy [dict get $r uuid]]
     $m add command -label "Copy comment" -command [list ui::copy [dict get $r comment]]
     $m add command -label "Show artifact" \
         -command [list histops::showArtifact $::tktimeline::repo [dict get $r uuid]]
     $m add command -label "Save artifact\u2026" -command [list tktimeline::saveArtifact $rid]
-    # (What a double-click on the row does: tktimeline::activateRow.)
-    switch -- [dict get $r type] {
-        ci { popup::default $m Diff }
-        t { popup::default $m "Show ticket" }
-        w - e { popup::default $m "Show in Wiki" }
-        f { popup::default $m "Show in Forum" }
-    }
-    tk_popup $m $X $Y
 }
 
 proc tktimeline::activateRow {rid} {
@@ -984,6 +997,9 @@ proc tktimeline::build {} {
     .timeline.menu.file add command -label Refresh -underline 0 -accelerator F5 \
         -command tktimeline::search
     tktaalik::quitEntry .timeline.menu.file
+    .timeline.menu add cascade -label Event -underline 0 -menu [menu .timeline.menu.event \
+        -postcommand {popup::fill .timeline.menu.event tktimeline::fillEventMenu \
+            [lindex [.timeline.main.list.t selection] 0]}]
     # Bisect (in the checkout): the checkout is marked good or bad.
     set m .timeline.menu.bisect
     .timeline.menu add cascade -label Bisect -underline 1 -menu [menu $m \

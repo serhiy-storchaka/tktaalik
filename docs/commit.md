@@ -71,9 +71,12 @@ side-by-side diff in a window of its own.  Right-click it for:
 | Rename or move… | see [File operations](#file-operations) |
 | Remove… | see [File operations](#file-operations) |
 | Revert… | see [File operations](#file-operations) |
-| Update to a version… | see [Updating](#updating) |
+| Update files to a version… | see [Updating](#updating) |
 | Undo for these files…, Redo for these files… | see [Undo and redo](#undo-and-redo) |
 | Copy names | the selected files' paths, to the clipboard |
+
+The **Commit** menu has them too (Undo for the selected files…, Redo for
+the selected files…, Copy names of the selected files).
 
 The list is read again when you come back to the tab, after every
 operation, and with **Refresh** (F5).
@@ -327,7 +330,8 @@ back to it.
 
 - **Commit ▸ Undo…** undoes the last such command.
 - **Commit ▸ Redo…** undoes the undo.
-- **Undo for these files…** (in a file's context menu) restores only the
+- **Undo for these files…** (in a file's context menu; Commit ▸ Undo for
+  the selected files…) restores only the
   selected files to their state before the last undoable command, and
   leaves the rest of the update or merge in effect.  **Redo for these
   files…** redoes it for them only.  (Fossil's dry run lists the whole

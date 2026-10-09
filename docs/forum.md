@@ -38,7 +38,10 @@ words in the posts themselves, use the [Search](search.md) tab with only
 The first thread is selected when the list is shown; select another one with
 the mouse or the arrow keys.  **F5** (File ▸ Refresh) reads the forum again.
 **Open in browser** opens the selected thread on the server the repository
-was cloned from.
+was cloned from.  The context menu of a thread has it too, with **Copy
+title** and **Copy link** (its address on the server), and **Threads
+started by** its author (Find set to the name); the **Forum** menu has
+all but the last, for the thread selected.
 
 ## Posts
 

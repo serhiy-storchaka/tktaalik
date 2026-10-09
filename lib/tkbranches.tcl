@@ -1152,7 +1152,7 @@ proc tkbranches::fillBranchMenu {m name} {
         -command [list histops::exportBundle $::tkbranches::repo $name]
     $m add cascade -label Advanced -menu [advancedMenu $m $name $ok]
     $m add separator
-    if {$ok} {
+    if {$ok && ![popup::inBar]} {
         set base [dict get $branches($name) base]
         if {$base ne ""} {
             $m add command -label "Search base:$base" \
@@ -1258,7 +1258,7 @@ proc tkbranches::build {} {
     .branches.menu.file add command -label Refresh -underline 0 -accelerator F5 -command tkbranches::reload
     tktaalik::quitEntry .branches.menu.file
     .branches.menu add cascade -label Branch -underline 0 -menu [menu .branches.menu.branch \
-        -postcommand {tkbranches::fillBranchMenu .branches.menu.branch $tkbranches::selected}]
+        -postcommand {popup::fill .branches.menu.branch tkbranches::fillBranchMenu $tkbranches::selected}]
     .branches.menu add cascade -label Help -underline 0 -menu [menu .branches.menu.help]
     .branches.menu.help add command -label "Search syntax" -underline 0 \
         -command {help::show branches search-syntax}

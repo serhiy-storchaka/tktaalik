@@ -69,7 +69,8 @@ there.  In every tab:
 - **File** — open a checkout or a repository, Back, Forward, Go to, Quit;
 - **View** — right after File: the tabs Timeline, Tickets, Branches, Tags,
   Files, Wiki, Forum and Search, with their keys; the tab shown is marked;
-- then the tab's own menus (Ticket, Branch, Bisect, Commit…);
+- then the tab's own menus (Event, Ticket, Branch, Tag, Page, Forum,
+  Commit…);
 - **Checkout** — the tabs of the checkout, Commit and Stash (greyed out
   without a checkout);
 - **Repository**, then **Help** — the manual (F1), the tab's own help,
@@ -96,7 +97,9 @@ Most lists are tables: click a column heading to sort by it, drag a
 heading to move the column, right-click a heading to choose the columns
 (see [Columns and sorting](configuration.md#columns-and-sorting)).
 Right-click a row for what you can do with it; the entry in bold is what
-double-clicking the row does.  Hover over icons and
+double-clicking the row does.  The tab's menus in the menu bar have the
+same entries for the row selected, but for those that only narrow the
+list (Search …, Exclude …, Filter …).  Hover over icons and
 headings for tooltips.
 
 ## Opening a repository

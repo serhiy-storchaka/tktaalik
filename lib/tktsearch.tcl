@@ -336,7 +336,6 @@ proc tktsearch::rightClick {x y X Y} {
 
 proc tktsearch::contextMenu {x y X Y} {
     variable rows
-    variable remote
     variable menuItem
     set t .tickets.main.list.t
     set item [$t identify item $x $y]
@@ -364,11 +363,22 @@ proc tktsearch::contextMenu {x y X Y} {
         $m add command -label "Exclude $term" -command [list tktsearch::addTerm $k $value 1]
     }
     if {[$m index end] ne "none"} { $m add separator }
+    fillTicketMenu $m $item
+    popup::default $m "Edit ticket\u2026"
+    tk_popup $m $X $Y
+}
+
+# The entries for the ticket ITEM: the context menu, and the Ticket menu
+# for the ticket shown.
+proc tktsearch::fillTicketMenu {m item} {
+    variable rows
+    variable remote
+    set state [expr {$item eq "" ? "disabled" : "normal"}]
     $m add command -label "Open in browser" -command [list tktsearch::openTicket $item] \
-        -state [expr {$remote eq "" ? "disabled" : "normal"}]
-    $m add command -label "Copy ticket id" -command [list ui::copy $item]
-    $m add command -label "Edit ticket\u2026" -command [list tktsearch::editTicket $item]
-    set closable [::tickets::canWrite status]
+        -state [expr {$remote eq "" ? "disabled" : $state}]
+    $m add command -label "Copy ticket id" -command [list ui::copy $item] -state $state
+    $m add command -label "Edit ticket\u2026" -command [list tktsearch::editTicket $item] -state $state
+    set closable [expr {$item ne "" && [::tickets::canWrite status]}]
     if {$closable} {
         set closable [expr {![isClosed [lindex [::tickets::sql "SELECT\
             [fossil::outcol "coalesce([::tickets::field status],'')"] FROM ticket\
@@ -377,11 +387,22 @@ proc tktsearch::contextMenu {x y X Y} {
     $m add command -label "Close ticket\u2026" -command [list tktsearch::closeTicket $item] \
         -state [expr {$closable ? "normal" : "disabled"}]
     $m add command -label "Start fix\u2026" -command [list tktsearch::startFix $item] \
-        -state [expr {$closable || ![::tickets::canWrite status] ? "normal" : "disabled"}]
-    $m add command -label "Copy title" \
-        -command [list ui::copy [dict get $data title]]
-    popup::default $m "Edit ticket\u2026"
-    tk_popup $m $X $Y
+        -state [expr {$item ne "" && ($closable || ![::tickets::canWrite status]) ? "normal" : "disabled"}]
+    set title [expr {[info exists rows($item)] ? [dict get $rows($item) title] : ""}]
+    popup::copy $m "Copy title" $title
+}
+
+# The Ticket menu: a new ticket, the entries for the ticket shown, the
+# reports.
+proc tktsearch::ticketMenu {m} {
+    variable shownTicket
+    $m delete 0 end
+    $m add command -label "New ticket\u2026" -underline 0 -accelerator Ctrl+N -command tktsearch::newTicket
+    $m add separator
+    fillTicketMenu $m $shownTicket
+    $m entryconfigure "Edit ticket\u2026" -accelerator Ctrl+E
+    $m add separator
+    $m add command -label "Reports\u2026" -underline 0 -command ticketreports::window
 }
 
 proc tktsearch::addTerm {key value neg} {
@@ -520,17 +541,9 @@ proc tktsearch::build {} {
     .tickets.menu add cascade -label File -underline 0 -menu [menu .tickets.menu.file]
     tktaalik::fileMenu .tickets.menu.file
     tktaalik::quitEntry .tickets.menu.file
-    .tickets.menu add cascade -label Ticket -underline 0 -menu [menu .tickets.menu.ticket]
-    .tickets.menu.ticket add command -label "New ticket\u2026" -underline 0 -accelerator Ctrl+N \
-        -command tktsearch::newTicket
-    .tickets.menu.ticket add command -label "Edit ticket\u2026" -underline 0 -accelerator Ctrl+E \
-        -command {tktsearch::editTicket $tktsearch::shownTicket}
-    .tickets.menu.ticket add command -label "Close ticket\u2026" -underline 0 \
-        -command {tktsearch::closeTicket $tktsearch::shownTicket}
-    .tickets.menu.ticket add command -label "Start fix\u2026" -underline 0 \
-        -command {tktsearch::startFix $tktsearch::shownTicket}
-    .tickets.menu.ticket add separator
-    .tickets.menu.ticket add command -label "Reports\u2026" -underline 0 -command ticketreports::window
+    .tickets.menu add cascade -label Ticket -underline 0 -menu [menu .tickets.menu.ticket \
+        -postcommand {tktsearch::ticketMenu .tickets.menu.ticket}]
+    tktsearch::ticketMenu .tickets.menu.ticket
     .tickets.menu add cascade -label Help -underline 0 -menu [menu .tickets.menu.help]
     .tickets.menu.help add command -label "Search syntax" -underline 0 \
         -command {help::show tickets search-syntax}

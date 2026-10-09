@@ -51,10 +51,10 @@ a heading to choose the columns.
 | Show in Branches | The branch in the [Branches](branches.md) tab (branch names only) |
 | Open in browser | The server's timeline of the tag (`/timeline?t=NAME`; not for properties) |
 
-The **Tag** menu has the same Add tag… and Cancel tag… entries, and
-**Save as archive…**: the tag's check-in (a release…) as a ZIP, tarball or
-SQL archive (see [Archives](timeline.md#archives)); also in the context
-menu.  Ctrl+F
+The context menu of a tag, and the **Tag** menu for the tag selected,
+have these buttons (Add tag… and Cancel tag… there), **Save as archive…**
+(the tag's check-in, a release…, as a ZIP, tarball or SQL archive: see
+[Archives](timeline.md#archives)), **Copy name** and **Copy check-in**.  Ctrl+F
 goes to Find; F5 (File ▸ Refresh) reads the repository again.  Back and
 Forward remember the filter, the check boxes and the selected tag.
 

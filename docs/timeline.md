@@ -65,7 +65,8 @@ Date and Comment are always shown.
 
 ### The context menu
 
-Right-click an event for:
+Right-click an event for the entries below.  The **Event** menu has them
+too, for the event selected, but for the Search and Exclude ones.
 
 | Entry | Does |
 |---|---|
@@ -90,7 +91,7 @@ Right-click an event for:
 | Show artifact | The event's artifact as Fossil stores it (the manifest of a check-in, the control artifact of a tag change, …) in a window |
 | Save artifact… | The same, saved to a file, as `fossil artifact HASH FILE` |
 
-The menu bar has **File** (with Pull… and Refresh), **Bisect** and
+The menu bar has **File** (with Pull… and Refresh), **Event**, **Bisect** and
 **Help** (Search syntax: this page at [Search syntax](#search-syntax), as
 the help button by the search box).  Back and
 Forward (Alt+Left, Alt+Right, or the mouse side buttons) go through the

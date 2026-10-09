@@ -13,9 +13,17 @@
 #   popup::column             the column of the row clicked (treeviews)
 #   popup::default M LABEL    the entry LABEL of M in bold: what a
 #                             double-click on the row does
+#   popup::fill M BUILDER ROW the menu M of the menu bar emptied and filled
+#                             by BUILDER for ROW (or "" for none), as the
+#                             context menu: each action of the list is in
+#                             the menu bar too, but what only changes the
+#                             rows of the list (filters)
+#   popup::inBar              true while popup::fill fills: builders leave
+#                             out the filters then
 
 namespace eval popup {
     variable column ""
+    variable bar 0
 }
 
 proc popup::attach {w builder} {
@@ -55,6 +63,27 @@ proc popup::post {w builder x y X Y} {
     # (No separator at the end.)
     while {[$m index end] ne "none" && [$m type end] eq "separator"} { $m delete end }
     if {[$m index end] ne "none"} { tk_popup $m $X $Y }
+}
+
+proc popup::fill {m builder row} {
+    variable bar
+    $m delete 0 end
+    set bar 1
+    try {
+        uplevel #0 [list {*}$builder $m $row]
+    } finally {
+        set bar 0
+    }
+    while {[$m index end] ne "none" && [$m type end] eq "separator"} { $m delete end }
+    # (Nothing in bold here: that is the double-click of a row.)
+    if {[$m index end] eq "none"} return
+    for {set i 0} {$i <= [$m index end]} {incr i} {
+        if {[$m type $i] ne "separator"} { $m entryconfigure $i -font {} }
+    }
+}
+
+proc popup::inBar {} {
+    return $::popup::bar
 }
 
 proc popup::button {m b {label ""}} {

@@ -83,6 +83,8 @@ proc tkwiki::build {} {
     .wiki.menu.file add command -label "New technote\u2026" -underline 4 -command {tkwiki::editor newnote}
     .wiki.menu.file add command -label Refresh -underline 0 -accelerator F5 -command tkwiki::reload
     tktaalik::quitEntry .wiki.menu.file
+    .wiki.menu add cascade -label Page -underline 0 -menu [menu .wiki.menu.page \
+        -postcommand {popup::fill .wiki.menu.page tkwiki::popupMenu [lindex [.wiki.main.list.t selection] 0]}]
     loadConfig
     set view [tktaalik::getdef $config view all]
     set filter [tktaalik::getdef $config filter ""]
@@ -1095,5 +1097,5 @@ proc tkwiki::popupMenu {m item} {
     popup::separator $m
     popup::button $m .wiki.b.browse
     popup::separator $m
-    popup::copy $m "Copy name" [.wiki.main.list.t set $item title]
+    popup::copy $m "Copy name" [expr {$item eq "" ? "" : [.wiki.main.list.t set $item title]}]
 }

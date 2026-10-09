@@ -683,6 +683,7 @@ proc tkstash::build {} {
         "Go back\u2026"                      tkstash::goBack
         "Drop\u2026"                         tkstash::drop
         "Drop all\u2026"                     tkstash::dropAll
+        "Copy comment"                  tkstash::copyComment
         --                              {}
         "Diff options"                  >diffopts
         "Stash changes\u2026"                tkstash::save
@@ -849,9 +850,13 @@ proc tkstash::activate {} {
 # The context menu of a stash: the Stash menu (the stash selected).
 proc tkstash::popupMenu {m item} {
     popup::menuEntries $m .stash.menu.stash
-    popup::separator $m
-    popup::copy $m "Copy comment" [.stash.main.list.t set $item comment]
     popup::default $m "Show diff"
+}
+
+proc tkstash::copyComment {} {
+    set id [selected]
+    if {$id eq ""} { bell; return }
+    ui::copy [.stash.main.list.t set $id comment]
 }
 
 # The context menu of the files to stash: check or uncheck them all.

@@ -67,9 +67,8 @@ proc tkforum::build {} {
     tktaalik::fileMenu .forum.menu.file
     .forum.menu.file add command -label Refresh -underline 0 -accelerator F5 -command tkforum::reload
     tktaalik::quitEntry .forum.menu.file
-    .forum.menu add cascade -label Forum -underline 1 -menu [menu .forum.menu.forum]
-    .forum.menu.forum add command -label "New thread\u2026" -underline 0 -accelerator Ctrl+N \
-        -command tkforum::compose
+    .forum.menu add cascade -label Forum -underline 1 -menu [menu .forum.menu.forum \
+        -postcommand {tkforum::forumMenu .forum.menu.forum}]
     loadConfig
     set filter [tktaalik::getdef $config filter ""]
 
@@ -896,15 +895,25 @@ proc tkforum::goTo {place} {
 }
 
 # The context menu of a thread.
+# The Forum menu: a new thread, then what the context menu has for the
+# thread selected.
+proc tkforum::forumMenu {m} {
+    popup::fill $m tkforum::popupMenu [lindex [.forum.main.list.t selection] 0]
+    $m insert 0 command -label "New thread\u2026" -underline 0 -accelerator Ctrl+N -command tkforum::compose
+    if {[$m index end] > 0} { $m insert 1 separator }
+}
+
 proc tkforum::popupMenu {m item} {
     variable threads
     variable remote
     variable repo
     if {![info exists threads($item)]} return
     set user [dict get $threads($item) user]
-    $m add command -label "Threads started by $user" -state [expr {$user eq "" ? "disabled" : "normal"}] \
-        -command [list set tkforum::filter $user]
-    popup::separator $m
+    if {![popup::inBar]} {
+        $m add command -label "Threads started by $user" -state [expr {$user eq "" ? "disabled" : "normal"}] \
+            -command [list set tkforum::filter $user]
+        popup::separator $m
+    }
     popup::button $m .forum.b.browse
     popup::separator $m
     popup::copy $m "Copy title" [dict get $threads($item) title]

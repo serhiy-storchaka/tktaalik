@@ -53,7 +53,10 @@ page says).  Links can be clicked:
   diff window;
 - other links open in the browser; they end with a small ↗.
 
-**Open in browser** shows the page or technote on the server.  **New
+**Open in browser** shows the page or technote on the server.  The context
+menu of the list, and the **Page** menu for the page selected, have the
+page's buttons (Edit…, the changes, Save…, Attach…, Open in browser) and
+**Copy name**.  **New
 page…** and **New technote…** are described under [Editing](#editing).
 
 ## Versions and changes

@@ -634,6 +634,7 @@ proc tkcommit::build {} {
         "Reset adds\u2026"                  {tkcommit::resetAdds add} ""
         "Reset removes\u2026"               {tkcommit::resetAdds rm} ""
         "Delete unmanaged files\u2026"      tkcommit::cleanFiles    ""
+        "Copy names of the selected files" {ui::copy [join [tkcommit::selectedFiles] \n]} ""
         --                              {}                      ""
         "Update\u2026"                      tkcommit::updateCheckout ""
         "Update files to a version\u2026"   tkcommit::updateFiles   ""
@@ -645,6 +646,8 @@ proc tkcommit::build {} {
         "Revert all\u2026"                  {tkcommit::revertFiles 1} ""
         "Undo\u2026"                        tkcommit::undo          ""
         "Redo\u2026"                        {tkcommit::undo redo}   ""
+        "Undo for the selected files\u2026" tkcommit::undoFile     ""
+        "Redo for the selected files\u2026" {tkcommit::undoFile redo} ""
         "Merge details"                 tkcommit::mergeInfo     ""
         --                              {}                      ""
         "Save changes as a patch\u2026"     tkcommit::savePatch     ""
@@ -671,7 +674,7 @@ proc tkcommit::build {} {
         "Rename or move\u2026"      tkcommit::renameFile
         "Remove\u2026"              tkcommit::removeFile
         "Revert\u2026"              tkcommit::revertFiles
-        "Update to a version\u2026" tkcommit::updateFiles
+        "Update files to a version\u2026" tkcommit::updateFiles
         "Undo for these files\u2026" tkcommit::undoFile
         "Redo for these files\u2026" {tkcommit::undoFile redo}
         "Copy names"            {ui::copy [join [tkcommit::selectedFiles] \n]}
