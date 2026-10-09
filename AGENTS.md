@@ -164,7 +164,9 @@ tests): check a change with an old and a new Fossil too
   options: `--quote`, not `-q`, for `fossil ticket`), `fossil sql -R` has no
   search functions (`fossil::hasSearch`; the Search tab warns), and the
   default output mode of `fossil sql` is no longer `-quote` (always set
-  `.mode`); `fossil::run` (exec) turns CRLF into LF and drops the trailing
+  `.mode`); the SQLite shell of newer Fossils (2.29) escapes control
+  characters such as the `char(2)` list separators unless told not to,
+  which older ones refuse (`fossil::sqlMode` finds which); `fossil::run` (exec) turns CRLF into LF and drops the trailing
   newline, so byte-exact checks export to a file and read it in binary;
   unversioned names cannot contain white space, `uv rm` leaves a row with a
   NULL hash, and `unversioned.mtime` is in Unix seconds; attachment targets

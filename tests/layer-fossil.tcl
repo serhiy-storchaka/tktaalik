@@ -90,6 +90,11 @@ check "autosync -R: [fossil::autosync -R $D/r.fossil commit]" {[fossil::autosync
 set s "a b/[encoding convertfrom utf-8 \xc3\xa9]"
 check "urlquery: [fossil::urlquery $s]" {[fossil::urlquery $s] eq "a%20b%2F%C3%A9" && [fossil::urlquery $s /] eq "a%20b/%C3%A9"}
 check "urlDecode" {[fossil::urlDecode "a%20b+%2F%C3%A9"] eq "a b /[encoding convertfrom utf-8 \xc3\xa9]"}
+# Control characters in the results as they are (newer Fossils' SQLite
+# shell escapes them unless told not to: fossil::sqlMode).
+check "sql: control characters kept ([fossil::sqlMode])" {
+    [lindex [fossil::sql $T(repo) "SELECT 'a'||char(2)||'b'||char(1)"] 0 0] eq "a\x02b\x01"}
+
 # FOSSIL: the executable to run, for every way of running it.
 set real [auto_execok fossil]
 set log $T(tmp)/calls.log
@@ -108,7 +113,7 @@ set done 0
 fossil::start -onDone {::apply {{args} { set ::done 1 }}} version
 vwait ::done
 set f [open $log]; set calls [split [string trim [read $f]] \n]; close $f
-check "run, sql, start through it: $calls" {$calls eq {version sql version}}
+check "run, sql (once more to find its mode), start through it: $calls" {$calls eq {version sql sql version}}
 unset ::env(FOSSIL)
 check "unset: fossil from PATH" {[fossil::exe] eq "fossil"}
 if {$saved ne ""} { set ::env(FOSSIL) $saved }

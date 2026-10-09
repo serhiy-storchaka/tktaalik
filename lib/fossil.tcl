@@ -16,6 +16,8 @@
 #                               the artifact in PATH stored in REPO,
 #                               public (for what no command makes)
 #   fossil::tempDir             a new private temporary directory
+#   fossil::sqlMode             the ".mode" line for its queries (ascii,
+#                               control characters not escaped)
 #   fossil::sqlstr TEXT         TEXT as an SQL string literal
 #   fossil::outcol EXPR         a text column safe for fossil::sql
 #   fossil::arg TEXT            TEXT checked to be safe as an exec argument
@@ -402,7 +404,7 @@ proc fossil::urlDecode {text} {
 # {FOSSIL DB}.  Text columns must not contain the separators of
 # ".mode ascii": use fossil::outcol for those that can.
 proc fossil::sql {repo statement} {
-    set script ".mode ascii\n[string map {\n { } \r { }} $statement];\n"
+    set script "[sqlMode]\n[string map {\n { } \r { }} $statement];\n"
     try {
         set out [exec [exe] sql -R $repo --readonly << $script]
     } on error msg {
@@ -413,7 +415,7 @@ proc fossil::sql {repo statement} {
 }
 
 proc fossil::checkoutSql {dir statement} {
-    set script ".mode ascii\n[string map {\n { } \r { }} $statement];\n"
+    set script "[sqlMode]\n[string map {\n { } \r { }} $statement];\n"
     set here [pwd]
     cd $dir
     try {
@@ -431,7 +433,7 @@ proc fossil::checkoutSql {dir statement} {
 # returns at once; fossil::sqlFinish waits for it and returns the rows.  For
 # running a slow query beside others.
 proc fossil::sqlStart {repo statement} {
-    set script ".mode ascii\n[string map {\n { } \r { }} $statement];\n"
+    set script "[sqlMode]\n[string map {\n { } \r { }} $statement];\n"
     set chan [open |[list [exe] sql -R $repo --readonly 2>@1] r+]
     fconfigure $chan -encoding utf-8 -translation lf
     puts -nonewline $chan $script
@@ -521,6 +523,25 @@ proc fossil::WriteBytes {path text} {
     set f [open $path wb]
     puts -nonewline $f [encoding convertto utf-8 $text]
     close $f
+}
+
+# The output mode of "fossil sql" for the queries: ascii (rows and columns
+# separated by control characters 30 and 31).  The SQLite shell of newer
+# Fossils (2.29) writes other control characters escaped ("^B") unless
+# told not to ("--escape off"); older ones (2.21) refuse that option, so
+# it is asked for only where this Fossil takes it (found once).
+proc fossil::sqlMode {} {
+    variable sqlModes
+    set exe [exe]
+    if {![info exists sqlModes($exe)]} {
+        set mode ".mode ascii"
+        if {![catch {exec $exe sql --no-repository << ".mode ascii --escape off\nSELECT 'ok';\n" 2>@1} out]
+                && [string trim $out \x1e\x1f\n] eq "ok"} {
+            append mode " --escape off"
+        }
+        set sqlModes($exe) $mode
+    }
+    return $sqlModes($exe)
 }
 
 proc fossil::sqlFinish {chan} {
