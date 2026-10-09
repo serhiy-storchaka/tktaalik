@@ -243,23 +243,6 @@ set file [lindex $files 0]
 lassign [tkcommit::mergeRows $file 3] st rows
 set names [lindex [lsearch -inline -index 0 $rows names] 1]
 check "rows: [llength $rows], names [join $names /]" {$st eq "ok" && [string match "*(after merge)" [lindex $names 3]]}
-# A line taken from the merged-in version: its text in the result too (in
-# one of the files merged: which ones depends on the repository).
-set ok 0
-foreach f $files {
-    lassign [tkcommit::mergeRows $f 3] st rows
-    foreach row $rows {
-        lassign $row kind cells
-        if {$kind ne "line"} continue
-        lassign [lindex $cells 2] t2 tag2
-        lassign [lindex $cells 3] t3 tag3
-        if {$tag3 eq "add" && $t3 ne "" && $t3 eq $t2} { set ok 1; break }
-    }
-    if {$ok} break
-}
-check "a merged-in line shown with its text in the result" {$ok}
-set dots [llength [lmap row $rows { if {[lindex $row 0] ne "line"} continue; lassign [lindex [lindex $row 1] 0] t g; if {$g ne "none"} continue; set g }]]
-check "\"no line here\" cells empty in the baseline ($dots)" {$dots > 0}
 # The merge details: a status line chosen, an ERROR line not.
 set w .commit.merge.t
 $w configure -state normal
@@ -277,5 +260,24 @@ set before [llength [lsearch -all -glob [winfo children .] .diffview*]]
 tkcommit::twoWay $file 0 2; update
 check "two-way: a diff window" {[llength [lsearch -all -glob [winfo children .] .diffview*]] == $before + 1}
 destroy .commit.threeway .commit.merge
+fossilco undo
+# A line taken from the merged-in version: its text in the result too.  On
+# a merge of its own (whether the repository's has one depends on it).
+set f [open $co/README.md a]; puts $f "a merged-in line"; close $f
+fossilco commit --nosync -m "A line to merge" --branch zz-mergein
+fossilco update --nosync main
+fossilco merge --nosync zz-mergein
+lassign [tkcommit::mergeRows README.md 3] st rows
+set ok 0
+foreach row $rows {
+    lassign $row kind cells
+    if {$kind ne "line"} continue
+    lassign [lindex $cells 2] t2 tag2
+    lassign [lindex $cells 3] t3 tag3
+    if {$tag3 eq "add" && $t3 eq "a merged-in line" && $t2 eq $t3} { set ok 1 }
+}
+check "a merged-in line shown with its text in the result" {$st eq "ok" && $ok}
+set dots [llength [lmap row $rows { if {[lindex $row 0] ne "line"} continue; lassign [lindex [lindex $row 1] 0] t g; if {$g ne "none"} continue; set g }]]
+check "\"no line here\" cells empty in the baseline ($dots)" {$dots > 0}
 fossilco undo
 done
