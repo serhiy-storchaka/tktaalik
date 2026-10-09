@@ -109,6 +109,7 @@ proc diffview::newWindow {title mode} {
     ttk::label $w.versions -foreground gray35 -padding {8 0}
 
     ttk::panedwindow $w.p -orient horizontal
+    ui::splitByWeights $w.p
     # The files.
     ttk::frame $w.p.files
     ttk::treeview $w.p.files.t -columns {added deleted file} -show headings \
@@ -240,8 +241,9 @@ proc diffview::start {w} {
     set versions [expr {[dict get $data($w) command] eq {fossil diff -i} ? "-h" : ""}]
     fossil::inDir [dict get $data($w) dir] {
         # (The options before the arguments: those can end with file names.)
-        set chan [open |[list {*}[fossil::command [dict get $data($w) command]] {*}$versions {*}[optionArgs $w] \
-            {*}[dict get $data($w) args] << "" 2>@1] r]
+        set cmd [list {*}[fossil::command [dict get $data($w) command]] {*}$versions {*}[optionArgs $w] \
+            {*}[dict get $data($w) args] << "" 2>@1]
+        set chan [open |$cmd r]
     }
     dict set data($w) chan $chan
     fconfigure $chan -blocking 0 -encoding utf-8 -translation auto
@@ -270,7 +272,8 @@ proc diffview::external {w} {
     # (Not -i: with it Fossil ignores gdiff-command, and prints a diff.)
     set args [lsearch -all -inline -not -exact [dict get $data($w) args] -i]
     if {[catch {fossil::inDir [dict get $data($w) dir] {
-        exec {*}[fossil::command $g] {*}[optionArgs $w] {*}$args << "" &
+        set cmd [list {*}[fossil::command $g] {*}[optionArgs $w] {*}$args << "" &]
+        exec {*}$cmd
     }} msg]} {
         ui::errorBox -parent $w -title "External diff" "fossil gdiff failed:" $msg
     }

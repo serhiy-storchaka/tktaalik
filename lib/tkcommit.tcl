@@ -688,6 +688,7 @@ proc tkcommit::build {} {
 
     # The files and the diff of the selected one.
     ttk::panedwindow .commit.main -orient horizontal
+    ui::splitByWeights .commit.main
     ttk::frame .commit.main.files
     ttk::treeview .commit.main.files.t -columns {check status path} -show headings \
         -selectmode extended -yscrollcommand {.commit.main.files.y set}

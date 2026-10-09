@@ -93,6 +93,7 @@ proc tktags::build {} {
     }}}
 
     ttk::panedwindow .tags.main -orient vertical
+    ui::splitByWeights .tags.main
     ttk::frame .tags.main.list
     set t .tags.main.list.t
     ttk::treeview $t -show headings -selectmode browse -yscrollcommand {.tags.main.list.y set}

@@ -380,8 +380,8 @@ proc tkfiles::grep {} {
     }
     set g .files.main.right.nb.grep
     if {[catch {
-        set grepPipe [open |[list [fossil::exe] grep -R $repo {*}$opts -- $pattern \
-            {*}[lmap n $all { fossil::arg $n }] << "" 2>@1] r]
+        set grepPipe [fossil::pipe [list grep -R $repo {*}$opts -- $pattern \
+            {*}[lmap n $all { fossil::arg $n }] << "" 2>@1]]
     } msg]} {
         $g.status configure -text "Cannot search: $msg"
         return
@@ -667,8 +667,8 @@ proc tkfiles::loadBlame {} {
     $b configure -state disabled
     lassign [target] version name
     fossil::inDir $root {
-        set blamePipe [open |[list [fossil::exe] blame {*}[blameOptions] -r $version [fossil::arg $name] \
-            << "" 2>@1] r]
+        set blamePipe [fossil::pipe [list blame {*}[blameOptions] -r $version [fossil::arg $name] \
+            << "" 2>@1]]
     }
     fconfigure $blamePipe -blocking 0 -encoding utf-8
     fileevent $blamePipe readable [list tkfiles::readBlame $blamePipe $file ""]
@@ -940,6 +940,7 @@ proc tkfiles::build {} {
     }}}
 
     ttk::panedwindow .files.main -orient horizontal
+    ui::splitByWeights .files.main
     ttk::frame .files.main.tree
     ttk::treeview .files.main.tree.t -show {tree headings} -columns {age size} -selectmode browse \
         -yscrollcommand {.files.main.tree.y set}

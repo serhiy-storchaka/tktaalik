@@ -68,6 +68,7 @@ proc tkusers::window {} {
 
 proc tkusers::build {} {
     ttk::panedwindow .users.main -orient horizontal
+    ui::splitByWeights .users.main
     ttk::frame .users.main.list
     set t .users.main.list.t
     ttk::treeview $t -show headings -selectmode browse -yscrollcommand {.users.main.list.y set} \

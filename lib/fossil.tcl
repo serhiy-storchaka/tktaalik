@@ -74,6 +74,11 @@ proc fossil::hasCommand {name} {
 proc fossil::command {command} {
     if {[lindex $command 0] ne "fossil"} { return $command }
     lset command 0 [exe]
+    # (Windows: fossil.exe expands * and ? in its arguments against the
+    # files, also in other directories (..\*, C:/*), unless the argument
+    # was quoted, which exec does only for one with white space: such
+    # arguments go through a file, fossil's --args.)
+    if {$::tcl_platform(platform) eq "windows"} { set command [ArgsFile $command] }
     if {![eqOptions]} {
         # (Not a value that exec or Fossil would take for a redirection or
         # an option as a word of its own: then Fossil refuses the word.)
@@ -83,6 +88,39 @@ proc fossil::command {command} {
         }]]
     }
     return $command
+}
+
+# COMMAND (with the executable) with its arguments from the first to the
+# last that has * or ? and no white space put into a file read by
+# "--args" (a line each), if they can be: a line is an argument, unless it
+# is empty or (starting with "-") has a space.  The file is deleted after
+# a minute: Fossil reads it when it starts.
+proc fossil::ArgsFile {command} {
+    # (Only one --args: a command with its own keeps its words.)
+    if {"--args" in $command} { return $command }
+    set wild [lsearch -all -regexp $command {^[^\s]*[*?][^\s]*$}]
+    set wild [lsearch -all -inline -not $wild 0]
+    if {![llength $wild]} { return $command }
+    set from [lindex $wild 0]
+    set to [lindex $wild end]
+    set words [lrange $command $from $to]
+    foreach word $words {
+        if {$word eq "" || [string first \n $word] >= 0 || [regexp {^-.* } $word]
+                || [regexp {^(?:[<>|]|2>|&$)} $word]} { return $command }
+    }
+    set dir [tempDir]
+    set path [file join $dir args]
+    set f [open $path w]
+    fconfigure $f -encoding utf-8 -translation lf
+    puts $f [join $words \n]
+    close $f
+    after 60000 [list file delete -force $dir]
+    lreplace $command $from $to --args $path
+}
+
+# A pipe to fossil ARGV (redirections allowed), opened with ACCESS.
+proc fossil::pipe {argv {access r}} {
+    open |[command [list fossil {*}$argv]] $access
 }
 
 # Whether this Fossil takes --NAME=VALUE (2.22 and newer): found once,
@@ -138,6 +176,7 @@ proc fossil::arg {text} {
 #                               errors), stdin TEXT (default empty):
 #                               {exit-code output}
 #   fossil::runTo PATH ARG...  its output, as bytes, into the file PATH
+#   fossil::pipe ARGV ?ACCESS?  a pipe to fossil ARGV (with redirections)
 #   fossil::runIn ROOT REPO ARG...
 #                               in the checkout ROOT, else with -R REPO
 #   fossil::inDir DIR BODY      BODY evaluated in the caller with DIR as the
@@ -197,8 +236,9 @@ proc fossil::Options {argsVar names} {
 }
 
 proc fossil::Exec {input argv} {
+    set cmd [command [list fossil {*}$argv]]
     set code [catch {
-        exec {*}[command [list fossil {*}$argv]] << $input 2>@1
+        exec {*}$cmd << $input 2>@1
     } out opts]
     if {$code && [lindex [dict get $opts -errorcode] 0] ne "CHILDSTATUS"} {
         # Not an exit status: fossil could not be run at all.
@@ -211,7 +251,8 @@ proc fossil::Exec {input argv} {
 # without an output option of their own in older Fossils): {exit-code
 # error-output}.
 proc fossil::runTo {path args} {
-    if {![catch {exec {*}[command [list fossil {*}$args]] > $path << ""} msg opts]} { return [list 0 ""] }
+    set cmd [command [list fossil {*}$args]]
+    if {![catch {exec {*}$cmd > $path << ""} msg opts]} { return [list 0 ""] }
     # (Only an exit status other than 0 is a failure; else output on stderr.)
     switch -- [lindex [dict get $opts -errorcode] 0] {
         NONE { return [list 0 $msg] }
@@ -246,7 +287,8 @@ proc fossil::start {args} {
     set here [pwd]
     if {$dir ne ""} { cd $dir }
     try {
-        set chan [open |[list {*}[command $command] << "" 2>@1] r]
+        set cmd [command $command]
+        set chan [open |[list {*}$cmd << "" 2>@1] r]
     } finally {
         cd $here
     }

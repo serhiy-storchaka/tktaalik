@@ -165,6 +165,7 @@ proc help::build {} {
     pack .help.bar.find .help.bar.fl -side right -padx {4 0}
 
     ttk::panedwindow .help.main -orient horizontal
+    ui::splitByWeights .help.main
     ttk::frame .help.main.toc
     ttk::treeview .help.main.toc.t -show tree -selectmode browse \
         -yscrollcommand {.help.main.toc.y set}
@@ -323,7 +324,7 @@ proc help::render {text} {
         fconfigure $f -encoding utf-8
         puts -nonewline $f $text
         close $f
-        set p [open |[list [fossil::exe] test-markdown-render $name 2>@1] r]
+        set p [fossil::pipe [list test-markdown-render $name 2>@1]]
         fconfigure $p -encoding utf-8
         set html [read $p]
         close $p

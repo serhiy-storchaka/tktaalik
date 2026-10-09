@@ -142,6 +142,19 @@ proc tktsearch::saveAttachment {src name} {
 
 # Apply a patch to the checkout with "patch", after a dry run that also
 # finds the number of leading path parts to strip (-p0: Fossil, -p1: git).
+# The patch program: on the PATH, else on Windows the one of Git for
+# Windows (not on the PATH by default); "" if none.
+proc tktsearch::patchProgram {} {
+    set found [auto_execok patch]
+    if {$found ne "" || $::tcl_platform(platform) ne "windows"} { return [lindex $found 0] }
+    foreach var {ProgramW6432 ProgramFiles ProgramFiles(x86) LOCALAPPDATA} sub {Git Git Git Programs/Git} {
+        if {![info exists ::env($var)]} continue
+        set exe [file join $::env($var) $sub usr bin patch.exe]
+        if {[file executable $exe]} { return $exe }
+    }
+    return ""
+}
+
 proc tktsearch::applyAttachment {src name} {
     set root $::tktaalik::root
     if {$root eq ""} {
@@ -149,8 +162,11 @@ proc tktsearch::applyAttachment {src name} {
             -detail "Open one with File \u25b8 Open checkout."
         return
     }
-    if {[auto_execok patch] eq ""} {
-        tk_messageBox -icon error -title "Apply patch" -message "The program \"patch\" is not installed."
+    set patch [patchProgram]
+    if {$patch eq ""} {
+        tk_messageBox -icon error -title "Apply patch" -message "The program \"patch\" is not installed." \
+            -detail [expr {$::tcl_platform(platform) eq "windows"
+                ? "Git for Windows has one (usr\\bin\\patch.exe); install Git, or put a patch.exe on the PATH." : ""}]
         return
     }
     close [file tempfile file .patch]
@@ -164,7 +180,7 @@ proc tktsearch::applyAttachment {src name} {
     try {
         set strip ""
         foreach p {0 1} {
-            set failed [catch {exec patch --dry-run --batch -N -p$p -i $file << ""} dry]
+            set failed [catch {exec $patch --dry-run --batch -N -p$p -i $file << ""} dry]
             set dry [regsub {\n?child process exited abnormally$} $dry ""]
             if {!$failed} {
                 set strip $p
@@ -181,7 +197,7 @@ proc tktsearch::applyAttachment {src name} {
                 "Apply $name to [file tail $root]?" \
                 "Dry run (patch -p$strip):\n[string range [string trim $dry] 0 1500]\n\nThe files of\
                     the checkout change; nothing is committed."]} return
-        if {[catch {exec patch --batch -N -p$strip -i $file << ""} out]} {
+        if {[catch {exec $patch --batch -N -p$strip -i $file << ""} out]} {
             tk_messageBox -icon error -title "Apply patch" -message "patch failed:" \
                 -detail [regsub {\n?child process exited abnormally$} $out ""]
             return

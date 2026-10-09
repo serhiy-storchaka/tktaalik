@@ -736,6 +736,7 @@ proc tkstash::build {} {
     icons::tooltip .stash.bar.goto "Update to the check-in of the stash and apply it there"
 
     ttk::panedwindow .stash.main -orient vertical
+    ui::splitByWeights .stash.main
     ttk::frame .stash.main.list
     set t .stash.main.list.t
     ttk::treeview $t -show headings -selectmode browse -yscrollcommand {.stash.main.list.y set}

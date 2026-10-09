@@ -85,6 +85,7 @@ proc tkforum::build {} {
     }}}
 
     ttk::panedwindow .forum.main -orient vertical
+    ui::splitByWeights .forum.main
     ttk::frame .forum.main.list
     set t .forum.main.list.t
     ttk::treeview $t -show headings -selectmode browse -yscrollcommand {.forum.main.list.y set}

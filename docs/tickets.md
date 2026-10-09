@@ -312,7 +312,8 @@ is not in the local repository is greyed out.
 - Right-click: **View**, **Save…**, **Apply to the checkout…** (for
   `.patch` and `.diff` files), **Open in browser**, **Copy file name**.
 
-**Apply to the checkout…** needs an open checkout and the `patch` program.
+**Apply to the checkout…** needs an open checkout and the `patch` program
+(on Windows, if it is not on the `PATH`, the one of Git for Windows).
 It finds whether the patch applies with `-p0` or `-p1`, shows the dry run
 and asks first; afterwards it offers to show the Commit tab.  The files
 of the checkout change; nothing is committed.

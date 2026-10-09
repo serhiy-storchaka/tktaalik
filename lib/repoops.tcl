@@ -609,7 +609,7 @@ proc repoops::openLocally {} {
     set uiRepo $repo
     set uiUrl ""
     set uiPage $page
-    set uiChan [open |[list [fossil::exe] ui --nobrowser $repo << "" 2>@1] r]
+    set uiChan [fossil::pipe [list ui --nobrowser $repo << "" 2>@1]]
     fconfigure $uiChan -blocking 0
     fileevent $uiChan readable [list repoops::uiRead $uiChan]
 }

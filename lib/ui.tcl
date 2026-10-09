@@ -7,6 +7,9 @@
 #                               Yes or No: 1 if Yes
 #   ui::askCancel ?-parent W? ?-title T? ?-icon I? ?-default D? MESSAGE ?DETAIL?
 #                               yes, no or cancel
+#   ui::splitByWeights PW       a ttk::panedwindow whose panes are not left
+#                               squeezed (sashes by the panes' weights then)
+#   ui::focusIfThere W         focus W if it still exists
 #   ui::errorBox ?-parent W? ?-title T? MESSAGE ?DETAIL?
 #   ui::infoBox ?-parent W? ?-title T? MESSAGE ?DETAIL?
 #   ui::copy TEXT               to the clipboard
@@ -150,6 +153,45 @@ proc ui::busyHold {{windows ""}} {
 
 proc ui::busyRelease {held} {
     foreach w $held { catch {tk busy forget $w} }
+}
+
+# Focus W if it is still there (for "after idle": a dialog can be gone by
+# then, answered at once).
+proc ui::focusIfThere {w} {
+    if {[winfo exists $w]} { focus $w }
+}
+
+# A ttk::panedwindow PW whose panes do not stay squeezed: when it is
+# resized (after the layout), a pane of less than 30 pixels where there is
+# room for all puts the sashes where the panes' weights say.  (On Windows,
+# on a small screen, the Tickets list was 1 pixel high for good.)
+proc ui::splitByWeights {pw} {
+    bind $pw <Configure> [list after idle [list ui::Unsqueeze $pw]]
+}
+
+proc ui::Unsqueeze {pw} {
+    if {![winfo exists $pw]} return
+    set panes [$pw panes]
+    if {[llength $panes] < 2} return
+    set vertical [expr {[$pw cget -orient] eq "vertical"}]
+    set size [expr {$vertical ? [winfo height $pw] : [winfo width $pw]}]
+    if {$size < 60 * [llength $panes]} return
+    # (The sizes by the sashes: a pane squeezed to nothing is unmapped and
+    # keeps its old size.)
+    set sashes [lmap i [lrange [lsearch -all $panes *] 1 end] { $pw sashpos [expr {$i - 1}] }]
+    set edges [list 0 {*}$sashes $size]
+    set small 0
+    for {set i 0} {$i < [llength $panes]} {incr i} {
+        if {[lindex $edges [expr {$i + 1}]] - [lindex $edges $i] < 30} { set small 1 }
+    }
+    if {!$small} return
+    set weights [lmap p $panes { expr {max(1, [$pw pane $p -weight])} }]
+    set total [tcl::mathop::+ {*}$weights]
+    set at 0.0
+    for {set i 0} {$i < [llength $panes] - 1} {incr i} {
+        set at [expr {$at + $size * double([lindex $weights $i]) / $total}]
+        $pw sashpos $i [expr {int($at)}]
+    }
 }
 
 proc ui::later {cmd {ms 250}} {

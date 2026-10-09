@@ -1032,6 +1032,7 @@ proc tktimeline::build {} {
     }
 
     ttk::panedwindow .timeline.main -orient vertical
+    ui::splitByWeights .timeline.main
     ttk::frame .timeline.main.list
     set t .timeline.main.list.t
     ttk::treeview $t -show headings -selectmode browse \

@@ -279,6 +279,7 @@ proc tksettings::build {} {
     }}}
 
     ttk::panedwindow .settings.main -orient horizontal
+    ui::splitByWeights .settings.main
     ttk::frame .settings.main.list
     set t .settings.main.list.t
     ttk::treeview $t -show headings -selectmode browse -yscrollcommand {.settings.main.list.y set}

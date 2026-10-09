@@ -557,6 +557,7 @@ proc tktsearch::build {} {
 
     # The results above the details of the selected ticket.
     ttk::panedwindow .tickets.main -orient vertical
+    ui::splitByWeights .tickets.main
     ttk::frame .tickets.main.list
     ttk::treeview .tickets.main.list.t -show headings -selectmode browse \
         -yscrollcommand {.tickets.main.list.y set} -xscrollcommand {.tickets.main.list.x set}

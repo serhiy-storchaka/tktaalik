@@ -213,7 +213,7 @@ proc tkcommit::renameFile {} {
     field $w to "New name:" tkcommit::renameTo 50
     checkField $w disk "Also rename the file on disk (otherwise Fossil only records the new name)" \
         tkcommit::onDisk
-    after idle [list focus $w.f.opts.to]
+    after idle [list ui::focusIfThere $w.f.opts.to]
     if {![waitDialog $w]} return
     set to [string trim $renameTo]
     if {$to eq "" || $to eq $path} return
@@ -248,7 +248,7 @@ proc tkcommit::moveFiles {paths} {
     field $w to "Into the directory:" tkcommit::renameTo 50
     checkField $w disk "Also move the files on disk (otherwise Fossil only records the new names)" \
         tkcommit::onDisk
-    after idle [list focus $w.f.opts.to]
+    after idle [list ui::focusIfThere $w.f.opts.to]
     if {![waitDialog $w]} return
     set to [string trim $renameTo /]
     if {$to eq ""} return
@@ -297,7 +297,7 @@ proc tkcommit::renameDir {} {
     field $w to "New name:" tkcommit::renameTo 50
     checkField $w disk "Also rename it on disk (otherwise Fossil only records the new names)" \
         tkcommit::onDisk
-    after idle [list focus $w.f.opts.to]
+    after idle [list ui::focusIfThere $w.f.opts.to]
     if {![waitDialog $w]} return
     set dir [string trim $dirName /]
     set to [string trim $renameTo /]
@@ -327,7 +327,7 @@ proc tkcommit::removeDir {} {
         {tkcommit::dirRemovePreview}]
     field $w dir "Directory:" tkcommit::dirName 50
     checkField $w disk "Also delete the files on disk" tkcommit::onDisk
-    after idle [list focus $w.f.opts.dir]
+    after idle [list ui::focusIfThere $w.f.opts.dir]
     if {![waitDialog $w]} return
     set dir [string trim $dirName /]
     if {$dir eq ""} return
@@ -556,7 +556,7 @@ proc tkcommit::cleanFiles {} {
     grid $w.f.opts.t -sticky news
     $w.f.b.ok configure -default normal
     $w.f.b.cancel configure -default active
-    after idle [list focus $w.f.b.cancel]
+    after idle [list ui::focusIfThere $w.f.b.cancel]
     if {![waitDialog $w]} return
     # The files with "fossil clean" (undoable); without --emptydirs and
     # --dirsonly, which scan the whole tree whatever is named: the empty
@@ -753,7 +753,7 @@ proc tkcommit::compareWith {} {
         another version: a check-in, branch or tag.  Empty: the check-in of the\
         checkout." OK {}]
     field $w rev "Version:" tkcommit::revision 30
-    after idle [list focus $w.f.opts.rev]
+    after idle [list ui::focusIfThere $w.f.opts.rev]
     if {![waitDialog $w]} return
     set v [string trim $revision]
     set bad [expr {$v eq "" ? "" : [fossil::valueProblem Version $v version]}]
@@ -890,7 +890,7 @@ proc tkcommit::updateFiles {} {
         Update {tkcommit::updateFilesPreview}]
     field $w rev "Version:" tkcommit::revision 30
     checkField $w keep "On a merge conflict, keep the files of the three versions (-K)" tkcommit::keepMerge
-    after idle [list focus $w.f.opts.rev]
+    after idle [list ui::focusIfThere $w.f.opts.rev]
     if {![waitDialog $w]} return
     set v [string trim $revision]
     if {$v eq ""} return
@@ -948,7 +948,7 @@ proc tkcommit::compareTwo {} {
     }
     grid $w.f.opts.dir -row [dict get [grid info $w.f.opts.from] -row] -column 2 -padx {4 0}
     field $w to "To:" tkcommit::toVersion 40
-    after idle [list focus $w.f.opts.from]
+    after idle [list ui::focusIfThere $w.f.opts.from]
     if {![waitDialog $w]} return
     set from [string trim $fromVersion]
     set to [string trim $toVersion]
@@ -1426,7 +1426,7 @@ proc tkcommit::switchKeep {} {
     field $w rev "Version:" tkcommit::revision 30
     ttk::label $w.f.opts.now -foreground gray35 -text "Now: [lindex [split $::tkcommit::info \u00b7] 2]"
     grid $w.f.opts.now - -sticky w
-    after idle [list focus $w.f.opts.rev]
+    after idle [list ui::focusIfThere $w.f.opts.rev]
     if {![waitDialog $w]} return
     set v [string trim $revision]
     if {$v eq ""} return

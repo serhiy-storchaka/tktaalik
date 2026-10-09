@@ -29,6 +29,7 @@ proc ticketreports::window {} {
 proc ticketreports::build {} {
     wm geometry .reports 1000x600
     ttk::panedwindow .reports.main -orient horizontal
+    ui::splitByWeights .reports.main
     listbox .reports.main.list -width 34 -exportselection 0 -activestyle none
     .reports.main add .reports.main.list -weight 1
     set f .reports.main.out
@@ -142,7 +143,7 @@ proc ticketreports::query {sql} {
 proc ticketreports::sqlWithNames {sql} {
     variable repo
     set script "[fossil::sqlMode]\n.headers on\n$sql\n;\n"
-    set chan [open |[list [fossil::exe] sql -R $repo --readonly 2>@1] r+]
+    set chan [fossil::pipe [list sql -R $repo --readonly 2>@1] r+]
     fconfigure $chan -encoding utf-8 -translation lf
     puts -nonewline $chan $script
     chan close $chan write

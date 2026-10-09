@@ -1301,6 +1301,7 @@ proc tkbranches::build {} {
 
     # The list and the details.
     ttk::panedwindow .branches.main -orient vertical
+    ui::splitByWeights .branches.main
     ttk::frame .branches.main.list
     ttk::treeview .branches.main.list.t -show headings -selectmode extended \
         -yscrollcommand {.branches.main.list.y set} -xscrollcommand {.branches.main.list.x set}

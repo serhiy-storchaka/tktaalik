@@ -90,7 +90,8 @@ proc tickets::writeTicket {mode uuid fields} {
     set command [list fossil ticket $mode]
     if {$mode eq "set"} { lappend command $uuid }
     lappend command --quote -R $repo --args $argsfile
-    set code [catch {exec {*}[fossil::command $command] << "" 2>@1} out]
+    set cmd [fossil::command $command]
+    set code [catch {exec {*}$cmd << "" 2>@1} out]
     file delete $argsfile
     set out [regsub {\n?child process exited abnormally$} $out ""]
     if {$code || ![regexp {ticket (?:set|add) succeeded for ([0-9a-f]+)} $out -> id]} {
