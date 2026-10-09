@@ -850,6 +850,7 @@ proc tkstash::popupMenu {m item} {
     popup::menuEntries $m .stash.menu.stash
     popup::separator $m
     popup::copy $m "Copy comment" [.stash.main.list.t set $item comment]
+    popup::default $m "Show diff"
 }
 
 # The context menu of the files to stash: check or uncheck them all.

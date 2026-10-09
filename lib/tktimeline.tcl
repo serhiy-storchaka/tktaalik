@@ -741,6 +741,13 @@ proc tktimeline::contextMenu {x y X Y} {
     $m add command -label "Show artifact" \
         -command [list histops::showArtifact $::tktimeline::repo [dict get $r uuid]]
     $m add command -label "Save artifact\u2026" -command [list tktimeline::saveArtifact $rid]
+    # (What a double-click on the row does: tktimeline::activateRow.)
+    switch -- [dict get $r type] {
+        ci { popup::default $m Diff }
+        t { popup::default $m "Show ticket" }
+        w - e { popup::default $m "Show in Wiki" }
+        f { popup::default $m "Show in Forum" }
+    }
     tk_popup $m $X $Y
 }
 

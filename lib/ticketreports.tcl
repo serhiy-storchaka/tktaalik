@@ -286,6 +286,7 @@ proc ticketreports::rowMenu {m item} {
         popup::copy $m "Copy $name" $value
     }
     popup::copy $m "Copy row" [join [$t item $item -values] \t]
+    popup::default $m "Show the ticket"
 }
 
 # The results shown (all their columns, the hidden ones too) as a file:

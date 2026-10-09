@@ -763,6 +763,7 @@ proc tkwiki::attachmentMenu {tv x y X Y} {
     $m add command -label "Open in browser" -state [expr {$remote ne "" ? "normal" : "disabled"}] \
         -command [list tkwiki::browseAttachment $name]
     $m add command -label "Copy file name" -command [list ui::copy $name]
+    popup::default $m [expr {$here eq "normal" ? "View" : "Open in browser"}]
     tk_popup $m $X $Y
 }
 

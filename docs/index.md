@@ -94,7 +94,8 @@ does it at any time.
 Most lists are tables: click a column heading to sort by it, drag a
 heading to move the column, right-click a heading to choose the columns
 (see [Columns and sorting](configuration.md#columns-and-sorting)).
-Right-click a row for what you can do with it.  Hover over icons and
+Right-click a row for what you can do with it; the entry in bold is what
+double-clicking the row does.  Hover over icons and
 headings for tooltips.
 
 ## Opening a repository

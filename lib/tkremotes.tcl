@@ -311,4 +311,5 @@ proc tkremotes::popupMenu {m item} {
     foreach b {browse link} { popup::button $m .remotes.b.$b }
     popup::separator $m
     popup::copy $m "Copy URL" [expr {[dict exists $remotes $item] ? [dict get $remotes $item] : ""}]
+    popup::default $m [.remotes.b.browse cget -text]
 }

@@ -494,6 +494,7 @@ proc tkuv::popupMenu {m item} {
     popup::button $m .uv.b.browse
     popup::separator $m
     popup::copy $m "Copy name" $item
+    popup::default $m [.uv.b.view cget -text]
 }
 
 # Make the unversioned files those of the server ("fossil uv revert":

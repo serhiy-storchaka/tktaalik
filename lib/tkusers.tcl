@@ -453,4 +453,5 @@ proc tkusers::popupMenu {m item} {
     popup::separator $m
     popup::copy $m "Copy user name" $item
     popup::copy $m "Copy contact" [expr {[info exists users($item)] ? [dict get $users($item) info] : ""}]
+    popup::default $m [.users.b.edit cget -text]
 }

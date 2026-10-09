@@ -678,6 +678,8 @@ proc tkcommit::build {} {
     } {
         .commit.ctx add command -label $label -command $command
     }
+    # (What a double-click on a file does.)
+    popup::default .commit.ctx "Side-by-side diff"
 
     # Instead of the rest without a checkout.
     ttk::label .commit.none -anchor center -justify center -text "Committing needs a checkout.\n\nOpen one with File \u25b8 Open checkout."

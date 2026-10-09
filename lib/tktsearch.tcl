@@ -380,6 +380,7 @@ proc tktsearch::contextMenu {x y X Y} {
         -state [expr {$closable || ![::tickets::canWrite status] ? "normal" : "disabled"}]
     $m add command -label "Copy title" \
         -command [list ui::copy [dict get $data title]]
+    popup::default $m "Edit ticket\u2026"
     tk_popup $m $X $Y
 }
 

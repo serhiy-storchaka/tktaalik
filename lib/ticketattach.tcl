@@ -95,6 +95,7 @@ proc tktsearch::attachmentMenu {tv x y X Y} {
     $m add command -label "Open in browser" \
         -command [list tktsearch::openUrl attachview?tkt=$shownTicket&file=[fossil::urlquery $name]]
     $m add command -label "Copy file name" -command [list ui::copy $name]
+    popup::default $m [expr {$here eq "normal" ? "View" : "Open in browser"}]
     tk_popup $m $X $Y
 }
 
@@ -236,6 +237,7 @@ proc tktsearch::checkinMenu {tv x y X Y} {
     $m add command -label "Open in browser" -command [list tktsearch::openUrl info/$uuid]
     $m add separator
     $m add command -label "Copy check-in" -command [list ui::copy $uuid]
+    popup::default $m "Show in Timeline"
     tk_popup $m $X $Y
 }
 

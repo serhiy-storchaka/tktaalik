@@ -1092,6 +1092,8 @@ proc tkbranches::branchMenu {x y X Y} {
     if {$name eq ""} return
     if {$name ni [$t selection]} { $t selection set $name }
     fillBranchMenu .branches.ctx $name
+    # (What a double-click on the branch does.)
+    popup::default .branches.ctx "Diff of the branch"
     tk_popup .branches.ctx $X $Y
 }
 
@@ -1195,6 +1197,7 @@ proc tkbranches::checkinMenu {x y X Y} {
         -command [list tkbranches::showDescendants $uuid]
     $m add separator
     $m add command -label "Copy check-in" -command [list ui::copy $uuid]
+    popup::default $m "Diff of this check-in"
     tk_popup $m $X $Y
 }
 
@@ -1407,6 +1410,7 @@ proc tkbranches::ticketMenu {m item} {
     $m add command -label "Open in browser" -command [list tkbranches::openUrl tktview/$item]
     popup::separator $m
     popup::copy $m "Copy ticket id" $item
+    popup::default $m "Show the ticket"
 }
 
 proc tkbranches::fileMenu {m item} {

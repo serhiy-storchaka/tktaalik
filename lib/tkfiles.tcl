@@ -791,6 +791,7 @@ proc tkfiles::historyMenu {x y X Y} {
     set fh [expr {[dict exists $fileHashes $uuid] ? [dict get $fileHashes $uuid] : ""}]
     $m add command -label "Copy file hash" -command [list ui::copy $fh] \
         -state [expr {$fh eq "" ? "disabled" : "normal"}]
+    popup::default $m "Diff against the previous version"
     tk_popup $m $X $Y
 }
 
@@ -870,6 +871,7 @@ proc tkfiles::linesMenu {tab x y X Y} {
         $m add command -label "Diff of the check-in of line $a" -command [list tkfiles::blameClick $x $y] \
             -state [expr {$h eq "" ? "disabled" : "normal"}]
     }
+    if {$tab eq "blame"} { popup::default $m "Diff of the check-in of line $a" }
     tk_popup $m $X $Y
 }
 

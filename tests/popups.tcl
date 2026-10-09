@@ -59,6 +59,31 @@ $nb select $nb.tickets; update
 if {[llength [$nb.tickets.t children {}]]} {
     menuCheck "Branch tickets" $nb.tickets.t {"Show the ticket" "Copy ticket id"}
 }
+# The entry a double-click does: in bold (popup::default); none where a
+# double-click does nothing.
+proc bold {m} {
+    set r {}
+    if {$m eq ""} { return "(no menu)" }
+    for {set i 0} {$i <= [$m index end]} {incr i} {
+        if {[$m type $i] eq "command" && [$m entrycget $i -font] eq "PopupDefaultFont"} {
+            lappend r [$m entrycget $i -label]
+        }
+    }
+    return $r
+}
+tktaalik::show tags; update
+check "Tags: the default bold" {[bold [rclick .tags.main.list.t]] eq {{Show in Timeline}}}
+tktaalik::show wiki; update
+check "Wiki pages: nothing bold (no double-click)" {[bold [rclick .wiki.main.list.t]] eq {}}
+tktaalik::show timeline; update
+set t .timeline.main.list.t
+set item [lindex [$t children {}] 0]
+set want [dict get {ci Diff t {Show ticket} w {Show in Wiki} e {Show in Wiki} f {Show in Forum} g {}} \
+    [dict get $tktimeline::rows($item) type]]
+set got [bold [rclick $t $item]]
+check "Timeline ([dict get $tktimeline::rows($item) type]): the default bold: $got" {$got eq [lrange [list $want] 0 [expr {$want eq "" ? -1 : 0}]]}
+tktaalik::show tickets; update
+check "Tickets: the default bold" {[bold [rclick .tickets.main.list.t]] eq [list "Edit ticket\u2026"]}
 # Windows.
 tkusers::window; update
 menuCheck Users .users.main.list.t {"Edit…" "Copy user name"}
@@ -66,6 +91,7 @@ menuCheck Users .users.main.list.t {"Edit…" "Copy user name"}
 set m [rclick .users.main.list.t nobody]
 set i [lsearch -exact [labels $m] "Make default user…"]
 check "Users: the state of the button" {[$m entrycget [expr {$i}] -state] eq "disabled"}
+check "Users: the default bold" {[bold [rclick .users.main.list.t nobody]] eq [list "Edit\u2026"]}
 wm withdraw .users
 exec fossil remote https://example.invalid/tk -R $W/tk.fossil
 tkremotes::window; update

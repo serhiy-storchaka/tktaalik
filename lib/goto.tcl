@@ -451,4 +451,5 @@ proc goto::popupMenu {m item} {
         -state [expr {$script eq "" ? "disabled" : "normal"}]
     popup::separator $m
     popup::copy $m "Copy name" $name
+    popup::default $m "Go to it"
 }

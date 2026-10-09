@@ -441,6 +441,7 @@ proc tktags::popupMenu {m item} {
     popup::separator $m
     popup::copy $m "Copy name" [string trim $item]
     popup::copy $m "Copy check-in" [expr {[info exists tags($item)] ? [dict get $tags($item) uuid] : ""}]
+    popup::default $m [.tags.b.timeline cget -text]
 }
 
 # The check-in of the tag selected (a release...) as an archive.

@@ -11,6 +11,8 @@
 #   popup::menuEntries M SRC  the command entries and separators of SRC
 #   popup::copy M LABEL TEXT  an entry copying TEXT to the clipboard
 #   popup::column             the column of the row clicked (treeviews)
+#   popup::default M LABEL    the entry LABEL of M in bold: what a
+#                             double-click on the row does
 
 namespace eval popup {
     variable column ""
@@ -72,6 +74,25 @@ proc popup::menuEntries {m src} {
             separator { if {[$m index end] ne "none"} { $m add separator } }
         }
     }
+}
+
+proc popup::default {m label} {
+    if {[$m index end] eq "none"} return
+    for {set i 0} {$i <= [$m index end]} {incr i} {
+        if {[$m type $i] in {command checkbutton radiobutton cascade}
+                && [$m entrycget $i -label] eq $label} {
+            $m entryconfigure $i -font [DefaultFont]
+            return
+        }
+    }
+}
+
+# The menu font in bold (made once, following TkMenuFont).
+proc popup::DefaultFont {} {
+    if {"PopupDefaultFont" ni [font names]} {
+        font create PopupDefaultFont {*}[font actual TkMenuFont] -weight bold
+    }
+    return PopupDefaultFont
 }
 
 proc popup::copy {m label text} {
