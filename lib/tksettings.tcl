@@ -26,24 +26,39 @@ proc tksettings::fossil {args} {
     fossil::runIn $root $repo {*}$args
 }
 
-# The output of "fossil settings": name -> {scope value file}.  A value of
-# more lines comes on the following lines, indented by four spaces.
-proc tksettings::parse {text} {
+# The output of "fossil settings": name -> {scope value file}, NAMES the
+# names of the settings.  A value of more lines comes on the following
+# lines: indented by four spaces, or (Fossil 2.25 and older) the first one
+# after the scope and the others as they are, so a line is a setting's
+# only if it starts with a name of one.
+proc tksettings::parse {text {names {}}} {
     set result {}
     set name ""
     foreach line [split $text \n] {
+        set first [lindex [regexp -inline {^\S+} $line] 0]
         if {[regexp {^\s+\(overridden by contents of file (.+)\)\s*$} $line -> file]} {
             if {$name ne ""} { dict set result $name file $file }
-        } elseif {[regexp {^    (.*)$} $line -> more]} {
-            if {$name ne ""} {
-                set value [dict get $result $name value]
-                dict set result $name value [expr {$value eq "" ? $more : "$value\n$more"}]
-            }
-        } elseif {[regexp {^(\S+)\s*(?:\((local|global)\)\s?(.*))?$} $line -> name scope value]} {
+        } elseif {$first ne "" && ($first in $names || (![llength $names] && ![regexp {^\s} $line]))
+                && [regexp {^(\S+)\s*(?:\((local|global)\)\s?(.*))?$} $line -> name scope value]} {
             dict set result $name [dict create scope $scope value [string trim $value] file ""]
+        } elseif {$name ne ""} {
+            regexp {^    (.*)$} $line -> line
+            set value [dict get $result $name value]
+            dict set result $name value [expr {$value eq "" ? $line : "$value\n$line"}]
         }
     }
     return $result
+}
+
+# The names of the settings of this Fossil (fossil help -s): once.
+proc tksettings::names {} {
+    variable names
+    set exe [fossil::exe]
+    if {![info exists names($exe)]} {
+        lassign [fossil::run help -s] code out
+        set names($exe) [expr {$code ? {} : [regexp -all -inline {\S+} $out]}]
+    }
+    return $names($exe)
 }
 
 proc tksettings::reload {} {
@@ -56,8 +71,8 @@ proc tksettings::reload {} {
         set status "fossil settings failed: $out"
         return
     }
-    set effective [parse $out]
-    set global [expr {$gcode ? {} : [parse $gout]}]
+    set effective [parse $out [names]]
+    set global [expr {$gcode ? {} : [parse $gout [names]]}]
     array unset settings
     dict for {name s} $effective {
         set g [expr {[dict exists $global $name] && [dict get $global $name scope] eq "global"

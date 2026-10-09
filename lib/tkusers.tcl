@@ -113,7 +113,7 @@ proc tkusers::build {} {
     ttk::button .users.b.close -text Close -command {wm withdraw .users}
     pack .users.b.close .users.b.unset .users.b.default .users.b.edit .users.b.new -side right -padx {4 0}
     icons::tooltip .users.b.unset "No default user in the repository: then the -U option,\nor\
-        FOSSIL_USER, USER, LOGNAME or USERNAME of the environment"
+        FOSSIL_USER, USER, LOGNAME or USERNAME of the environment\n(Fossil 2.26 or newer)"
 
     pack .users.b.status -side left -fill x -expand 1
     pack .users.b -side bottom -fill x
@@ -147,12 +147,22 @@ proc tkusers::reload {} {
         set status "Cannot read the users: $msg"
         set rows {}
     }
-    # "LOGIN (determined by WHERE)"
-    lassign [fossil::run user default -v -R $repo] code out
+    # "LOGIN (determined by WHERE)"; before Fossil 2.26 only the login
+    # (no -v): from the repository if it is its default-user.
     set default ""
     set defaultFrom ""
-    if {!$code && ![regexp {^(.*?) \(determined by (.*)\)$} [string trim $out] -> default defaultFrom]} {
-        set default [string trim $out]
+    if {[newDefault]} {
+        lassign [fossil::run user default -v -R $repo] code out
+        if {!$code && ![regexp {^(.*?) \(determined by (.*)\)$} [string trim $out] -> default defaultFrom]} {
+            set default [string trim $out]
+        }
+    } else {
+        lassign [fossil::run user default -R $repo] code out
+        if {!$code} {
+            set default [string trim $out]
+            set mine [lindex [fossil::sql $repo "SELECT [fossil::outcol value] FROM config WHERE name='default-user'"] 0 0]
+            if {$default ne "" && $default eq $mine} { set defaultFrom repository }
+        }
     }
     set items {}
     foreach row $rows {
@@ -187,7 +197,7 @@ proc tkusers::reload {} {
         set status "[llength $rows] users; default user: [expr {$default eq "" ? "none" : $default}]"
         if {$defaultFrom ne ""} { append status " (from $defaultFrom)" }
     }
-    .users.b.unset state [expr {$defaultFrom eq "repository" ? "!disabled" : "disabled"}]
+    .users.b.unset state [expr {$defaultFrom eq "repository" && [newDefault] ? "!disabled" : "disabled"}]
 }
 
 # The capabilities of a user, each letter explained; what it inherits.
@@ -237,6 +247,12 @@ proc tkusers::showDetails {login} {
     set ok [expr {($login ne $default || $defaultFrom ne "repository") && $login ni $special}]
     .users.b.default state [expr {$ok ? "!disabled" : "disabled"}]
     .users.b.edit state !disabled
+}
+
+# Whether this Fossil (2.26 or newer) tells how the default user is
+# determined (user default -v) and can unset it ("").
+proc tkusers::newDefault {} {
+    fossil::helpMatches user "*user default ?OPTIONS?*"
 }
 
 # Make the selected user the default user (fossil user default).

@@ -14,7 +14,8 @@ tkusers::window; update
 set t .users.main.list.t
 proc row {login} { lindex [fossil::sql $::R "SELECT cap, coalesce(info,''), pw FROM user WHERE login='$login'"] 0 }
 set me $tkusers::default
-check "default from the repository: $tkusers::status" {$me ne "" && $tkusers::defaultFrom eq "repository" && [string match "*(from repository)" $tkusers::status] && [.users.b.unset instate !disabled]}
+# (Unset default: Fossil 2.26 and newer only.)
+check "default from the repository: $tkusers::status" {$me ne "" && $tkusers::defaultFrom eq "repository" && [string match "*(from repository)" $tkusers::status] && [.users.b.unset instate [expr {[tkusers::newDefault] ? "!disabled" : "disabled"}]]}
 
 # A new user: the form filled in as the user would.
 # (Then OK; Cancel if the form stays open, as after a refusal.)
@@ -74,7 +75,9 @@ tkusers::edit qtester; update
 set ::answer ok
 check "cancelled: contact kept" {[lindex [row qtester] 1] eq "Q <new@example.invalid>"}
 
-# Unset the default user, then make it the default again.
+# Unset the default user, then make it the default again (Fossil 2.26 and
+# newer: older ones cannot unset it).
+if {![tkusers::newDefault]} done
 tkusers::unsetDefault; update
 check "unset: [string trim [lindex [fossil::run user default -v -R $R] 1]]" {$tkusers::defaultFrom ne "repository" && [.users.b.unset instate disabled]}
 $t selection set [list $me]; update

@@ -193,10 +193,12 @@ proc tktaalik::fossilVersion {} {
     return $fossilVersion
 }
 
-# Fossil older than the one the application needs (merge-info, patch,
-# bisect run, the search functions...): a warning, once.
+# Fossil older than the one the application is tested with: a warning,
+# once.  (Newer commands are checked where they are used: merge-info,
+# 2.26, by fossil::hasCommand; --nosync of merge and branch, 2.26, by
+# fossil::nosync.)
 proc tktaalik::checkFossil {} {
-    set need 2.24
+    set need 2.21
     set v [lindex [fossilVersion] 0]
     if {![regexp {^\d+(\.\d+)*$} $v] || [package vcompare $v $need] >= 0} return
     tk_messageBox -icon warning -title tktaalik -message "Fossil $v is older than $need." \

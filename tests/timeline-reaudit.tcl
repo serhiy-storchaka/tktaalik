@@ -57,10 +57,10 @@ exec fossil add zz-pick.txt
 exec fossil commit --branch zz-pick -m "To be picked" --nosync --no-prompt
 set A [tip]
 exec fossil update main --nosync
-exec fossil merge --cherrypick $A --nosync
+exec fossil merge --cherrypick $A {*}[fossil::nosync merge]
 exec fossil commit -m "Picked" --nosync --no-prompt
 set C [tip]
-exec fossil merge --backout $A --nosync
+exec fossil merge --backout $A {*}[fossil::nosync merge]
 exec fossil commit -m "Backed out" --nosync --no-prompt
 set D [tip]
 cd $T(dir)

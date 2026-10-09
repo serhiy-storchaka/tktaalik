@@ -33,18 +33,29 @@ rows ""
 set tip [tktimeline::cellTip $current hash]
 check "describe tooltip: $tip" {[string match "*[string range $uuid 0 5]*" $tip] || [regexp {^[-\w.]+$} $tip]}
 # The same as "fossil describe" says, in the checkout and on other check-ins.
-set cli [string trim [lindex [tktimeline::inCheckout describe $uuid] 1]]
-check "as fossil describe: $cli" {$tip eq $cli}
-set ok 1
-foreach r [lrange [rows "kind:ci"] 5 12] {
-    set u [lindex [sql "SELECT uuid FROM blob WHERE rid=$r"] 0 0]
-    set c [string trim [lindex [tktimeline::inCheckout describe $u] 1]]
-    set mine [tktimeline::describe $u]
-    if {$mine ne $c} { set ok 0; puts "  $u: $mine vs $c" }
+# (Fossil 2.23 takes minutes for it on the Tk repository: compared only if
+# it answers in time.)
+proc cliDescribe {args} {
+    if {[catch {fossil::inDir $::W/co { exec timeout 30 fossil describe {*}$args 2>@1 }} out]} {
+        return -code error "fossil describe: [lindex [split $out \n] 0]"
+    }
+    string trim $out
 }
-check "as fossil describe on other check-ins" {$ok}
-set m [string trim [lindex [tktimeline::inCheckout describe --match core-* $uuid] 1]]
-check "--match core-*: $m" {[tktimeline::describe $uuid core-*] eq $m}
+if {[catch {cliDescribe $uuid} cli]} {
+    puts "skipped: the comparisons with fossil describe ($cli)"
+} else {
+    check "as fossil describe: $cli" {$tip eq $cli}
+    set ok 1
+    foreach r [lrange [rows "kind:ci"] 5 12] {
+        set u [lindex [sql "SELECT uuid FROM blob WHERE rid=$r"] 0 0]
+        set c [cliDescribe $u]
+        set mine [tktimeline::describe $u]
+        if {$mine ne $c} { set ok 0; puts "  $u: $mine vs $c" }
+    }
+    check "as fossil describe on other check-ins" {$ok}
+    set m [cliDescribe --match core-* $uuid]
+    check "--match core-*: $m" {[tktimeline::describe $uuid core-*] eq $m}
+}
 check "kind tooltip still" {[tktimeline::cellTip $current kind] in {Check-in {}}}
 
 set m .timeline.menu.bisect

@@ -210,13 +210,16 @@ tkcommit::mergeFork; update
 destroy .commit.log
 set st [status zzfork.txt]
 check "merged (dry run first): $st, merging $tkcommit::merging, [string range $::preview 0 60]" {$st eq "CONFLICT" && $tkcommit::merging}
-tkcommit::mergeInfo; update
-set i [.commit.merge.t search zzfork.txt 1.0]
-tkcommit::mergeLine $i
-tkcommit::threeWaySelected; update
-set heads [lmap n {0 1 2 3} {.commit.threeway.f.h$n cget -text}]
-check "three-way view: [join $heads { | }]" {[string match "*baseline*" [lindex $heads 0]] && [string match "*after merge*" [lindex $heads 3]] && [string match "*the second line*" [.commit.threeway.f.t1 get 1.0 end][.commit.threeway.f.t2 get 1.0 end]]}
-destroy .commit.threeway .commit.merge
+# (The merge details: Fossil 2.26 and newer, fossil merge-info.)
+if {[fossil::hasCommand merge-info]} {
+    tkcommit::mergeInfo; update
+    set i [.commit.merge.t search zzfork.txt 1.0]
+    tkcommit::mergeLine $i
+    tkcommit::threeWaySelected; update
+    set heads [lmap n {0 1 2 3} {.commit.threeway.f.h$n cget -text}]
+    check "three-way view: [join $heads { | }]" {[string match "*baseline*" [lindex $heads 0]] && [string match "*after merge*" [lindex $heads 3]] && [string match "*the second line*" [.commit.threeway.f.t1 get 1.0 end][.commit.threeway.f.t2 get 1.0 end]]}
+    destroy .commit.threeway .commit.merge
+}
 fossilco undo
 fossilco revert
 

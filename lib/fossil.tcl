@@ -36,10 +36,65 @@ proc fossil::exe {} {
     expr {[info exists ::env(FOSSIL)] && $::env(FOSSIL) ne "" ? $::env(FOSSIL) : "fossil"}
 }
 
-# COMMAND (a list) to run: "fossil" first replaced by the executable.
+# "--nosync" for the fossil command COMMAND if this Fossil takes it, else
+# nothing: merge and branch take it only since Fossil 2.26 (older ones
+# refuse it; they sync only with autosync on, which Tktaalik refuses
+# anyway).  Found once from the command's help.
+proc fossil::nosync {command} {
+    expr {[helpMatches $command *--nosync*] ? "--nosync" : ""}
+}
+
+# Whether the help of the fossil command COMMAND matches the glob PATTERN
+# (what this Fossil can do, where an option is new): found once.
+proc fossil::helpMatches {command pattern} {
+    variable helps
+    set key [list [exe] $command]
+    if {![info exists helps($key)]} {
+        if {[catch {exec [exe] help $command 2>@1} out]} { set out "" }
+        set helps($key) $out
+    }
+    string match $pattern $helps($key)
+}
+
+# Whether this Fossil has the command NAME (merge-info is new in 2.26).
+proc fossil::hasCommand {name} {
+    variable commands
+    set key [list [exe] $name]
+    if {![info exists commands($key)]} {
+        set commands($key) [expr {![catch {exec [exe] help $name 2>@1} out]
+            && ![string match "*unknown command*" $out]}]
+    }
+    return $commands($key)
+}
+
+# COMMAND (a list) to run: "fossil" first replaced by the executable, and
+# for a Fossil that does not take options as --NAME=VALUE (2.21 and
+# older) such words split in two.  (Tktaalik writes them so: fossil.exe on
+# Windows would expand a pattern of its own word into the files.)
 proc fossil::command {command} {
-    if {[lindex $command 0] eq "fossil"} { lset command 0 [exe] }
+    if {[lindex $command 0] ne "fossil"} { return $command }
+    lset command 0 [exe]
+    if {![eqOptions]} {
+        # (Not a value that exec or Fossil would take for a redirection or
+        # an option as a word of its own: then Fossil refuses the word.)
+        set command [concat {*}[lmap word $command {
+            expr {[regexp {^(--[A-Za-z][-A-Za-z0-9]*)=(.*)$} $word -> name value]
+                && ![catch {arg $value}] ? [list $name $value] : [list $word]}
+        }]]
+    }
     return $command
+}
+
+# Whether this Fossil takes --NAME=VALUE (2.22 and newer): found once,
+# from what it says to one.
+proc fossil::eqOptions {} {
+    variable eqOptions
+    set exe [exe]
+    if {![info exists eqOptions($exe)]} {
+        catch {exec $exe info --repository=/nonexistent/tktaalik.fossil 2>@1} out
+        set eqOptions($exe) [expr {![string match "*unrecognized*" $out]}]
+    }
+    return $eqOptions($exe)
 }
 
 proc fossil::run {args} {
@@ -70,11 +125,19 @@ proc fossil::arg {text} {
 # New code runs Fossil through these, not with exec or cd of its own:
 #
 #   fossil::exe                the Fossil executable ($FOSSIL, else fossil)
-#   fossil::command LIST        LIST with its "fossil" replaced by it
+#   fossil::command LIST        LIST with its "fossil" replaced by it (and
+#                               --NAME=VALUE split for Fossil 2.21)
+#   fossil::hasCommand NAME     whether this Fossil has the command NAME
+#   fossil::helpMatches COMMAND PATTERN
+#                               whether the help of COMMAND matches the
+#                               glob PATTERN (an option this Fossil has)
+#   fossil::nosync COMMAND      {--nosync} if COMMAND (merge, branch...)
+#                               takes it in this Fossil, else {}
 #   fossil::run ?-dir DIR? ?-input TEXT? ARG...
 #                               in DIR if given (the cwd restored even on
 #                               errors), stdin TEXT (default empty):
 #                               {exit-code output}
+#   fossil::runTo PATH ARG...  its output, as bytes, into the file PATH
 #   fossil::runIn ROOT REPO ARG...
 #                               in the checkout ROOT, else with -R REPO
 #   fossil::inDir DIR BODY      BODY evaluated in the caller with DIR as the
@@ -135,13 +198,26 @@ proc fossil::Options {argsVar names} {
 
 proc fossil::Exec {input argv} {
     set code [catch {
-        exec [exe] {*}$argv << $input 2>@1
+        exec {*}[command [list fossil {*}$argv]] << $input 2>@1
     } out opts]
     if {$code && [lindex [dict get $opts -errorcode] 0] ne "CHILDSTATUS"} {
         # Not an exit status: fossil could not be run at all.
         return [list 1 $out]
     }
     list $code [regsub {\n?child process exited abnormally$} $out ""]
+}
+
+# Run fossil with its output, as bytes, into the file PATH (for commands
+# without an output option of their own in older Fossils): {exit-code
+# error-output}.
+proc fossil::runTo {path args} {
+    if {![catch {exec {*}[command [list fossil {*}$args]] > $path << ""} msg opts]} { return [list 0 ""] }
+    # (Only an exit status other than 0 is a failure; else output on stderr.)
+    switch -- [lindex [dict get $opts -errorcode] 0] {
+        NONE { return [list 0 $msg] }
+        CHILDSTATUS { return [list 1 [regsub {\n?child process exited abnormally$} $msg ""]] }
+        default { return [list 1 $msg] }
+    }
 }
 
 proc fossil::runIn {root repo args} {

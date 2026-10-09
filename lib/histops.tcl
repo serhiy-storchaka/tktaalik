@@ -650,8 +650,15 @@ proc histops::describe {repo rid {match *}} {
 proc histops::hashDigits {repo} {
     variable digits
     if {![dict exists $digits $repo]} {
-        lassign [fossil::run settings hash-digits --value -R $repo] code out
-        set n [string trim $out]
+        # (Fossil 2.21 and older: no --value, the line "hash-digits (local) 8".)
+        if {[fossil::helpMatches settings *--value*]} {
+            lassign [fossil::run settings hash-digits --value -R $repo] code out
+            set n [string trim $out]
+        } else {
+            lassign [fossil::run settings hash-digits -R $repo] code out
+            set n ""
+            regexp {hash-digits\s+\((?:local|global)\)\s+(\d+)} $out -> n
+        }
         if {$code || ![string is integer -strict $n]} { set n 10 }
         dict set digits $repo [expr {max(6, min(64, $n))}]
     }

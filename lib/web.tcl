@@ -88,12 +88,15 @@ proc web::forumPost {url user password fields} {
         }
         # The form, for its token against cross-site requests.
         lassign [Request $dir $url/$page$query {} ""] code to
-        if {$code != 200 || ![regexp {name="csrf" value="([^"]*)"} [Body $dir] -> csrf]} {
+        # (The form there: may post.  Its token against cross-site requests
+        # if it has one: Fossil 2.21 and older have none.)
+        set body [Body $dir]
+        if {$code != 200 || ![regexp "<form\[^>\]*action=\"\[^\"\]*/$page\"" $body]} {
             throw {WEB DENIED} "$user may not post in this forum."
         }
         dict set form mimetype [dict get $fields mimetype]
         dict set form content [dict get $fields content]
-        dict set form csrf $csrf
+        if {[regexp {name="csrf" value="([^"]*)"} $body -> csrf]} { dict set form csrf $csrf }
         dict set form submit 1
         lassign [Request $dir $url/$page $form $url/$page$query] code to
         if {$code != 302 || ![regexp {/forumpost/([0-9a-f]+)} $to -> hash]} {

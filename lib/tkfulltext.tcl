@@ -189,15 +189,20 @@ proc tkfulltext::kindQuery {k} {
                 WHERE search_match(title('t',tkt_id,NULL), body('t',tkt_id,NULL))"
         }
         w - e {
-            # The newest version of each page (technote).
+            # The newest version of each page (technote).  Its title as
+            # Fossil has it, else (Fossil 2.25 and older: empty) the page's
+            # name, the technote's comment.
             set glob [expr {$k eq "w" ? "wiki-*" : "event-*"}]
+            set ttl [expr {$k eq "w"
+                ? "coalesce(nullif(title('w',x.rid,NULL),''),substr(t.tagname,6))"
+                : "coalesce(nullif(title('e',x.rid,NULL),''),(SELECT comment FROM event WHERE objid=x.rid),'')"}]
             set hits "SELECT t.tagname AS id,\
                 [expr {$k eq "w" ? "substr(t.tagname,6)" : "coalesce((SELECT comment FROM event WHERE objid=x.rid),substr(t.tagname,7))"}] AS title,\
                 x.mtime AS mtime, search_score() AS score, search_snippet() AS snip\
                 FROM tag t JOIN tagxref x ON x.tagid=t.tagid\
                 WHERE t.tagname GLOB '$glob'\
                 AND x.rid=(SELECT y.rid FROM tagxref y WHERE y.tagid=t.tagid ORDER BY y.mtime DESC LIMIT 1)\
-                AND search_match(title('$k',x.rid,NULL), body('$k',x.rid,NULL))"
+                AND search_match($ttl, body('$k',x.rid,NULL))"
         }
         d {
             # The files of the docs at the check-in of doc-branch.

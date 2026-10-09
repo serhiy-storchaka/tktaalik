@@ -23,7 +23,7 @@ alone.
 - Fossil 2.x on the `PATH`, or the one the `FOSSIL` environment variable
   names (`FOSSIL=/opt/fossil/bin/fossil ./tktaalik`; see
   [Environment variables](docs/configuration.md#environment-variables));
-  tested with 2.26 and 2.28
+  2.21 or newer (tested with 2.21, 2.23, 2.26, 2.28 and trunk)
 - Optional: `patch`, to apply patches attached to tickets
 - Optional: `curl`, to post to a forum through its web site
 

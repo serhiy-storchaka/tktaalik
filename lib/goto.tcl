@@ -141,10 +141,12 @@ proc goto::whatis {name} {
     if {[catch {fossil::arg $name}]} { return {} }
     if {$root ne ""} {
         # In the checkout: its current, prev and next.
-        lassign [fossil::run -dir $root whatis -q $name] code out
+        lassign [fossil::run -dir $root whatis $name] code out
     } else {
-        lassign [fossil::run whatis -q $name -R $repo] code out
+        lassign [fossil::run whatis $name -R $repo] code out
     }
+    # (Without -q, which Fossil 2.21 lacks: an unknown name is "unknown:",
+    # with no artifact line.)
     if {$code} { return {} }
     set uuids [lsort -unique [lmap {- uuid} [regexp -all -inline -line {^artifact:\s+([0-9a-f]{40,64})$} $out] {set uuid}]]
     if {![llength $uuids]} { return {} }

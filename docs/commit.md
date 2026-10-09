@@ -359,7 +359,7 @@ checkout, the Commit tab:
 - shows the **Merge details** button (also in the Commit menu).
 
 **Merge details** opens a window with what the merge did to each file
-(`fossil merge-info`), conflicts in red.  **All files the merge changed**
+(`fossil merge-info`, in Fossil 2.26 or newer), conflicts in red.  **All files the merge changed**
 (`-a`) also lists the files the merge changed without conflicts.  Click a
 file's line and **Three-way view** (or double-click it): four columns of
 the file, the baseline (the common ancestor), the checkout's version

@@ -33,7 +33,9 @@ set ::diffview::opt($w,invert) 0
 set ::diffview::opt($w,context) 0
 diffview::rerun $w; wait $w
 set hunks [regexp -all -inline {@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@} [$d get 1.0 end]]
-check "-c 0: $hunks" {[llength $hunks] == 2 && [lindex $hunks 0] eq "@@ -2,1 +2,1 @@"}
+# (As this Fossil makes it: Fossil 2.23 takes 0 as its default, 3.)
+set fossils [regexp -all -inline {@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@} [fossilIn $co diff -c 0 README.md]]
+check "-c 0: $hunks" {[llength $hunks] == 2 && $hunks eq $fossils}
 set ::diffview::opt($w,context) 10
 diffview::rerun $w; wait $w
 set hunks [regexp -all -inline {@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@} [$d get 1.0 end]]

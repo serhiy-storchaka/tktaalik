@@ -42,7 +42,7 @@ proc isAncestor {anc of} {
 check "merge-base: [string range $a 0 9] (fossil), [string range $b 0 9] (SQL)" {$a ne "" && $b ne "" && [isAncestor $a main] && [isAncestor $a core-8-6-branch] && [isAncestor $b main] && [isAncestor $b core-8-6-branch]}
 
 # Close a branch: the dry run in the confirmation.
-exec fossil branch new zz-close main --nosync -R $R
+exec fossil branch new zz-close main {*}[fossil::nosync branch] -R $R
 tkbranches::reload; update
 set tkbranches::view all; tkbranches::showList; update
 .branches.main.list.t selection set [list zz-close]; update
@@ -52,7 +52,7 @@ check "close: the dry run shown" {[string match "*Dry run:*" [lindex $out 2]] &&
 check "closed" {[dict get $tkbranches::branches(zz-close) closed]}
 
 # A private branch made public.
-exec fossil branch new zz-private main --private --nosync -R $R
+exec fossil branch new zz-private main --private {*}[fossil::nosync branch] -R $R
 set tip [lindex [sql "SELECT x.rid FROM tagxref x WHERE x.tagtype>0 AND x.value='zz-private' AND x.tagid=(SELECT tagid FROM tag WHERE tagname='branch')"] 0 0]
 check "private at first" {[llength [sql "SELECT 1 FROM private WHERE rid=$tip"]]}
 histops::publish $R zz-private "the private branch zz-private"

@@ -75,8 +75,9 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   `grep -nP '[^\x00-\x7F]' tktaalik lib/*.tcl`.
 - **Never write to the repository behind the user's back.**  Everything that
   changes a repository or checkout is confirmed first, and nothing syncs:
-  `--nosync` on commit, update, merge, branch commands; refuse while
-  autosync is on.  Pushing is the user's step.
+  `--nosync` on commit, update, merge, branch commands (merge and branch
+  through `fossil::nosync`: Fossil 2.25 and older refuse it there); refuse
+  while autosync is on.  Pushing is the user's step.
 - **Tcl 9 namespaces.**  Refer to namespace variables as `::ns::var` or
   through `variable`; relative names resolve differently in Tcl 9
   (`info commands icons::x` inside another namespace finds nothing: use
@@ -166,7 +167,15 @@ tests): check a change with an old and a new Fossil too
   default output mode of `fossil sql` is no longer `-quote` (always set
   `.mode`); the SQLite shell of newer Fossils (2.29) escapes control
   characters such as the `char(2)` list separators unless told not to,
-  which older ones refuse (`fossil::sqlMode` finds which); `fossil::run` (exec) turns CRLF into LF and drops the trailing
+  which older ones refuse (`fossil::sqlMode` finds which).  Fossil 2.21 is
+  the oldest supported (Debian LTS; 2.23 in Ubuntu 24.04): check what an
+  option needs with `fossil::helpMatches` or `fossil::hasCommand` rather
+  than the version.  Met so far: `--NAME=VALUE` is 2.22 and newer
+  (`fossil::command` splits it), `merge-info` and `user default -v`/`""`
+  2.26, `cat -o` and `settings --value` 2.23, `whatis -q` 2.23; 2.23
+  ignores `diff -c 0` and takes minutes for `describe` on the Tk
+  repository; before 2.26 `title()` of wiki pages and technotes is empty
+  and `fossil settings` writes a multi-line value unindented; `fossil::run` (exec) turns CRLF into LF and drops the trailing
   newline, so byte-exact checks export to a file and read it in binary;
   unversioned names cannot contain white space, `uv rm` leaves a row with a
   NULL hash, and `unversioned.mtime` is in Unix seconds; attachment targets

@@ -70,7 +70,7 @@ update
 check "a pattern with <: [$g.status cget -text]" {[string match "*line*version*" [$g.status cget -text]]}
 # A local file found in history.
 set local $T(tmp)/wm.n
-exec fossil cat -R $T(repo) -r core-9-0-2 doc/wm.n -o $local
+exec fossil cat -R $T(repo) -r core-9-0-2 doc/wm.n > $local
 tkfiles::findLocal $local; update
 set ft .files.found.f.t
 # (The check-ins that committed this content: mlink.)

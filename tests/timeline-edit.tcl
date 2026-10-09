@@ -31,7 +31,7 @@ set refuse {lappend ::shown [.tagwrite.f.t get 1.0 end]; set tagwrite::answer 0}
 
 # A leaf of a branch of its own (a new one, so that closing it is right).
 set tip [lindex [sql "SELECT uuid FROM blob WHERE rid=(SELECT objid FROM event WHERE type='ci' ORDER BY mtime DESC LIMIT 1)"] 0 0]
-exec fossil branch new tktaalik-amend $tip -R $R --nosync 2>@1
+exec fossil branch new tktaalik-amend $tip -R $R {*}[fossil::nosync branch] 2>@1
 set rid [lindex [sql "SELECT x.rid FROM tagxref x JOIN tag t ON t.tagid=x.tagid WHERE t.tagname='sym-tktaalik-amend' AND x.tagtype>0 ORDER BY x.mtime DESC LIMIT 1"] 0 0]
 set uuid [lindex [sql "SELECT uuid FROM blob WHERE rid=$rid"] 0 0]
 set tktimeline::query hash:[string range $uuid 0 11]; tktimeline::search; after cancel tktimeline::search

@@ -777,6 +777,7 @@ proc tkcommit::diffArgs {} {
 
 # What the last merge did (fossil merge-info): with $allMerge every file.
 proc tkcommit::mergeInfo {} {
+    if {![mergeInfoOk]} return
     set w .commit.merge
     if {![winfo exists $w]} {
         toplevel $w
@@ -811,6 +812,14 @@ proc tkcommit::mergeInfo {} {
     }
     $w.t configure -state disabled
     raise $w
+}
+
+# 1 if this Fossil can tell what the last merge did, else said and 0.
+proc tkcommit::mergeInfoOk {} {
+    if {[fossil::hasCommand merge-info]} { return 1 }
+    ui::infoBox -title "Merge details" "Merge details need Fossil 2.26 or newer." \
+        "They come from \"fossil merge-info\", which [fossil::exe] does not have."
+    return 0
 }
 
 # ---------------------------------------------------------------- update
@@ -890,10 +899,10 @@ proc tkcommit::mergeFork {} {
     variable forks
     set w [dialog .commit.mergefork "Merge fork" "The branch has $forks leaves: merge the\
         other one into the checkout (nothing is pulled first).  Then commit to join them." \
-        Merge {tkcommit::dryRun merge --nosync -n -v {*}[expr {$tkcommit::keepMerge ? "-K" : ""}]}]
+        Merge {tkcommit::dryRun merge {*}[fossil::nosync merge] -n -v {*}[expr {$tkcommit::keepMerge ? "-K" : ""}]}]
     checkField $w keep "On a merge conflict, keep the files of the three versions (-K)" tkcommit::keepMerge
     if {![waitDialog $w]} return
-    lassign [fossil merge --nosync {*}[expr {$::tkcommit::keepMerge ? "-K" : ""}]] code out
+    lassign [fossil merge {*}[fossil::nosync merge] {*}[expr {$::tkcommit::keepMerge ? "-K" : ""}]] code out
     if {[finish $code $out "fossil merge"]} {
         set ::tkcommit::status "Merged the fork: commit to join the leaves"
         showLog "Merged the fork" $out
@@ -1036,6 +1045,9 @@ proc tkcommit::threeWay {path} {
 # N a name, S lines left out (in the first cell: "S a b c d"), "." no line
 # here, 1/2/3 the text of that column, X a line removed, else (T) a line.
 proc tkcommit::mergeRows {path context} {
+    if {![fossil::hasCommand merge-info]} {
+        return [list error "This Fossil has no \"fossil merge-info\" (it is new in Fossil 2.26)."]
+    }
     lassign [fossil merge-info --tcl=$path -c $context] code out
     set out [string trim $out]
     if {$code || [string match ERROR* $out] || [catch {llength $out} n] || $n % 4} {

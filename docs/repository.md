@@ -30,7 +30,9 @@ Then:
   schema and SQLite versions, the database pages; the **hash policy**; the
   **login group** it is part of, if any.
 - **Fossil**: the version of Fossil running.  At start, Tktaalik warns if
-  it is older than it needs (2.24).
+  it is older than 2.21, the oldest it is tested with.  A few things need
+  a newer one and say so: the merge details and the three-way view of a
+  merge need Fossil 2.26 (`fossil merge-info`).
 
 **Check integrity** runs a quick check of the database (`fossil dbstat
 --db-check`) and says the result below.  **Full verification…** decodes
@@ -110,7 +112,7 @@ reader (`u`) or developer (`v`).
 | New user… | create a user: name, contact, password (twice) and capabilities (`fossil user new`, then `capabilities`) |
 | Edit… (or double-click) | change the contact, the capabilities and the password (`fossil user contact`, `capabilities`, `password`) |
 | Make default user… | changes made here will be recorded as this user (`fossil user default NAME`) |
-| Unset default… | no default user in the repository: Fossil then takes the user from `-U`, `FOSSIL_USER`, `USER`, `LOGNAME` or `USERNAME` |
+| Unset default… | no default user in the repository: Fossil then takes the user from `-U`, `FOSSIL_USER`, `USER`, `LOGNAME` or `USERNAME` (Fossil 2.26 or newer; older ones cannot unset it, nor say where the default user comes from) |
 
 In the form the capabilities are a check box each, explained; a new user
 starts with those of the repository's `default-perms` setting.  When

@@ -361,13 +361,15 @@ proc tkbranches::mergeIn {kind what done} {
     bind $w <Escape> {set tkbranches::mergeOpt(answer) cancel}
     wm protocol $w WM_DELETE_WINDOW {set tkbranches::mergeOpt(answer) cancel}
     set arg [fossil::arg $what]
+    # (The options of the dry run shown; none yet: they can be none too.)
     set dry ""
+    set dryDone 0
     while 1 {
         set opts [mergeOpts $kind]
         if {$opts eq "-"} {
             tk_messageBox -parent $w -icon info -title $label \
                 -message "The baseline and the binary files cannot start with \"-\", \"<\", \">\" or \"|\"."
-        } elseif {$dry ne $opts} {
+        } elseif {!$dryDone || $dry ne $opts} {
             # The dry run (again, with the options changed).
             lassign [inCheckout merge -n -v {*}$opts $arg] code out
             $w.f.t configure -state normal
@@ -376,6 +378,7 @@ proc tkbranches::mergeIn {kind what done} {
             $w.f.t configure -state disabled
             $w.f.b.ok state [expr {$code ? "disabled" : "!disabled"}]
             set dry $opts
+            set dryDone 1
         }
         set mergeOpt(answer) ""
         vwait ::tkbranches::mergeOpt(answer)
@@ -404,7 +407,7 @@ proc tkbranches::mergeIn {kind what done} {
 # The options of fossil merge chosen; "-" if a field is not acceptable.
 proc tkbranches::mergeOpts {kind} {
     variable mergeOpt
-    set opts [list --nosync {*}[dict get {
+    set opts [list {*}[fossil::nosync merge] {*}[dict get {
         branch {} checkin {} cherrypick --cherrypick backout --backout} $kind]]
     if {$kind eq "branch" && $mergeOpt(integrate)} { lappend opts --integrate }
     if {$mergeOpt(keep)} { lappend opts -K }
@@ -554,7 +557,7 @@ proc tkbranches::badName {name} {
 proc tkbranches::createBranch {name basis private {color ""}} {
     variable repo
     variable me
-    set opts [list --nosync]
+    set opts [fossil::nosync branch]
     if {$private} { lappend opts --private }
     if {$color ne ""} { lappend opts --bgcolor $color }
     if {![ui::confirm -title "New branch" \

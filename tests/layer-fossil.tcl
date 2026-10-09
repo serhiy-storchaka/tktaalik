@@ -113,7 +113,7 @@ set done 0
 fossil::start -onDone {::apply {{args} { set ::done 1 }}} version
 vwait ::done
 set f [open $log]; set calls [split [string trim [read $f]] \n]; close $f
-check "run, sql (once more to find its mode), start through it: $calls" {$calls eq {version sql sql version}}
+check "run (after info, to find its options), sql (once more, its mode), start through it: $calls" {$calls eq {info version sql sql version}}
 unset ::env(FOSSIL)
 check "unset: fossil from PATH" {[fossil::exe] eq "fossil"}
 if {$saved ne ""} { set ::env(FOSSIL) $saved }

@@ -828,7 +828,12 @@ proc tkfiles::saveVersion {uuid} {
     set path [tk_getSaveFile -parent . -title "Save $name at [string range $uuid 0 9]" \
         -initialfile [file tail $name]]
     if {$path eq ""} return
-    lassign [fossil::run cat -R $repo -r $uuid -o [file normalize $path] [fossil::arg $name]] code out
+    # (Fossil 2.21 and older: no -o, the output into the file.)
+    if {[fossil::helpMatches cat *--out*]} {
+        lassign [fossil::run cat -R $repo -r $uuid -o [file normalize $path] [fossil::arg $name]] code out
+    } else {
+        lassign [fossil::runTo [file normalize $path] cat -R $repo -r $uuid [fossil::arg $name]] code out
+    }
     if {$code} {
         tk_messageBox -icon error -title Files -message "fossil cat failed:" -detail $out
     }

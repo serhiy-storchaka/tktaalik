@@ -233,8 +233,20 @@ check "switched to $par, files kept" {[string match "*checkout:*$par*" [fossilco
 fossilco update --nosync trunk
 fossilco revert
 
+# Without "fossil merge-info" (Fossil 2.25 and older): the merge details
+# and the three-way view say what they need, and the rest is skipped.
+if {![fossil::hasCommand merge-info]} {
+    set ::boxes {}
+    tkcommit::mergeInfo; update
+    check "no merge-info: Merge details say why: [lindex $::boxes end]" {
+        [string match "*2.26*" [lindex $::boxes end]] && ![winfo exists .commit.merge]}
+    lassign [tkcommit::mergeRows README.md 3] st rows
+    check "no merge-info: the three-way view says why" {$st eq "error" && [string match "*2.26*" $rows]}
+    done
+}
+
 # --- Bug 6: the three-way view as Fossil's own.
-fossilco merge --nosync core-9-0-branch
+fossilco merge {*}[fossil::nosync merge] core-9-0-branch
 tkcommit::mergeInfo; update
 set mi [.commit.merge.t get 1.0 end]
 set files {}
@@ -266,7 +278,7 @@ fossilco undo
 set f [open $co/README.md a]; puts $f "a merged-in line"; close $f
 fossilco commit --nosync -m "A line to merge" --branch zz-mergein
 fossilco update --nosync main
-fossilco merge --nosync zz-mergein
+fossilco merge {*}[fossil::nosync merge] zz-mergein
 lassign [tkcommit::mergeRows README.md 3] st rows
 set ok 0
 foreach row $rows {

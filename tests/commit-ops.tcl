@@ -208,15 +208,25 @@ tkcommit::viewPatch $::saveTo
 check "patch viewed" {[llength [lsearch -all -inline [winfo children .] .diffview*]] > 0}
 tkcommit::fossil revert
 
-# A merge: the note, the details.
-lassign [tkcommit::fossil merge core-9-0-branch] code out
+# A merge: the note, the details.  (Of a branch of its own: the
+# repository's branches may all be merged already.)
+set f [open $co/README.md a]; puts $f "a line to merge"; close $f
+tkcommit::fossil commit --nosync -m "A line to merge" --branch zz-opsmerge
+tkcommit::fossil update --nosync main
+lassign [tkcommit::fossil merge zz-opsmerge] code out
 tkcommit::refresh; update
 check "merging: [.commit.bottom.note cget -text]" {$tkcommit::merging && [string match "*merge of *" [.commit.bottom.note cget -text]] && [winfo ismapped .commit.bottom.buttons.merge]}
-tkcommit::mergeInfo
-check "merge details shown" {[winfo exists .commit.merge] && [.commit.merge.t get 1.0 end-1c] ne ""}
-set tkcommit::allMerge 1; tkcommit::mergeInfo
-check "all files of the merge: more lines" {[llength [split [.commit.merge.t get 1.0 end-1c] \n]] >= 1}
-destroy .commit.merge
+if {[fossil::hasCommand merge-info]} {
+    tkcommit::mergeInfo
+    check "merge details shown" {[winfo exists .commit.merge] && [.commit.merge.t get 1.0 end-1c] ne ""}
+    set tkcommit::allMerge 1; tkcommit::mergeInfo
+    check "all files of the merge: more lines" {[llength [split [.commit.merge.t get 1.0 end-1c] \n]] >= 1}
+    destroy .commit.merge
+} else {
+    # (Fossil 2.25 and older: no merge-info.)
+    tkcommit::mergeInfo
+    check "no merge-info: said, no window" {[string match "*2.26*" [lindex $::boxes end]] && ![winfo exists .commit.merge]}
+}
 tkcommit::fossil revert
 tkcommit::refresh; update
 check "no merge: no button" {!$tkcommit::merging && ![winfo ismapped .commit.bottom.buttons.merge]}

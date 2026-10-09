@@ -66,6 +66,6 @@ check "the dry run in the dialog, with -v" {[string match "*Dry run:*" $::dryTex
 cd $co; set changes [exec fossil changes --merge]
 check "merged $other's [string range $uuid 0 9]: [lindex [split $changes \n] 0]" {[string first $uuid $changes] >= 0}
 set m [calls merge]
-check "  --nosync, no --cherrypick, dry run (-v) first: $m" {[llength $m] == 2 && "-n" in [lindex $m 0] && "-v" in [lindex $m 0] && "--nosync" in [lindex $m 1] && "--cherrypick" ni [lindex $m 1]}
+check "  --nosync (where Fossil takes it), no --cherrypick, dry run (-v) first: $m" {[llength $m] == 2 && "-n" in [lindex $m 0] && "-v" in [lindex $m 0] && ([fossil::nosync merge] eq "" || "--nosync" in [lindex $m 1]) && "--cherrypick" ni [lindex $m 1]}
 exec fossil revert
 done
