@@ -29,12 +29,13 @@ set c [lindex [$nb.checkins.tv children {}] 0]
 $nb.checkins.tv selection set $c; $nb.checkins.tv focus $c; focus -force $nb.checkins.tv; update; event generate $nb.checkins.tv <Return>; update
 check "Return shows the check-in in the Timeline: [list $tktimeline::query]" {$tktaalik::active eq "timeline" && $tktimeline::query eq "hash:[string range $c 0 15]"}
 tktaalik::show tickets; update
-# A ticket without attachments: that tab disabled; the shown tab kept or reset.
-$nb select $nb.attachments; update
+# A ticket without check-ins or attachments: Check-ins disabled (the shown
+# tab then reset); Attachments not, for its Attach button.
+$nb select $nb.checkins; update
 set tktsearch::query {checkins:0 attachments:0 comments:>=1}; tktsearch::search; update
 $t selection set [lindex [$t children {}] 0]; update
 puts "  tabs: [tabs]"
-check "empty tabs disabled" {[lindex [tabs] 1 1] eq "disabled" && [lindex [tabs] 2 1] eq "disabled"}
+check "empty Check-ins disabled, Attachments not" {[lindex [tabs] 1 1] eq "disabled" && [lindex [tabs] 2 1] eq "normal"}
 check "falls back to Comments" {[$nb select] eq "$nb.comments"}
 # Back to the first: the tables refilled.
 set tktsearch::query {checkins:>=3 comments:>=2 attachments:>=1}; tktsearch::search; update

@@ -1,6 +1,7 @@
 # The Wiki tab: attachments of pages and technotes (fossil attachment add,
 # on a scratch copy), listed under the page; view, save, browse.
 source [file join [file dirname [info script]] common.tcl]
+proc lseq0 {n} { set r {}; for {set i 0} {$i <= $n} {incr i} { lappend r $i }; return $r }
 need scratch
 set W $T(scratch)
 if {![string match $W/* $::env(FOSSIL_HOME)]} { puts "FOSSIL_HOME is not the scratch one"; exit 1 }
@@ -110,4 +111,23 @@ check "nothing shown: disabled, no list" {[$p.head.attach instate disabled] && !
 # Back to the page: its attachments.
 $t selection set [list $page]; update
 check "back: [llength [$att children {}]] attachments" {[llength [$att children {}]] == 3}
+
+# Deleted (Delete... in the menu): no longer listed, a record without
+# content; first cancelled.
+check "Delete... in the menu" {"Delete\u2026" in [lmap i [lseq0 [.wiki.attctx index end]] {
+    expr {[.wiki.attctx type $i] eq "separator" ? "--" : [.wiki.attctx entrycget $i -label]}}]}
+set before [llength [$att children {}]]
+set gone [$att set [lindex [$att children {}] 0] file]
+set ::answer cancel
+tkwiki::deleteAttachment $gone
+check "cancelled: still $before" {[llength [$att children {}]] == $before}
+set ::answer ok
+set ::boxes {}
+tkwiki::deleteAttachment $gone
+check "asked: [lindex $::boxes end]" {[string match "Delete the attachment $gone of the page*" [lindex $::boxes end]]}
+check "deleted: [lmap i [$att children {}] {$att set $i file}]" \
+    {[llength [$att children {}]] == $before - 1 && $gone ni [lmap i [$att children {}] {$att set $i file}]}
+set db [fossil::sql $R "SELECT count(*) FROM attachment WHERE target='Migrating scripts to Tk 9'
+    AND filename=[fossil::sqlstr $gone] AND isLatest AND coalesce(src,'')=''"]
+check "a record without content: $db" {$db == 1}
 done

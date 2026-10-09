@@ -43,7 +43,7 @@ set tv .tickets.main.details.nb.attachments.tv
 set i [lindex [$tv children {}] 0]
 check "size shown: [$tv item $i -values]" {[string match "*bytes" [$tv set $i size]] || [string match "* KB" [$tv set $i size]]}
 set labels [rclick $tv $i]
-check "menu: $labels" {$labels eq {View/normal Save…/normal {Apply to the checkout…/normal} -- {Open in browser/normal} {Copy file name/normal}}}
+check "menu: $labels" {$labels eq {View/normal Save…/normal {Apply to the checkout…/normal} -- {Open in browser/normal} {Copy file name/normal} -- Delete…/normal}}
 tktsearch::openAttachment $i; update
 set w .diffview$diffview::count
 check "double-click views it: [$w.status cget -text]" {[winfo exists $w] && [string match "1 file*" [$w.status cget -text]]}

@@ -388,6 +388,8 @@ proc tktsearch::fillTicketMenu {m item} {
         -state [expr {$closable ? "normal" : "disabled"}]
     $m add command -label "Start fix\u2026" -command [list tktsearch::startFix $item] \
         -state [expr {$item ne "" && ($closable || ![::tickets::canWrite status]) ? "normal" : "disabled"}]
+    $m add command -label "Attach files\u2026" -command [list tktsearch::attachFiles $item] \
+        -state [expr {$item ne "" && [canWrite] ? "normal" : "disabled"}]
     set title [expr {[info exists rows($item)] ? [dict get $rows($item) title] : ""}]
     popup::copy $m "Copy title" $title
 }

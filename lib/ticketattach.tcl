@@ -21,10 +21,17 @@ proc tktsearch::buildAttachments {f} {
             -stretch [expr {$col eq "comment"}]
     }
     $tv tag configure missing -foreground gray50
-    ttk::label $f.hint -foreground gray40 -padding {4 2} \
+    # (The hint and the button below both columns: not in the
+    # scrollbar's, which would widen it.)
+    ttk::frame $f.bar
+    ttk::label $f.bar.hint -foreground gray40 -padding {4 2} \
         -text "Double-click to view; right-click to save, or apply a patch to the checkout."
+    ttk::button $f.bar.attach -text "Attach\u2026" -command {tktsearch::attachFiles $tktsearch::shownTicket}
+    icons::tooltip $f.bar.attach "Attach files to the ticket (as the default user; nothing is pushed)"
+    pack $f.bar.attach -side right -padx 4 -pady 2
+    pack $f.bar.hint -side left
     grid $tv $f.y -sticky news
-    grid $f.hint - -sticky w
+    grid $f.bar - -sticky ew
     grid columnconfigure $f 0 -weight 1
     grid rowconfigure $f 0 -weight 1
     bind $tv <Double-1> {
@@ -95,6 +102,9 @@ proc tktsearch::attachmentMenu {tv x y X Y} {
     $m add command -label "Open in browser" \
         -command [list tktsearch::openUrl attachview?tkt=$shownTicket&file=[fossil::urlquery $name]]
     $m add command -label "Copy file name" -command [list ui::copy $name]
+    $m add separator
+    $m add command -label "Delete\u2026" -state [expr {[canWrite] ? "normal" : "disabled"}] \
+        -command [list tktsearch::deleteAttachment $shownTicket $name]
     popup::default $m [expr {$here eq "normal" ? "View" : "Open in browser"}]
     tk_popup $m $X $Y
 }
@@ -273,4 +283,88 @@ proc tktsearch::fitReply {d} {
     set inner [expr {[winfo width $d] - 2 * ([$d cget -padx] + [$d cget -borderwidth]
         + [$d cget -highlightthickness] + [font measure TkDefaultFont 0])}]
     if {[winfo exists $d.reply]} { $d.reply configure -width [expr {max($inner, 100)}] }
+}
+
+# ------------------------------------------------------------- attaching
+
+# Attach files to the ticket UUID, as the default user, after a
+# confirmation with a comment.  Fossil has no command for it ("fossil
+# attachment add" takes wiki pages and technotes): each file is brought in
+# as an artifact, then the attachment artifact naming it, as Fossil's web
+# page writes it (fossil::attachRecord), crosslinked by Fossil as if a sync
+# had brought it.  A file with the name of an attachment
+# replaces it; the earlier one stays in the history.
+proc tktsearch::attachFiles {uuid} {
+    variable attached
+    variable shownTicket
+    if {$uuid eq ""} { bell; return }
+    if {![needUser]} return
+    set files [tk_getOpenFile -parent . -title "Attach files to the ticket" -multiple 1]
+    if {![llength $files]} return
+    set names {}
+    foreach file $files {
+        if {[catch {AttachmentData $file} msg]} {
+            ui::errorBox -title Attach "[file tail $file] cannot be attached." $msg
+            return
+        }
+        lappend names [file tail $file]
+    }
+    set old [expr {$uuid eq $shownTicket ? [lmap i [array names attached] { dict get $attached($i) name }] : {}}]
+    set replaced [lmap n $names { if {$n in $old} { set n } else continue }]
+    set title [lindex [::tickets::sql "SELECT [fossil::outcol "coalesce([::tickets::field title],'')"]\
+        FROM ticket WHERE tkt_uuid=[fossil::sqlstr $uuid]"] 0 0]
+    set intro "Attach [join $names {, }] to the ticket [string range $uuid 0 9] ($title)?"
+    if {[llength $replaced]} {
+        append intro "\n\nReplaces [join $replaced {, }] (the earlier ones stay in the history)."
+    }
+    append intro "\n\nWritten to [file tail $::tickets::repo] as $::tickets::me; it cannot be\
+        changed afterwards.  Nothing is pushed."
+    set ::ui::f(comment) ""
+    if {![ui::form .tickets.attach "Attach files" $intro {{comment Comment: entry}} Attach \
+            -help tickets#attaching-files]} return
+    set comment [string trim $::ui::f(comment)]
+    set repo $::tickets::repo
+    try {
+        ui::busy {
+            foreach file $files name $names {
+                set src [fossil::hashFile $repo $file]
+                fossil::importArtifact $repo $file $src
+                fossil::attachRecord $repo $name $uuid $src $comment $::tickets::me
+            }
+        }
+    } trap {FOSSIL ARTIFACT} msg {
+        ui::errorBox -title Attach "Not attached." $msg
+    }
+    showTicket $uuid
+    showDetails $uuid
+}
+
+# Delete the attachment NAME of the ticket UUID, after a confirmation: a
+# record without content, as the web page's Delete writes.  The file stays
+# in the history.
+proc tktsearch::deleteAttachment {uuid name} {
+    if {$uuid eq "" || ![needUser]} return
+    if {![ui::confirm -title "Delete attachment" "Delete the attachment $name of the ticket\
+            [string range $uuid 0 9]?" "Recorded in [file tail $::tickets::repo] as\
+            $::tickets::me.  The file stays in the history: attaching a file of that name again\
+            brings it back.  Nothing is pushed."]} return
+    try {
+        ui::busy { fossil::attachRecord $::tickets::repo $name $uuid "" "" $::tickets::me }
+    } trap {FOSSIL ARTIFACT} msg {
+        ui::errorBox -title "Delete attachment" "Not deleted." $msg
+    }
+    showTicket $uuid
+    showDetails $uuid
+}
+
+# Check that the file PATH can be attached: readable, and not one Fossil
+# would take for an artifact of its own (ending with a Z card: Fossil's
+# web page stores those compressed, which this cannot do).
+proc tktsearch::AttachmentData {path} {
+    set f [open $path rb]
+    try { set data [read $f] } finally { close $f }
+    if {[regexp {(^|\n)Z [0-9a-f]{32}\n?$} $data]} {
+        error "It looks like a Fossil artifact (it ends with a Z card): Fossil would read it as one."
+    }
+    return [string length $data]
 }

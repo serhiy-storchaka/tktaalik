@@ -358,7 +358,9 @@ proc tktimeline::search {{remember 0}} {
             [fossil::outcol coalesce(e.ecomment,e.comment)], b.uuid,
             coalesce([fossil::outcol "(SELECT value FROM tagxref WHERE rid=e.objid AND tagtype>0
                 AND tagid=(SELECT tagid FROM tag WHERE tagname='branch'))"],''),
-            coalesce((SELECT substr(tagname,5) FROM tag WHERE tagid=e.tagid AND tagname GLOB 'tkt-*'),''),
+            coalesce((SELECT substr(tagname,5) FROM tag WHERE tagid=e.tagid AND tagname GLOB 'tkt-*'),
+                (SELECT a.target FROM attachment a WHERE a.attachid=e.objid
+                    AND EXISTS(SELECT 1 FROM ticket WHERE tkt_uuid=a.target)),''),
             e.objid IN (SELECT rid FROM unsent), e.objid IN (SELECT rid FROM private)
             FROM event e JOIN blob b ON b.rid=e.objid
             WHERE ($where) AND [viewCondition $view]

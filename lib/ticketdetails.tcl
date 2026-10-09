@@ -445,7 +445,8 @@ proc tktsearch::detailTabs {description comments checkins attachments {changes 0
     $nb tab $nb.comments -text "Comments ($comments)"
     foreach {tab label n} [list checkins Check-ins $checkins attachments Attachments $attachments \
             history History $changes] {
-        $nb tab $nb.$tab -text "$label ($n)" -state [expr {$n ? "normal" : "disabled"}]
+        # (Attachments also without any: its Attach button.)
+        $nb tab $nb.$tab -text "$label ($n)" -state [expr {$n || $tab eq "attachments" ? "normal" : "disabled"}]
     }
     if {[$nb tab $shown -state] eq "disabled"} { $nb select $nb.comments }
 }

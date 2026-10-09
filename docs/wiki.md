@@ -119,7 +119,9 @@ whose content is not in the local repository says "not local".
 - Double-click (or Return) views a text attachment in the diff viewer; one
   that is not here opens on the server.  A binary file cannot be viewed:
   save it.
-- Right-click: **View**, **Save…**, **Open in browser**, **Copy file name**.
+- Right-click: **View**, **Save…**, **Open in browser**, **Copy file name**,
+  **Delete…** (see [Deleting attachments](tickets.md#deleting-attachments):
+  the same for pages and technotes).
 
 **Attach…** (next to Save) adds files to the page or technote shown, with
 `fossil attachment add`; you can choose several files at once.  A file
@@ -127,4 +129,4 @@ with the name of an existing attachment replaces it (the earlier one
 stays in the history); the question names those.  Technotes get their
 files by technote ID.  Attaching needs a default user.
 
-Tickets cannot get attachments here (see [Tickets](tickets.md#attachments)).
+Files are attached to tickets in the [Tickets](tickets.md#attaching-files) tab.

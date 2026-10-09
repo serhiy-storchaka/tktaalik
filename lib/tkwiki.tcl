@@ -766,8 +766,37 @@ proc tkwiki::attachmentMenu {tv x y X Y} {
     $m add command -label "Open in browser" -state [expr {$remote ne "" ? "normal" : "disabled"}] \
         -command [list tkwiki::browseAttachment $name]
     $m add command -label "Copy file name" -command [list ui::copy $name]
+    $m add separator
+    $m add command -label "Delete\u2026" -command [list tkwiki::deleteAttachment $name]
     popup::default $m [expr {$here eq "normal" ? "View" : "Open in browser"}]
     tk_popup $m $X $Y
+}
+
+# Delete the attachment NAME of the page or technote shown, after a
+# confirmation: a record without content, as the web page's Delete writes
+# (no command does it).  The file stays in the history.
+proc tkwiki::deleteAttachment {name} {
+    variable repo
+    variable pages
+    variable shown
+    if {$shown eq "" || ![info exists pages($shown)]} return
+    set user [user]
+    if {$user eq ""} {
+        ui::infoBox -parent .wiki -title "Delete attachment" "Deleting needs a user." \
+            "This repository has no default user to record it as (fossil user default)."
+        return
+    }
+    set what [expr {[string match event-* $shown] ? "the technote" : "the page"}]
+    if {![ui::confirm -parent .wiki -title "Delete attachment" \
+            "Delete the attachment $name of $what [dict get $pages($shown) title]?" \
+            "Recorded in [file tail $repo] as $user.  The file stays in the history: attaching\
+            a file of that name again brings it back.  Nothing is pushed."]} return
+    try {
+        ui::busy { fossil::attachRecord $repo $name [target $shown] "" "" $user }
+    } trap {FOSSIL ARTIFACT} msg {
+        ui::errorBox -parent .wiki -title "Delete attachment" "Not deleted." $msg
+    }
+    fillAttachments $shown
 }
 
 proc tkwiki::viewAttachment {src name} {

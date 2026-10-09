@@ -170,6 +170,7 @@ Exclude:
 | Open in browser | the ticket on the server |
 | Copy ticket id | to the clipboard |
 | Edit ticket… | see [Editing tickets](#editing-tickets) |
+| Attach files… | see [Attaching files](#attaching-files) |
 | Close ticket…, Start fix… | see [Closing tickets](#closing-tickets), [Starting a fix](#starting-a-fix) |
 | Copy title | to the clipboard |
 
@@ -313,7 +314,8 @@ is not in the local repository is greyed out.
   Tktaalik's diff viewer (see [Diffs](diffs.md)); an attachment that is
   not here opens on the server.
 - Right-click: **View**, **Save…**, **Apply to the checkout…** (for
-  `.patch` and `.diff` files), **Open in browser**, **Copy file name**.
+  `.patch` and `.diff` files), **Open in browser**, **Copy file name**,
+  **Delete…** (see [Deleting attachments](#deleting-attachments)).
 
 **Apply to the checkout…** needs an open checkout and the `patch` program
 (on Windows, if it is not on the `PATH`, the one of Git for Windows).
@@ -321,7 +323,32 @@ It finds whether the patch applies with `-p0` or `-p1`, shows the dry run
 and asks first; afterwards it offers to show the Commit tab.  The files
 of the checkout change; nothing is committed.
 
-Tickets cannot get new attachments here: Fossil has no command for that.
+### Attaching files
+
+**Attach…** (at the bottom of the Attachments tab, also in the Ticket
+menu and the ticket's context menu as **Attach files…**) adds files to
+the ticket: choose one or several, then give a comment if you like.  The
+question names the ticket, the files, the user they are recorded as (the
+default user) and any attachment of the same name they replace (the
+earlier one stays in the history).  Nothing is pushed.
+
+Fossil has no command to attach files to a ticket (`fossil attachment
+add` takes wiki pages and technotes), so Tktaalik writes what Fossil's
+web page writes: each file, and the attachment record naming it, brought
+into the repository as if a sync had brought them.  A file that looks
+like an artifact of Fossil's own (it ends with a `Z` line) is refused:
+Fossil would read it as one.
+
+### Deleting attachments
+
+**Delete…** in the context menu of an attachment (here and in the
+[Wiki](wiki.md#attachments) tab) asks, then records the deletion as the
+web page's Delete button does (no Fossil command does it): an attachment
+record of that name without a file, as the default user.  The attachment
+is no longer listed; the file and its earlier versions stay in the
+history, and attaching a file of that name again brings it back.  Nothing
+is pushed.  (Removing a file from a repository for good is shunning, on
+the server.)
 
 ## History
 

@@ -15,6 +15,14 @@
 #   fossil::importArtifact REPO PATH HASH
 #                               the artifact in PATH stored in REPO,
 #                               public (for what no command makes)
+#   fossil::hashFile REPO PATH  the hash of the file PATH, as REPO names
+#                               artifacts (its hash policy)
+#   fossil::attachRecord REPO NAME TARGET SRC COMMENT USER
+#                               the attachment NAME of TARGET (a ticket's
+#                               UUID, a page name, a technote ID) recorded
+#                               in REPO as Fossil's web pages do: the
+#                               artifact SRC (brought in before), or none
+#                               ("": the attachment deleted)
 #   fossil::tempDir             a new private temporary directory
 #   fossil::sqlMode             the ".mode" line for its queries (ascii,
 #                               control characters not escaped)
@@ -586,6 +594,30 @@ proc fossil::buildArtifact {repo text path} {
         file delete -force $dir
     }
     WriteBytes $path "${text}Z $md5\n"
+    hashFile $repo $path
+}
+
+proc fossil::attachRecord {repo name target src comment user} {
+    # The cards of attach.c: A (no source when deleted), C, D, U, Z.
+    set cards "A [card $name] [card $target][expr {$src eq "" ? "" : " $src"}]\n"
+    if {[string trim $comment] ne ""} { append cards "C [card [string trim $comment]]\n" }
+    # (In milliseconds, as Fossil's: a change made at once after another
+    # is still the newer one.)
+    set ms [clock milliseconds]
+    set date [clock format [expr {$ms / 1000}] -format %Y-%m-%dT%H:%M:%S -gmt 1]
+    append cards "D $date[format .%03d [expr {$ms % 1000}]]\n"
+    append cards "U [card $user]\n"
+    set dir [tempDir]
+    try {
+        set hash [buildArtifact $repo $cards $dir/artifact]
+        importArtifact $repo $dir/artifact $hash
+    } finally {
+        file delete -force $dir
+    }
+    return $hash
+}
+
+proc fossil::hashFile {repo path} {
     # The hash of the repository's policy (SHA1 only where it says so).
     set policy [lindex [sql $repo "SELECT value FROM config WHERE name='hash-policy'"] 0 0]
     set sum [expr {$policy eq "sha1" ? "sha1sum" : "sha3sum"}]

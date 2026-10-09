@@ -80,6 +80,7 @@ namespace eval help {
         .commit.patch               commit#patches
         .commit.clean               commit#delete-unmanaged-files
         .commit.stashpart           commit#stashing-part-of-the-changes
+        .tickets.attach             tickets#attaching-files
         .commit.cleanok             commit#delete-unmanaged-files
         .commit.rename              commit#file-operations
         .commit.remove              commit#file-operations
