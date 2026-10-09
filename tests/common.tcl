@@ -124,6 +124,9 @@ proc done {} {
 #                       the repository
 #   fossilIn DIR ARG... fossil ARG... run in DIR: its output (an error's
 #                       too), trimmed
+#   realInput           whether real mouse buttons can be pressed: the
+#                       XTEST helper is there and the display is an Xvfb
+#                       (never the user's display)
 
 set ::boxes {}
 set ::boxArgs {}
@@ -211,4 +214,15 @@ proc sql {q {repo ""}} {
 proc fossilIn {dir args} {
     lassign [fossil::run -dir $dir {*}$args] code out
     string trim $out
+}
+
+proc realInput {} {
+    if {$::T(xbutton) eq "" || [catch {exec pgrep -x Xvfb} pids]} { return 0 }
+    foreach pid $pids {
+        # (Other tests' servers come and go: one may be gone already.)
+        if {![catch {exec ps -o args= -p $pid} args] && [lsearch -exact $args $::env(DISPLAY)] >= 0} {
+            return 1
+        }
+    }
+    return 0
 }

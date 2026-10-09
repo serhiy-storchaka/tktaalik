@@ -56,6 +56,15 @@ windows:
 | Ctrl+A | Unversioned files: select all |
 | Escape | close the window (it keeps its state for the next time) |
 
+In the window of an attached image (see [Images](tickets.md#images)):
+
+| Key | Action |
+|---|---|
+| Ctrl+plus, Ctrl+minus (also on the keypad), Ctrl+Wheel | zoom in, out (the wheel at the pointer) |
+| Ctrl+0 | 100% |
+| Wheel, Shift+Wheel | scroll down and up, left and right |
+| Escape | close the window |
+
 In dialogs, Return is usually the default button and Escape cancels.
 
 ## Mouse

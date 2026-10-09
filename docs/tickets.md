@@ -335,7 +335,10 @@ of the checkout change; nothing is committed.
 
 An attached image opens in a window of its own, at its size (scrolled
 if it is larger than most of the screen); **Fit to the window** makes it
-smaller to fit.  Escape or Close closes it.  Each image has a window of
+smaller to fit.  Ctrl+plus and Ctrl+minus zoom in and out, from 1/8 to 8
+times its size, and so does Ctrl+Wheel, keeping the point under the
+pointer where it is; Ctrl+0 shows it at 100% again.  The level is shown
+at the bottom.  The wheel scrolls, Shift+Wheel sideways.  Escape or Close closes it.  Each image has a window of
 its own, so several can be open side by side; viewing one that is open
 already brings its window to the front.  The same holds for the
 attachments of wiki pages and technotes.

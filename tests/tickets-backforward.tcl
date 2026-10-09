@@ -11,13 +11,7 @@ set A 4c595d4d788ea5142731ae3a3395151c32a724d1
 # Real side-button presses through XTEST, but only on Xvfb (never on the
 # user's display); else synthetic ones, which Tk 9 numbers differently
 # (event generate -button 4 is the X server's button 8).
-set real 0
-if {$T(xbutton) ne "" && ![catch {exec pgrep -x Xvfb} pids]} {
-    foreach pid $pids {
-        # (Other tests' servers come and go: one may be gone already.)
-        if {![catch {exec ps -o args= -p $pid} args] && [lsearch -exact $args $env(DISPLAY)] >= 0} { set real 1 }
-    }
-}
+set real [realInput]
 if {!$real} { puts "note: synthetic mouse buttons (no XTEST helper or not on Xvfb)" }
 proc press {w b} {
     if {$::real} {

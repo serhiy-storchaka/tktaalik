@@ -98,6 +98,33 @@ check "a window: [expr {[winfo exists $w] ? [wm title $w] : ""}]" {[winfo exists
 set shown [$w.c itemcget [lindex [$w.c find all] 0] -image]
 check "the image: [image width $shown]x[image height $shown]" {[image width $shown] == 40 && [image height $shown] == 20}
 check "its pixels: [$shown get 1 1] [$shown get 30 10]" {[$shown get 1 1] eq {0 0 255} && [$shown get 30 10] eq {255 0 0}}
+# Zoom: Ctrl+plus, Ctrl+minus, Ctrl+0, Ctrl+Wheel; the level shown.
+proc shownSize {w} {
+    set i [$w.c itemcget [lindex [$w.c find all] 0] -image]
+    return [image width $i]x[image height $i]
+}
+focus -force $w.c; update
+check "100%: [$w.b.zoom cget -text]" {[$w.b.zoom cget -text] eq "100%" && [shownSize $w] eq "40x20"}
+event generate $w <Control-plus>; update
+check "Ctrl+plus: [$w.b.zoom cget -text] [shownSize $w]" {[$w.b.zoom cget -text] eq "150%" && [shownSize $w] eq "60x30"}
+event generate $w <Control-minus>; event generate $w <Control-minus>; update
+check "Ctrl+minus twice: [$w.b.zoom cget -text] [shownSize $w]" {[$w.b.zoom cget -text] eq "75%" && [shownSize $w] eq "30x15"}
+event generate $w <Control-0>; update
+check "Ctrl+0: [$w.b.zoom cget -text]" {[$w.b.zoom cget -text] eq "100%" && [shownSize $w] eq "40x20"}
+event generate $w.c <Control-MouseWheel> -delta 120 -x 5 -y 5; update
+check "Ctrl+Wheel up: [$w.b.zoom cget -text]" {[$w.b.zoom cget -text] eq "150%"}
+event generate $w.c <Control-MouseWheel> -delta -120 -x 5 -y 5; update
+check "Ctrl+Wheel down: [$w.b.zoom cget -text]" {[$w.b.zoom cget -text] eq "100%"}
+for {set k 0} {$k < 20} {incr k} { event generate $w <Control-plus> }
+update
+check "at most 800%: [$w.b.zoom cget -text] [shownSize $w]" {[$w.b.zoom cget -text] eq "800%" && [shownSize $w] eq "320x160"}
+for {set k 0} {$k < 20} {incr k} { event generate $w <Control-minus> }
+update
+check "at least 13% (1/8): [$w.b.zoom cget -text] [shownSize $w]" {[$w.b.zoom cget -text] eq "13%" && [shownSize $w] eq "5x3"}
+event generate $w <Control-0>; update
+# The same image at once again (no copy): the original.
+check "100% shows the image itself" {[$w.c itemcget [lindex [$w.c find all] 0] -image] eq $shown}
+
 # Another image beside it; the first one again: raised, not twice.
 set other [expr {$img9 ? "draw.svg" : $withImg ? "photo.jpg" : ""}]
 if {$other ne ""} {
@@ -121,6 +148,47 @@ set imageview::fit(.big) 1; imageview::Layout .big; update
 set small [.big.c itemcget [lindex [.big.c find all] 0] -image]
 check "fitted: [image width $small]x[image height $small] in [winfo width .big.c]x[winfo height .big.c]" \
     {[image width $small] <= [winfo width .big.c] && [image height $small] <= [winfo height .big.c] && [image width $small] < 1600}
+# (Fitted: the largest level that fits, shown.)
+lassign $imageview::level(.big) p q
+check "fitted: the level shown: [.big.b.zoom cget -text]" {[.big.b.zoom cget -text] eq "[expr {round(100.0 * $p / $q)}]%"}
+# Zooming at the pointer: the point of the image under it stays there
+# (larger than the window: it can scroll); no longer fitted.
+imageview::Zoom .big 0; update
+.big.c xview moveto 0.3; .big.c yview moveto 0.3; update
+set p 1; set q 1
+set imageview::fit(.big) 1
+set x 100; set y 80
+proc imagePoint {x y} {
+    lassign $imageview::level(.big) p q
+    list [expr {round([.big.c canvasx $x] * $q / double($p))}] [expr {round([.big.c canvasy $y] * $q / double($p))}]
+}
+set before [imagePoint $x $y]
+imageview::Zoom .big 1 $x $y; update
+set after [imagePoint $x $y]
+check "zoomed in at the pointer: [.big.b.zoom cget -text], the point $before -> $after" \
+    {$imageview::level(.big) ne [list $p $q] && abs([lindex $after 0] - [lindex $before 0]) <= 6
+     && abs([lindex $after 1] - [lindex $before 1]) <= 6 && !$imageview::fit(.big)}
+# The wheel scrolls (a notch: 30 pixels), Shift+Wheel sideways; Ctrl+Wheel
+# zooms instead.
+imageview::Zoom .big 0; update
+.big.c xview moveto 0; .big.c yview moveto 0; update
+event generate .big.c <MouseWheel> -delta -120 -x 50 -y 50; update
+check "the wheel scrolls down: [.big.c canvasy 0]" {[.big.c canvasy 0] == 30 && [.big.c canvasx 0] == 0}
+event generate .big.c <Shift-MouseWheel> -delta -120 -x 50 -y 50; update
+check "Shift+Wheel sideways: [.big.c canvasx 0]" {[.big.c canvasx 0] == 30 && [.big.c canvasy 0] == 30}
+event generate .big.c <MouseWheel> -delta 120 -x 50 -y 50; update
+check "back up, the zoom as it was: [.big.c canvasy 0], [.big.b.zoom cget -text]" \
+    {[.big.c canvasy 0] == 0 && [.big.b.zoom cget -text] eq "100%"}
+# A real wheel (XTEST on Xvfb): button 5 down, as a mouse sends it.
+if {[realInput]} {
+    raise .big; focus -force .big.c; update
+    event generate .big.c <Motion> -warp 1 -x 50 -y 50; update; after 200; update
+    exec $T(xbutton) 5
+    after 300; update; update
+    check "a real wheel scrolls down: [.big.c canvasy 0]" {[.big.c canvasy 0] == 30}
+} else {
+    puts "note: no real wheel (no XTEST helper or not on Xvfb)"
+}
 destroy .big; update
 check "closed: both images deleted" {$big ni [image names] && $small ni [image names]}
 
