@@ -13,7 +13,7 @@ proc tk_getOpenFile {args} { return $::openFiles }
 set ::browsed {}
 set ::viewed {}
 rename diffview::show realShow
-proc diffview::show {title text args} { lappend ::viewed [list $title $text] }
+proc diffview::show {title text args} { lappend ::viewed [list $title $text $args] }
 file mkdir $T(tmp)/in
 foreach {name text} {notes.txt "first notes\n" data.patch "--- a\n+++ b\n"} {
     set f [open $T(tmp)/in/$name w]; puts -nonewline $f $text; close $f
@@ -51,6 +51,7 @@ check "in the repository: $db" {[llength $db] == 2}
 # View, save, browse.
 tkwiki::openAttachment 0; update
 check "viewed: $::viewed" {[lindex $::viewed end 0] eq "notes.txt" && [string trim [lindex $::viewed end 1]] eq "first notes"}
+check "kept above the main window: [lindex $::viewed end 2]" {[lindex $::viewed end 2] eq {-transient .}}
 set ::saveTo $T(tmp)/saved.txt
 set a $tkwiki::attached(0)
 tkwiki::saveAttachment [dict get $a src] [dict get $a name]

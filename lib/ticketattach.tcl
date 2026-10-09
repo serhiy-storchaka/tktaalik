@@ -147,7 +147,7 @@ proc tktsearch::viewAttachment {src name} {
     }
     set text [attachmentText $src]
     if {$text eq ""} return
-    diffview::show $name $text
+    diffview::show $name $text -transient .
 }
 
 proc tktsearch::saveAttachment {src name} {

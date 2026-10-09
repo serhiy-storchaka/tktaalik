@@ -822,7 +822,7 @@ proc tkwiki::viewAttachment {src name} {
             -detail "Save it to look at it."
         return
     }
-    diffview::show $name $out
+    diffview::show $name $out -transient .
 }
 
 proc tkwiki::saveAttachment {src name} {

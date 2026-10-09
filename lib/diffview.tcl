@@ -6,9 +6,9 @@
 #       Runs "fossil diff -i ARGS" (or the command CMD ARGS, e.g. fossil
 #       stash show), in DIR, in the background and shows the result in a
 #       new window; with -select, at FILE.
-#   diffview::show TITLE TEXT ?-mode MODE?
+#   diffview::show TITLE TEXT ?-mode MODE? ?-transient W?
 #       Shows a unified diff (from Fossil, or a patch in git or diff -u
-#       format).
+#       format); with -transient, kept above the window W.
 #
 # The windows of diffview::run have Fossil's diff options in their Options
 # menu (-w, -Z, --strip-trailing-cr, --invert, -c N): changing one runs the
@@ -332,8 +332,11 @@ proc diffview::scrolled {w side first last} {
 # ----------------------------------------------------------------- showing
 
 proc diffview::show {title text args} {
-    set opts [dict merge {-mode unified} $args]
+    set opts [dict merge {-mode unified -transient ""} $args]
     set w [newWindow $title [dict get $opts -mode]]
+    # (Above that window, as long as it is open: viewers of attachments,
+    # which a click in the list would cover.)
+    if {[dict get $opts -transient] ne ""} { wm transient $w [dict get $opts -transient] }
     setText $w $text
     return $w
 }

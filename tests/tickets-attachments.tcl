@@ -47,6 +47,8 @@ check "menu: $labels" {$labels eq {View/normal Save…/normal {Apply to the chec
 tktsearch::openAttachment $i; update
 set w .diffview$diffview::count
 check "double-click views it: [$w.status cget -text]" {[winfo exists $w] && [string match "1 file*" [$w.status cget -text]]}
+# Kept above the main window: a click in the list would cover it else.
+check "above the main window: [wm transient $w]" {[wm transient $w] eq "."}
 destroy $w
 .tickets.attctx invoke Save…; update
 set src [lindex [tickets::sql "SELECT src FROM attachment WHERE filename='wish_manual.patch' AND isLatest"] 0 0]
