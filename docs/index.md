@@ -12,9 +12,10 @@ water on its fins: Fossil, brought out of the command line.
 
 ## Getting started
 
-You need Tcl/Tk 8.6 or 9.0 and the `fossil` executable on your `PATH`
-(or another one, named by the `FOSSIL` environment variable: a path, or a
-name on the `PATH`).
+It runs on Linux and other Unix desktops and on Windows (not tested on
+macOS).  You need Tcl/Tk 8.6 or 9.0 and the `fossil` executable on your
+`PATH` (or another one, named by the `FOSSIL` environment variable: a
+path, or a name on the `PATH`).
 Start Tktaalik from a checkout:
 
 ```sh

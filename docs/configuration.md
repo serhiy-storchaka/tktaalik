@@ -102,6 +102,11 @@ directory, with `wish` (it starts with `#!/usr/bin/env wish`):
 wish9.0 tktaalik ~/src/tk      # with a particular Tk
 ```
 
+On Windows, start it with Wish: `wish90 tktaalik C:\src\tk` (or a
+shortcut, see [In the application menu](#in-the-application-menu)).
+Git for Windows provides `patch.exe` for applying ticket patches, and
+`curl.exe` comes with Windows 11.
+
 Without an argument, and outside a checkout, it opens the repository or
 checkout used last; the first time it asks for a repository file.  If what
 it should open cannot be opened, it says why and asks.  It starts on the
