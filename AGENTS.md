@@ -140,7 +140,10 @@ it, checks that View is disabled: run it both ways).  See
 `tests/common.tcl`.  `FOSSIL` runs them with another Fossil (the
 application uses it, and `run.sh` puts it first on the `PATH` for the
 tests): check a change with an old and a new Fossil too
-(docs/configuration.md, Environment variables).
+(docs/configuration.md, Environment variables).  `TKTAALIK_TIMEOUT`
+is how long a test may run before it is stopped (seconds, 120 by default;
+the slowest take some 30 on Linux, 80 on Windows): smaller to find one
+that hangs sooner.
 
 - `tests/smoke.sh REPOSITORY...` opens every tab and window on any
   repositories (only read) and fails on an error; worth running on a few

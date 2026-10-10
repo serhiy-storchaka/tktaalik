@@ -13,6 +13,10 @@
 #
 # At the end, the slowest tests and their times (seconds).
 #
+# TKTAALIK_TIMEOUT: the seconds a test may run before it is stopped (120;
+# the slowest take some 30 on Linux, 80 on Windows), smaller to find a
+# test that hangs sooner.
+#
 # -j N: N tests at a time (default: the processors, at most 8; each test
 # that writes makes a scratch copy of the repository, kept only if the test
 # fails).  The results are printed in order when all are done.
@@ -46,7 +50,7 @@ if [ "${1:-}" = --one ]; then
     fi
     start=$(date +%s)
     # (The tests are UTF-8: Tcl 8.6 on Windows would read them as cp1252.)
-    out=$(FOSSIL_HOME=$home timeout 600 $dbus xvfb-run -a -n "$display" "$w" -encoding utf-8 "$t.tcl" 2>&1)
+    out=$(FOSSIL_HOME=$home timeout ${TKTAALIK_TIMEOUT:-120} $dbus xvfb-run -a -n "$display" "$w" -encoding utf-8 "$t.tcl" 2>&1)
     rc=$?
     echo $(( $(date +%s) - start )) > "$log.time"
     {

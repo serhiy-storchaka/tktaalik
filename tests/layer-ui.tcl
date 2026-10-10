@@ -123,6 +123,21 @@ check "busy: return in the script returns from the caller" {[busyReturns] eq "ea
 check "busy: error passed on, its code" {[catch {ui::busy { throw {LB TEST} oops }} msg opts]
     && $msg eq "oops" && [dict get $opts -errorcode] eq {LB TEST}}
 check "busy: released after an error" {![tk busy status .] && ![tk busy status .lb]}
+# The keys ignored while the script handles events (as web:: does), also
+# those bound to the toplevel; the focus back after.
+entry .lb.e; pack .lb.e
+bind .lb <Key-x> {lappend ::busyKeys toplevel}
+focus -force .lb.e; update
+set ::busyKeys {}
+ui::busy {
+    event generate [focus] <Key-x>
+    after 50 {set ::busyWaited 1}; vwait ::busyWaited
+}
+check "busy: keys ignored: [list $::busyKeys] [list [.lb.e get]]" {$::busyKeys eq "" && [.lb.e get] eq ""}
+update
+check "busy: the focus back: [focus]" {[focus] eq ".lb.e"}
+event generate .lb.e <Key-x>; update
+check "busy: keys after: [list $::busyKeys]" {$::busyKeys eq "toplevel"}
 set held [ui::busyHold .]
 check "busyHold .: the main window only" {$held eq "." && [tk busy status .] && ![tk busy status .lb]}
 ui::busyRelease $held

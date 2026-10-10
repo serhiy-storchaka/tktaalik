@@ -34,11 +34,21 @@ set tip [tktimeline::cellTip $current hash]
 check "describe tooltip: $tip" {[string match "*[string range $uuid 0 5]*" $tip] || [regexp {^[-\w.]+$} $tip]}
 # The same as "fossil describe" says, in the checkout and on other check-ins.
 # (Fossil 2.23 takes minutes for it on the Tk repository: compared only if
-# it answers in time.)
+# it answers in 30 seconds.  In the background, stopped then: not the
+# timeout program, which Windows has another of.)
 proc cliDescribe {args} {
-    if {[catch {fossil::inDir $::W/co { exec timeout 30 fossil describe {*}$args 2>@1 }} out]} {
-        return -code error "fossil describe: [lindex [split $out \n] 0]"
+    set ::described ""
+    set job [fossil::start -dir $::W/co -onDone {apply {{code text stopped msg} {
+        set ::described [list $code $text]
+    }}} describe {*}$args]
+    set end [expr {[clock milliseconds] + 30000}]
+    while {$::described eq "" && [clock milliseconds] < $end} { after 50 {set ::tick 1}; vwait ::tick }
+    if {$::described eq ""} {
+        fossil::stop $job
+        return -code error "fossil describe: no answer in 30 seconds"
     }
+    lassign $::described code out
+    if {$code} { return -code error "fossil describe: [lindex [split [string trim $out] \n] 0]" }
     string trim $out
 }
 if {[catch {cliDescribe $uuid} cli]} {
@@ -104,13 +114,15 @@ tktimeline::bisect next
 check "asked: [lindex $::boxes 0]" {[lindex $::boxes 0] eq "The checkout has changes."}
 co revert README.md
 
-# bisect run: every check-in bad; it ends with the first bad one.
-whenOpen .timeline.bisectrun {set tktimeline::bisectCmd false; set tktimeline::bisectAnswer 1}
+# bisect run: every check-in bad; it ends with the first bad one.  ("exit
+# 1": a command that fails in sh and cmd.exe alike; Windows has no
+# "false", and says so in a window of its own.)
+whenOpen .timeline.bisectrun {set tktimeline::bisectCmd "exit 1"; set tktimeline::bisectAnswer 1}
 tktimeline::bisectCommand
 check "running: Stop shown" {[winfo exists .timeline.bisect.f.b.stop]}
 for {set i 0} {$i < 1200 && $tktimeline::bisectChan ne ""} {incr i} { after 100; update }
 set out [.timeline.bisect.f.t get 1.0 end]
-check "bisect run done: [lindex [split [string trim $out] \n] end]" {$tktimeline::bisectChan eq "" && ![winfo exists .timeline.bisect.f.b.stop] && [string match "*fossil bisect run false*" [.timeline.bisect.f.title cget -text]] && [string length $out] > 20}
+check "bisect run done: [lindex [split [string trim $out] \n] end]" {$tktimeline::bisectChan eq "" && ![winfo exists .timeline.bisect.f.b.stop] && [string match "*fossil bisect run exit 1*" [.timeline.bisect.f.title cget -text]] && [string length $out] > 20}
 
 # Reset: asked; no marks.
 set ::boxes {}

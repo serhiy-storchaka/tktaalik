@@ -22,6 +22,15 @@ lassign [fossil::run -input "SELECT 6*7;\n" sql -R $D/r.fossil] code out
 check "run -input: [string trim $out]" {$code == 0 && [string trim $out] eq "42"}
 lassign [fossil::run nosuchcommand] code out
 check "run: the exit code of a failure ($code)" {$code == 1 && ![string match "*child process exited*" $out]}
+# runEvents: as run, the events handled meanwhile.
+set ::handled 0
+after idle {set ::handled 1}
+set same [fossil::run -dir $D/co info]
+lassign [fossil::runEvents -dir $D/co info] code out
+check "runEvents: as run, events handled" {$code == 0 && [list $code $out] eq $same && $::handled
+    && [pwd] eq $here && [array names fossil::waited] eq "id"}
+lassign [fossil::runEvents nosuchcommand] code out
+check "runEvents: a failure ($code)" {$code == 1 && $out ne ""}
 lassign [fossil::runIn $D/co $D/r.fossil info] code out
 check "runIn a checkout" {$code == 0 && [string match "*checkout:*" $out]}
 lassign [fossil::runIn "" $D/r.fossil info] code out

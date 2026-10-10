@@ -74,7 +74,12 @@ set first [lindex [web::forumPost $url trusted secret2 {title "First thread" con
 check "no proxy (\"\"): direct, \$http_proxy aside" {$first ne ""}
 unset env(http_proxy)
 array set env $saved
+# The events handled while curl runs (on Windows the server waits for
+# windows that do not answer).
+set ::handled 0
+after idle {set ::handled 1}
 set others [lindex [web::forumPost $url other secret4 [list fpid $first content "Not yours." mimetype text/plain]] 0]
+check "events handled while posting" {$::handled && [array size web::reading] == 0}
 set R $T(tmp)/clone.fossil
 exec fossil clone $url $R
 exec fossil settings autosync off -R $R
