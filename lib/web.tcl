@@ -5,7 +5,7 @@
 # a command line, and keeps the login cookie in a private temporary
 # directory, deleted at the end.
 #
-#   web::forumPost URL USER PASSWORD FIELDS
+#   web::forumPost URL USER PASSWORD FIELDS ?PROXY?
 #       logs in to the repository at URL and posts to the forum: FIELDS
 #       is a dict with content and mimetype, and title (a new thread) or
 #       fpid (the hash of a post) and action: reply (the default), edit
@@ -17,14 +17,20 @@
 #       not post), {WEB CURL} (no curl, or the server not reached) or
 #       {WEB POST} (the server did not take the post).
 #
-#   web::canPush URL USER PASSWORD PROJECTCODE
+#   web::canPush URL USER PASSWORD PROJECTCODE ?PROXY?
 #       whether USER may push to the repository at URL: a sync request
 #       with only a "push" card (nothing sent), logged in as on the
 #       website.  Throws {WEB LOGIN} and {WEB CURL} as above.
+#
+# PROXY: the HTTP proxy to go through, "" for none (as Fossil's own sync,
+# fossil::proxy); without it, curl's own choice ($https_proxy...).
 
-namespace eval web {}
+namespace eval web {
+    variable proxy -            ;# the proxy of the request ("-": curl's)
+}
 
-proc web::canPush {url user password projectCode} {
+proc web::canPush {url user password projectCode {proxy -}} {
+    set ::web::proxy $proxy
     set url [string trimright $url /]
     set dir [TempDir]
     try {
@@ -61,7 +67,8 @@ proc web::ServerCode {} {
 }
 
 
-proc web::forumPost {url user password fields} {
+proc web::forumPost {url user password fields {proxy -}} {
+    set ::web::proxy $proxy
     set url [string trimright $url /]
     set dir [TempDir]
     try {
@@ -133,6 +140,14 @@ proc web::Request {dir url form referer {body ""}} {
         append config "$opt = \"[Quote $value]\"\n"
     }
     if {$referer ne ""} { append config "referer = \"[Quote $referer]\"\n" }
+    # (In the configuration, not on the command line: a proxy's URL can
+    # hold a password.)
+    variable proxy
+    if {$proxy eq ""} {
+        append config "noproxy = \"*\"\n"
+    } elseif {$proxy ne "-"} {
+        append config "proxy = \"[Quote $proxy]\"\n"
+    }
     dict for {name value} $form {
         append config "data-urlencode = \"[Quote $name=$value]\"\n"
     }

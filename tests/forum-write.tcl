@@ -63,7 +63,17 @@ for {set i 0} {$i < 20} {incr i} {
 }
 check "the server is up ($url)" {$up}
 if {!$up} done
-set first [lindex [web::forumPost $url trusted secret2 {title "First thread" content "Hello." mimetype text/x-markdown}] 0]
+# The proxy: "" goes direct, also with a proxy in $http_proxy (as Fossil
+# with its proxy setting off); a proxy that does not answer: not reached.
+set saved [array get env http_proxy]
+set env(http_proxy) http://127.0.0.1:9
+check "an unanswering proxy: not reached" {[catch {web::forumPost $url trusted secret2 \
+    {title "Never" content "No." mimetype text/plain} http://127.0.0.1:9} msg opts]
+    && [lrange [dict get $opts -errorcode] 0 1] eq {WEB CURL}}
+set first [lindex [web::forumPost $url trusted secret2 {title "First thread" content "Hello." mimetype text/x-markdown} ""] 0]
+check "no proxy (\"\"): direct, \$http_proxy aside" {$first ne ""}
+unset env(http_proxy)
+array set env $saved
 set others [lindex [web::forumPost $url other secret4 [list fpid $first content "Not yours." mimetype text/plain]] 0]
 set R $T(tmp)/clone.fossil
 exec fossil clone $url $R
@@ -131,6 +141,7 @@ rename web::forumPost web::RealPost
 set ::webCalls 0
 proc web::forumPost {args} {
     incr ::webCalls
+    set ::webProxy [lindex $args 4]
     set ::busyDuring [list [tk busy status .forum.compose] [tk busy status .] \
         [tk busy cget .forum.compose -cursor]]
     web::RealPost {*}$args
@@ -147,6 +158,7 @@ set reply [lindex [sql "SELECT fpid FROM forumpost JOIN event ON objid=fpid
 check "pulled here as a reply ($reply)" {$reply ne ""}
 check "shown in the thread" {[winfo exists $d.reply$reply]}
 check "busy while sent: $::busyDuring" {$::busyDuring eq {1 1 watch}}
+check "the repository's proxy passed (none here): [list $::webProxy]" {$::webProxy eq [fossil::proxy -R $R] && $::webProxy eq ""}
 check "not busy after" {![tk busy status .]}
 check "public on the server" {![private [lindex [sql "SELECT uuid FROM blob WHERE rid=$reply" $R] 0 0]]}
 

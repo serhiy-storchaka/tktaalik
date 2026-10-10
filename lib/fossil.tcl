@@ -216,6 +216,13 @@ proc fossil::arg {text} {
 #                               nothing): KIND any, tag, color, date, name,
 #                               version (as fossil::arg)
 #   fossil::argOk NAME TITLE    fossil::arg with a message instead: 1 or 0
+#   fossil::setting NAME ?-dir DIR? ?-R REPO?
+#                               the setting NAME as set (local, global or
+#                               versioned; "" if not)
+#   fossil::proxy ?-dir DIR? ?-R REPO?
+#                               the HTTP proxy Fossil uses: as its proxy
+#                               setting says, or $http_proxy ("system", not
+#                               set); "" if none ("off")
 #   fossil::autosyncSetting ?-dir DIR? ?-R REPO?
 #                               the autosync setting as set ("" if not)
 #   fossil::autosync ?-dir DIR? ?-R REPO? ?SUBSYSTEM?
@@ -471,16 +478,33 @@ proc fossil::argOk {name title} {
     return 0
 }
 
-proc fossil::autosyncSetting {args} {
+proc fossil::setting {name args} {
     set opts [Options args {-dir -R}]
-    set cmd [list settings autosync --exact]
+    set cmd [list settings $name --exact]
     if {[dict exists $opts -R]} { lappend cmd -R [dict get $opts -R] }
     set dir [expr {[dict exists $opts -dir] ? [dict get $opts -dir] : ""}]
     lassign [run -dir $dir {*}$cmd] code out
     foreach line [split $out \n] {
-        if {[regexp {^autosync\s+(?:\([^)]*\)\s+)?(.*)$} $line -> value]} { return [string trim $value] }
+        if {[regexp {^(\S+)\s+(?:\([^)]*\)\s+)?(.*)$} $line -> key value] && $key eq $name} {
+            return [string trim $value]
+        }
     }
     return ""
+}
+
+proc fossil::autosyncSetting {args} {
+    setting autosync {*}$args
+}
+
+# As Fossil's url_enable_proxy: the setting, "system" (the default) for
+# $http_proxy (also for https), a false value for none.
+proc fossil::proxy {args} {
+    set value [setting proxy {*}$args]
+    if {$value in {"" system}} {
+        set value [expr {[info exists ::env(http_proxy)] ? [string trim $::env(http_proxy)] : ""}]
+    }
+    if {[string tolower $value] in {off no false 0}} { return "" }
+    return $value
 }
 
 proc fossil::autosync {args} {

@@ -568,7 +568,8 @@ proc tkforum::checkPush {} {
         variable passwords
         ui::busy {
             # (Logged in: the password kept for the session.)
-            if {![catch { set pushers($remote,$user) [web::canPush $remote $user $webPassword $project] }]} {
+            if {![catch { set pushers($remote,$user) [web::canPush $remote $user $webPassword $project \
+                [fossil::proxy -R $::tkforum::repo]] }]} {
                 set passwords($remote) $webPassword
             }
         }
@@ -637,7 +638,8 @@ proc tkforum::post {mode hash {how web}} {
         if {[mayPush] eq ""} {
             try {
                 ui::busy {
-                    set pushers($remote,$user) [web::canPush $remote $user $webPassword $project]
+                    set pushers($remote,$user) [web::canPush $remote $user $webPassword $project \
+                        [fossil::proxy -R $::tkforum::repo]]
                 }
                 set passwords($remote) $webPassword
             } trap {WEB LOGIN} msg {
@@ -698,7 +700,8 @@ proc tkforum::post {mode hash {how web}} {
         }
         try {
             ui::busy {
-                lassign [web::forumPost $remote $user $webPassword $fields] newHash held
+                lassign [web::forumPost $remote $user $webPassword $fields \
+                    [fossil::proxy -R $::tkforum::repo]] newHash held
             }
         } trap {WEB LOGIN} msg {
             ui::errorBox -parent $w -title Forum "Not logged in." $msg

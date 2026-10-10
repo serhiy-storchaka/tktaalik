@@ -125,7 +125,10 @@ and the password Fossil saved for that URL's user
 (when you let it remember the password for sync), if any.
 A password typed here is kept, once it has logged in, until Tktaalik is closed,
 never saved.
-Tktaalik logs in with `curl`.
+Tktaalik logs in with `curl`, through the same HTTP proxy as Fossil's own sync:
+the repository's `proxy` setting,
+or with `system` (the default) the `http_proxy` environment variable,
+also for HTTPS; `off` goes direct.
 
 A repository without a server URL
 (or with only a non-web remote) has only **Post via repository**:

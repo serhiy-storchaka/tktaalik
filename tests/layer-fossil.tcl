@@ -88,6 +88,22 @@ fossil::run -dir $D/co settings autosync off
 check "autosyncSetting -dir: [fossil::autosyncSetting -dir $D/co]" {[fossil::autosyncSetting -dir $D/co] eq "off" && [fossil::autosync -dir $D/co update] eq "off"}
 fossil::run settings autosync "pullonly,commit=off" -R $D/r.fossil
 check "autosync -R: [fossil::autosync -R $D/r.fossil commit]" {[fossil::autosync -R $D/r.fossil commit] eq "off" && [fossil::autosync -R $D/r.fossil update] eq "pullonly"}
+# The proxy, as Fossil chooses it: the setting; "system" or none for
+# $http_proxy (also for https); "off" for none.
+set saved [array get env http_proxy]
+unset -nocomplain env(http_proxy)
+check "proxy: none set, none" {[fossil::proxy -R $D/r.fossil] eq ""}
+set env(http_proxy) http://env.invalid:3128
+check "proxy: \$http_proxy: [fossil::proxy -R $D/r.fossil]" {[fossil::proxy -R $D/r.fossil] eq "http://env.invalid:3128"}
+fossil::run settings proxy system -R $D/r.fossil
+check "proxy: system: [fossil::proxy -R $D/r.fossil]" {[fossil::proxy -R $D/r.fossil] eq "http://env.invalid:3128"}
+fossil::run settings proxy http://set.invalid:8080 -R $D/r.fossil
+check "proxy: the setting: [fossil::proxy -R $D/r.fossil]" {[fossil::proxy -R $D/r.fossil] eq "http://set.invalid:8080"}
+fossil::run settings proxy off -R $D/r.fossil
+check "proxy: off: none" {[fossil::proxy -R $D/r.fossil] eq ""}
+fossil::run unset proxy -R $D/r.fossil
+unset env(http_proxy)
+array set env $saved
 set s "a b/[encoding convertfrom utf-8 \xc3\xa9]"
 check "urlquery: [fossil::urlquery $s]" {[fossil::urlquery $s] eq "a%20b%2F%C3%A9" && [fossil::urlquery $s /] eq "a%20b/%C3%A9"}
 check "urlDecode" {[fossil::urlDecode "a%20b+%2F%C3%A9"] eq "a b /[encoding convertfrom utf-8 \xc3\xa9]"}

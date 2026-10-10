@@ -138,6 +138,8 @@ It also reads the usual ones:
 `XDG_CONFIG_HOME` (else `HOME`) for where its settings go,
 `FOSSIL_HOME` to find Fossil's global settings as Fossil does,
 and `TMPDIR` (or `TEMP`, `TMP`) for temporary files.
+Posting to a forum through its web site goes through the proxy Fossil uses:
+`http_proxy`, or the `proxy` setting (see [Writing](forum.md#writing)).
 Fossil, run by Tktaalik,
 reads its own (`FOSSIL_USER`, `FOSSIL_HOME`, …) as usual.
 
