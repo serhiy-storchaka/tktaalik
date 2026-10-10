@@ -13,7 +13,7 @@ proc tk_chooseDirectory {args} { return $::saveDir }
 set ::browsed {}
 set ::viewed {}
 rename diffview::show realShow
-proc diffview::show {title text args} { lappend ::viewed [list $title $text] }
+proc diffview::show {title text args} { lappend ::viewed [list $title $text]; set ::viewedArgs $args }
 # Answer the next name dialog.
 proc answer {name {done ok}} {
     after 200 [list apply {{name done} {
@@ -81,6 +81,7 @@ $t selection set [list doc/readme.txt]; update
 check "one selected: View on" {[.uv.b.view instate !disabled] && [.uv.b.edit instate !disabled]}
 tkuv::view
 check "viewed: [lindex $::viewed end]" {[lindex $::viewed end] eq [list doc/readme.txt "Read me\n"]}
+check "kept above this window: $::viewedArgs" {$::viewedArgs eq {-transient .uv}}
 $t selection set [list releases/tk.zip]; update
 set ::boxes {}
 set n [llength $::viewed]
@@ -156,6 +157,39 @@ tkuv::remove; update
 check "removed: [$t children {}]" {[$t children {}] eq {releases/crlf.txt releases/release_notes.html}}
 check "in the repository: rows without a hash" {[fossil::sql $R "SELECT count(*) FROM unversioned WHERE hash IS NULL"] == 3}
 check "never synced" {[llength [fossil::sql $R "SELECT 1 FROM config WHERE name GLOB 'uv-sync*'"]] == 0}
+
+# Images: in a window of their own (kept above this one); one Tk cannot
+# show (a JPEG without Img): View disabled, a double-click opens it on the
+# server instead.
+set img [image create photo -width 30 -height 12]
+$img put red -to 0 0 30 12
+$img write $T(tmp)/in/shot.png -format png
+image delete $img
+set f [open $T(tmp)/in/photo.jpg wb]; puts -nonewline $f "\xff\xd8\xff\xe0 not really"; close $f
+fossil::run uv add $T(tmp)/in/shot.png --as pics/shot.png -R $R
+fossil::run uv add $T(tmp)/in/photo.jpg --as pics/photo.jpg -R $R
+tkuv::reload; update
+$t selection set [list pics/shot.png]; update
+check "an image: View on" {[.uv.b.view instate !disabled]}
+set n [llength $::viewed]
+tkuv::view; update
+set iw [imageview::windowFor .uv [lindex [dict get $tkuv::files pics/shot.png] 2]]
+check "the image window: [expr {[winfo exists $iw] ? [wm title $iw] : "none"}], above [expr {[winfo exists $iw] ? [wm transient $iw] : ""}]" \
+    {[winfo exists $iw] && [string match "pics/shot.png*30*12" [wm title $iw]] && [wm transient $iw] eq ".uv"
+     && [llength $::viewed] == $n}
+tkuv::view; update
+check "again: the same window" {[llength [lsearch -all -glob [winfo children .uv] .uv.image*]] == 1}
+destroy $iw
+$t selection set [list pics/photo.jpg]; update
+if {[catch {package require img::jpeg}]} {
+    check "a JPEG without Img: View disabled" {[.uv.b.view instate disabled]}
+    set ::browsed {}
+    tkuv::view; update
+    check "a double-click opens it on the server: [lindex $::browsed end]" \
+        {[string match "*/uv/pics/photo.jpg" [lindex $::browsed end]] && ![llength [lsearch -all -glob [winfo children .uv] .uv.image*]]}
+} else {
+    check "a JPEG with Img: View on" {[.uv.b.view instate !disabled]}
+}
 
 # Another repository: follows it.
 tktaalik::openPath $T(repo); update

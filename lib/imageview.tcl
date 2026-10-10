@@ -26,10 +26,16 @@
 #                               the attachment NAME) in a window of its
 #                               own (raised if it is open already); one
 #                               for each image, any number open
+#   imageview::showBytes KEY NAME DATA ?-parent W?
+#                               the same for an image of NAME given as
+#                               bytes (an unversioned file); KEY (its hash)
+#                               tells its window
 #   imageview::windowFor W SRC  the window of the artifact SRC (under W)
-#   imageview::window W TITLE IMAGE
+#   imageview::window W TITLE IMAGE ?OVER?
 #                               IMAGE (deleted with the window) in the
-#                               toplevel W: scrolled, or fitted to it;
+#                               toplevel W, kept above the window OVER
+#                               (default: the main one): scrolled, or
+#                               fitted to it;
 #                               zoomed with Ctrl+Wheel, Ctrl+plus and
 #                               Ctrl+minus (Ctrl+0: 100%), scrolled with
 #                               the wheel (Shift: sideways)
@@ -127,39 +133,70 @@ proc imageview::showArtifact {repo src name args} {
     set parent [expr {[dict exists $args -parent] ? [dict get $args -parent] : "."}]
     if {[kind $name] ne "image"} return
     set w [windowFor $parent $src]
-    if {[winfo exists $w]} {
-        wm deiconify $w
-        raise $w
-        focus $w.c
-        return
-    }
+    if {[Raise $w]} return
+    Show $w $name $parent [list fossil::run artifact -R $repo $src]
+}
+
+proc imageview::showBytes {key name data args} {
+    set parent [expr {[dict exists $args -parent] ? [dict get $args -parent] : "."}]
+    if {[kind $name] ne "image"} return
+    set w [windowFor $parent $key]
+    if {[Raise $w]} return
+    Show $w $name $parent [list imageview::WriteBytes $data]
+}
+
+# The window W if it is open: brought to the front (1), else 0.
+proc imageview::Raise {w} {
+    if {![winfo exists $w]} { return 0 }
+    wm deiconify $w
+    raise $w
+    focus $w.c
+    return 1
+}
+
+# The image NAME in the window W, kept above the toplevel of PARENT;
+# WRITE (a command) is called with a file to write it to, and returns
+# {exit-code message}.
+proc imageview::Show {w name parent write} {
     set dir [fossil::tempDir]
     try {
         # (Into a file: bytes as they are.)
         set path [file join $dir image]
-        lassign [fossil::run artifact -R $repo $src $path] code out
+        lassign [{*}$write $path] code out
         if {$code} {
-            ui::errorBox -parent $parent -title Attachment "Cannot read the attachment:" $out
+            ui::errorBox -parent $parent -title Image "Cannot read $name:" $out
             return
         }
         if {[catch {image create photo -format [lindex [Format $name] 0] -file $path} image]} {
-            ui::errorBox -parent $parent -title Attachment "$name cannot be shown." $image
+            ui::errorBox -parent $parent -title Image "$name cannot be shown." $image
             return
         }
     } finally {
         file delete -force $dir
     }
-    window $w "$name \u2014 [image width $image] \u00d7 [image height $image]" $image
+    window $w "$name \u2014 [image width $image] \u00d7 [image height $image]" $image \
+        [winfo toplevel $parent]
 }
 
-proc imageview::window {w title image} {
+proc imageview::WriteBytes {data path} {
+    if {[catch {
+        set f [open $path wb]
+        puts -nonewline $f $data
+        close $f
+    } msg]} {
+        return [list 1 $msg]
+    }
+    list 0 ""
+}
+
+proc imageview::window {w title image {over .}} {
     variable fit
     variable shown
     variable zoom
     destroy $w
     toplevel $w
     wm title $w $title
-    wm transient $w .
+    wm transient $w $over
     set shown($w) $image
     set fit($w) 0
     set zoom($w) {1 1}

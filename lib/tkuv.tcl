@@ -172,6 +172,8 @@ proc tkuv::selected {} {
 proc tkuv::updateButtons {} {
     set n [llength [selected]]
     foreach b {view edit rename} { .uv.b.$b state [expr {$n == 1 ? "!disabled" : "disabled"}] }
+    # (An image that cannot be shown here: not viewed.)
+    if {$n == 1 && [imageview::kind [lindex [selected] 0]] eq "unsupported"} { .uv.b.view state disabled }
     foreach b {export touch remove} { .uv.b.$b state [expr {$n ? "!disabled" : "disabled"}] }
     variable remote
     .uv.b.browse state [expr {$n == 1 && $remote ne "" ? "!disabled" : "disabled"}]
@@ -230,10 +232,22 @@ proc tkuv::textOf {name} {
     encoding convertfrom utf-8 $data
 }
 
+# The file selected: an image in a window of its own, a text in the diff
+# viewer, both kept above this window; an image that cannot be shown (View
+# is disabled) on the server.
 proc tkuv::view {} {
+    variable files
     set name [lindex [selected] 0]
     if {[llength [selected]] != 1} return
-    diffview::show $name [textOf $name]
+    switch -- [imageview::kind $name] {
+        image {
+            imageview::showBytes [lindex [dict get $files $name] 2] $name [content $name] -parent .uv
+        }
+        unsupported {
+            if {[.uv.b.browse instate disabled]} { bell } else { .uv.b.browse invoke }
+        }
+        default { diffview::show $name [textOf $name] -transient .uv }
+    }
 }
 
 # Export: one file to a file, several to a folder.

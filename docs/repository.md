@@ -172,7 +172,7 @@ or a pattern like `*.zip` or `doc/*`. Several files can be selected
 
 | Button | What it does |
 |---|---|
-| View (or double-click, Return) | a text file, in a viewer |
+| View (or double-click, Return) | a text file, in a viewer; an image in a window of its own, as for [attached images](tickets.md#images) (zoom, several open); greyed out for an image that cannot be shown (without Img, …), which a double-click opens on the server |
 | Export… | one file to a file, several to a folder (names with folders keep them) |
 | Edit… | edit a text file and store it again (line ends kept) |
 | Add… | add files: one under a name you choose, several under their own names in an optional folder; a file with an existing name replaces it |
