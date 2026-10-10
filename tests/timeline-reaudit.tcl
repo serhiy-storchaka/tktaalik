@@ -165,6 +165,24 @@ update
 set g .graveyard.f.t
 set new [lindex [$g children {}] 0]
 check "graveyard: the purge, newest first, its artifacts" {[llength [$g children {}]] == $before + 1 && [$g selection] eq $new && [lsearch -glob [lmap i [$g children $new] {$g set $i what}] "[string range $A 0 15]*"] >= 0}
+# Its context menu: the buttons; on an artifact also its hash.
+proc tk_popup {m args} { set ::posted $m }
+proc rclick {item} {
+    $::g see $item; update
+    lassign [$::g bbox $item] x y
+    set ::posted ""
+    event generate $::g <ButtonPress-3> -x [expr {$x + 5}] -y [expr {$y + 3}] -rootx 10 -rooty 10; update
+    set m $::posted
+    lmap i [lseq0 [$m index end]] {expr {[$m type $i] eq "separator" ? "--" : [$m entrycget $i -label]}}
+}
+proc lseq0 {n} { set r {}; for {set i 0} {$i <= $n} {incr i} { lappend r $i }; return $r }
+check "graveyard: the menu of a purge: [rclick $new]" {[rclick $new] eq "Undo\u2026 Obliterate\u2026"}
+$g item $new -open 1; update
+set art [lindex [$g children $new] 0]
+check "graveyard: of an artifact: [rclick $art]" {[rclick $art] eq "Undo\u2026 Obliterate\u2026 -- {Copy hash}"}
+$::posted invoke "Copy hash"
+check "the hash copied: [clipboard get]" {[clipboard get] eq [lindex [$g set $art what] 0] && [string length [clipboard get]] >= 16}
+$g selection set [list $new]; update
 histops::graveUndo $R tktimeline::changedHere
 check "undone: back" {[ridOf $A] ne "" && [llength [sql "SELECT 1 FROM event WHERE objid=[ridOf $A]"]]}
 check "graveyard as before" {[llength [$g children {}]] == $before && ![$g exists $new]}

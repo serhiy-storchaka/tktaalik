@@ -78,6 +78,18 @@ set want [lsort [lmap r [fossil::sql $T(repo) "SELECT DISTINCT c.uuid FROM mlink
     WHERE m.fid=(SELECT rid FROM blob WHERE uuid=(SELECT uuid FROM files_of_checkin('core-9-0-2') WHERE filename='doc/wm.n'))"] {lindex $r 0}]]
 check "found in [llength [$ft children {}]] check-ins (committed in [llength $want])" {[lsort [$ft children {}]] eq $want && [llength $want]}
 set ci [lindex [$ft children {}] 0]
+# Its context menu: the button (in bold: the double-click), the Timeline,
+# copies.
+$ft see $ci; update
+lassign [$ft bbox $ci] x y
+set ::posted ""
+event generate $ft <ButtonPress-3> -x [expr {$x + 5}] -y [expr {$y + 3}] -rootx 10 -rooty 10; update
+set m $::posted
+set labels [lmap i [lseq0 [$m index end]] {expr {[$m type $i] eq "separator" ? "--" : [$m entrycget $i -label]}}]
+check "found: its menu: $labels" {$labels eq {{Show it} {Show in Timeline} -- {Copy check-in} {Copy file name}}
+    && [$m entrycget 0 -font] ne ""}
+$m invoke "Copy check-in"
+check "copied: [clipboard get]" {[clipboard get] eq $ci}
 tkfiles::openFound $ci; update
 check "shown: $tkfiles::version, $tkfiles::file" {$tkfiles::file eq "doc/wm.n" && [.files.main.right.nb select] eq ".files.main.right.nb.content"}
 set f [open $T(tmp)/none.txt w]; puts $f "not in any version, zzq"; close $f

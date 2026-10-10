@@ -513,6 +513,7 @@ proc histops::graveyard {repo {done ""}} {
     grid columnconfigure $w.f 0 -weight 1
     grid rowconfigure $w.f 1 -weight 1
     bind $w <Escape> [list destroy $w]
+    popup::attach $w.f.t histops::graveMenu
     wm geometry $w 760x420
     graveFill $repo
 }
@@ -547,6 +548,17 @@ proc histops::graveSelected {} {
     if {$i ne "" && [$t parent $i] ne ""} { set i [$t parent $i] }
     if {![regexp {^p(\d+)$} $i -> id]} { return "" }
     return $id
+}
+
+# The context menu of a purge or one of its artifacts: the buttons (for
+# its purge), the artifact's hash.
+proc histops::graveMenu {m item} {
+    foreach b {undo obl} { popup::button $m .graveyard.f.b.$b }
+    set t .graveyard.f.t
+    if {[$t parent $item] ne ""} {
+        popup::separator $m
+        popup::copy $m "Copy hash" [lindex [$t set $item what] 0]
+    }
 }
 
 proc histops::graveUndo {repo done} {

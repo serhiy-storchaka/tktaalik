@@ -798,6 +798,11 @@ proc tkcommit::mergeInfo {} {
         $w.t tag configure current -background gray90
         bind $w.t <1> {tkcommit::mergeLine [%W index @%x,%y]}
         bind $w.t <Double-1> {tkcommit::mergeLine [%W index @%x,%y]; tkcommit::threeWaySelected}
+        bind $w.t <ButtonPress-3> {tkcommit::mergeMenu %x %y %X %Y}
+        if {[tk windowingsystem] eq "aqua"} {
+            bind $w.t <ButtonPress-2> {tkcommit::mergeMenu %x %y %X %Y}
+            bind $w.t <Control-ButtonPress-1> {tkcommit::mergeMenu %x %y %X %Y}
+        }
         grid $w.bar - -sticky we
         grid $w.t $w.y -sticky news
         grid columnconfigure $w 0 -weight 1
@@ -981,6 +986,23 @@ proc tkcommit::mergeLine {index} {
         set mergeFile [string trim $path]
         $t tag add current "$index linestart" "$index lineend + 1 char"
     }
+}
+
+# The context menu of a line of the merge details (a file): its three-way
+# view, its name.
+proc tkcommit::mergeMenu {x y X Y} {
+    variable mergeFile
+    set mergeFile ""
+    mergeLine [.commit.merge.t index @$x,$y]
+    set m .commit.merge.ctx
+    destroy $m
+    menu $m -tearoff 0
+    $m add command -label "Three-way view" -command tkcommit::threeWaySelected \
+        -state [expr {$mergeFile eq "" ? "disabled" : "normal"}]
+    $m add separator
+    popup::copy $m "Copy file name" $mergeFile
+    popup::default $m "Three-way view"
+    tk_popup $m $X $Y
 }
 
 proc tkcommit::threeWaySelected {} {

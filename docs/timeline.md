@@ -467,6 +467,8 @@ each purge with its artifacts (`fossil purge list -l`):
 **Undo…** brings a purge back (`fossil purge undo`),
 **Obliterate…** removes it for good (`fossil purge obliterate`),
 after a confirmation.
+The context menu of a purge has them too;
+that of an artifact also **Copy hash**.
 
 ## Pull
 

@@ -579,6 +579,7 @@ proc tkfiles::findLocal {{path ""}} {
         pack $w.f -fill both -expand 1 -padx 6
         bind $w.f.t <Double-1> {tkfiles::openFound [.files.found.f.t identify item %x %y]}
         bind $w.f.t <Return> {tkfiles::openFound [lindex [.files.found.f.t selection] 0]}
+        popup::attach $w.f.t tkfiles::foundMenu
     }
     wm title $w "Found in history: [file tail $path]"
     raise $w
@@ -614,6 +615,16 @@ proc tkfiles::findLocal {{path ""}} {
 }
 
 # A check-in found: the Files tab at it, the file's content.
+# The context menu of a check-in found: its button, the Timeline, copies.
+proc tkfiles::foundMenu {m ci} {
+    popup::button $m .files.found.b.open
+    $m add command -label "Show in Timeline" -command [list goto::checkin $ci]
+    popup::separator $m
+    popup::copy $m "Copy check-in" $ci
+    popup::copy $m "Copy file name" [.files.found.f.t set $ci name]
+    popup::default $m [.files.found.b.open cget -text]
+}
+
 proc tkfiles::openFound {ci} {
     set t .files.found.f.t
     if {$ci eq "" || ![$t exists $ci]} return

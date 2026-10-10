@@ -209,6 +209,8 @@ with the name the file had in each: the date, the check-in, the user,
 the name and the comment.
 Double-click one (or **Show it**) for the Files tab at that check-in,
 with the file's content.
+Its context menu also has **Show in Timeline**,
+**Copy check-in** and **Copy file name**.
 If the content is in no version of the repository, the window says so.
 
 ## Archives

@@ -476,6 +476,7 @@ the Commit tab:
 (`fossil merge-info`, in Fossil 2.26 or newer), conflicts in red.
 **All files the merge changed**
 (`-a`) also lists the files the merge changed without conflicts.
+Right-click a file's line for **Three-way view** and **Copy file name**.
 Click a file's line and **Three-way view** (or double-click it):
 four columns of the file, the baseline (the common ancestor),
 the checkout's version (local), the version merged in,

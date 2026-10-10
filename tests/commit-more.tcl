@@ -214,6 +214,27 @@ check "merged (dry run first): $st, merging $tkcommit::merging, [string range $:
 if {[fossil::hasCommand merge-info]} {
     tkcommit::mergeInfo; update
     set i [.commit.merge.t search zzfork.txt 1.0]
+    # Its context menu: on a file, its three-way view (in bold: the
+    # double-click) and its name; on another line, greyed out.
+    proc tk_popup {m args} { set ::posted $m }
+    proc mergeMenuAt {index} {
+        set ::posted ""
+        .commit.merge.t see $index; update
+        lassign [.commit.merge.t bbox $index] x y
+        event generate .commit.merge.t <ButtonPress-3> -x [expr {$x + 2}] -y [expr {$y + 2}] -rootx 10 -rooty 10
+        update
+        set m $::posted
+        list [$m entrycget "Three-way view" -state] [$m entrycget "Copy file name" -state] [$m entrycget 0 -font]
+    }
+    lassign [mergeMenuAt $i] three copy bold
+    check "merge details: the menu of a file: $three $copy, [expr {$bold ne "" ? "bold" : "plain"}]" \
+        {$three eq "normal" && $copy eq "normal" && $bold ne "" && $tkcommit::mergeFile eq "zzfork.txt"}
+    .commit.merge.ctx invoke "Copy file name"
+    check "the name copied: [clipboard get]" {[clipboard get] eq "zzfork.txt"}
+    set other [.commit.merge.t search -regexp {^\s*$|^[^A-Z ]} 1.0]
+    if {$other eq ""} { set other "end - 1 char" }
+    lassign [mergeMenuAt $other] three copy
+    check "on a line that is not a file: [list $three $copy]" {$three eq "disabled" && $copy eq "disabled"}
     tkcommit::mergeLine $i
     tkcommit::threeWaySelected; update
     set heads [lmap n {0 1 2 3} {.commit.threeway.f.h$n cget -text}]
