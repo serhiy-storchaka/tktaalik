@@ -720,7 +720,7 @@ proc tkforum::post {mode hash {how web}} {
             return
         }
         ui::busy {
-            lassign [fossil::run pull -R $repo] code out
+            lassign [fossil::runEvents pull -R $repo] code out
         }
         if {$code} {
             ui::errorBox -title Forum "Sent, but the pull failed." [string trim $out]

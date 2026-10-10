@@ -126,14 +126,31 @@ proc ui::buttons {frame ok okScript cancelScript} {
 # over all of each, text and entries too, and clicks ignored until done.
 #
 #   ui::busy SCRIPT         SCRIPT run in the caller with all the windows
-#                           shown busy (its return, break or error passed on)
+#                           shown busy, the keys ignored too (its return,
+#                           break or error passed on)
 #   ui::busyHold ?WINDOWS?  WINDOWS (default: the main window and the other
 #                           toplevels shown) busy: those held, for
 #   ui::busyRelease HELD    after (for what goes on in the background)
 proc ui::busy {script} {
     set held [busyHold]
+    # The keys too: SCRIPT may handle events while it waits (web::), and a
+    # Return must not post twice.  They go to the busy window, which has
+    # no bindings (not even those of its toplevel).
+    set focus [focus]
+    set busyWin ""
+    if {$focus ne "" && [set top [winfo toplevel $focus]] in $held} {
+        set busyWin [expr {$top eq "." ? "._Busy" : "$top._Busy"}]
+        if {[winfo exists $busyWin]} {
+            bindtags $busyWin [list $busyWin]
+            focus $busyWin
+        } else {
+            set busyWin ""
+        }
+    }
     set code [catch {uplevel 1 $script} result opts]
     busyRelease $held
+    # (Released, the busy window passes the focus to its toplevel.)
+    if {$busyWin ne "" && [winfo exists $focus] && [focus] in [list $busyWin $top ""]} { focus $focus }
     if {$code == 1} {
         dict incr opts -level
         return -options $opts $result

@@ -197,6 +197,9 @@ proc fossil::arg {text} {
 #                               CMD of -onOutput gets each chunk read;
 #                               CMD of -onDone gets {code text stopped msg}
 #                               (code 0 or 1; stopped 1 if fossil::stop)
+#   fossil::runEvents ?-dir DIR? ARG...
+#                               as fossil::run (stdin empty), the events
+#                               handled while it runs: {exit-code output}
 #   fossil::stop HANDLE         its processes killed
 #   fossil::stopAll             all of them (on quit)
 #   fossil::running ?HANDLE?    the handles running, or whether HANDLE is
@@ -238,6 +241,7 @@ proc fossil::arg {text} {
 namespace eval fossil {
     variable jobs {}            ;# handle -> dict {onOutput onDone text stopped}
     variable windowJobs         ;# array: window -> handle
+    variable waited             ;# array: fossil::runEvents's results, by number
 }
 
 proc fossil::Options {argsVar names} {
@@ -334,6 +338,22 @@ proc fossil::JobRead {chan} {
     if {$onDone ne ""} {
         uplevel #0 [list {*}$onDone $code [dict get $job text] [dict get $job stopped] $msg]
     }
+}
+
+# A command that talks to a server: on Windows a Fossil server on the same
+# desktop waits seconds on a login for windows that do not answer.
+proc fossil::runEvents {args} {
+    variable waited
+    set id [incr waited(id)]
+    start -onDone [list fossil::Waited $id] {*}$args
+    vwait ::fossil::waited($id)
+    lassign $waited($id) code text
+    unset waited($id)
+    list $code [regsub {\n$} $text ""]
+}
+
+proc fossil::Waited {id code text stopped msg} {
+    set ::fossil::waited($id) [list $code $text]
 }
 
 proc fossil::stop {handle} {

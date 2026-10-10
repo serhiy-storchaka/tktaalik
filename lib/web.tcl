@@ -27,6 +27,7 @@
 
 namespace eval web {
     variable proxy -            ;# the proxy of the request ("-": curl's)
+    variable reading            ;# array: curl's output so far, by its channel
 }
 
 proc web::canPush {url user password projectCode {proxy -}} {
@@ -160,7 +161,17 @@ proc web::Request {dir url form referer {body ""}} {
     fconfigure $chan -encoding utf-8 -translation lf
     puts -nonewline $chan $config
     close $chan write
-    set out [read $chan]
+    # Read with the events handled: on Windows a Fossil server took seconds
+    # more for a login while the application's windows did not answer.
+    variable reading
+    set reading($chan) ""
+    fconfigure $chan -blocking 0
+    fileevent $chan readable [list web::Read $chan]
+    vwait ::web::reading($chan,done)
+    set out $reading($chan)
+    unset reading($chan) reading($chan,done)
+    # (Blocking again: a non-blocking close does not report the exit.)
+    fconfigure $chan -blocking 1
     if {[catch {close $chan}]} {
         throw {WEB CURL} "The server was not reached: [string trim [regsub {\d{3} ?\S*\s*$} $out ""]]"
     }
@@ -168,6 +179,15 @@ proc web::Request {dir url form referer {body ""}} {
         throw {WEB CURL} "curl: [string trim $out]"
     }
     list $code $to
+}
+
+proc web::Read {chan} {
+    variable reading
+    append reading($chan) [read $chan]
+    if {[eof $chan]} {
+        fileevent $chan readable {}
+        set reading($chan,done) 1
+    }
 }
 
 proc web::Quote {text} {
