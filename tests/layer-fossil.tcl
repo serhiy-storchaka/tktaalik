@@ -54,7 +54,9 @@ check "stopAll: all gone" {![llength [fossil::running]] && ![file exists /proc/[
 # runWindow.
 set w [fossil::runWindow -w .lr -dir $D/co -onDone {::apply {{code text} { set ::win $code }}} Info info]
 update
-check "runWindow: the command shown" {[string match "fossil info*" [$w.t get 1.0 2.0]] && [fossil::windowJob $w] ne ""}
+# (Running, or already done when the machine is fast or busy.)
+check "runWindow: the command shown" {[string match "fossil info*" [$w.t get 1.0 2.0]]
+    && ([fossil::windowJob $w] ne "" || [info exists ::win])}
 waitUntil {[info exists ::win]} 10000
 check "runWindow: done ([.lr.b.status cget -text])" {$::win == 0 && [.lr.b.status cget -text] eq "Done" && [fossil::windowJob $w] eq "" && [string match "*checkout:*" [.lr.t get 1.0 end]]}
 unset ::win
