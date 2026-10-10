@@ -125,6 +125,17 @@ Unticking all the hunks of a file unchecks it;
 ticking a hunk of an unchecked file checks it with only that hunk.
 Checking or unchecking the file itself takes the whole file again.
 
+A hunk can hold several changes with a few unchanged lines between them.
+Such a hunk has a ✂ after its `@@` line:
+click it (or put the cursor in the hunk and press S)
+to split the hunk into its changes, each with a check box of its own
+at its first line.
+The hunk's own box then ticks or unticks all of them,
+and shows ▣ when only some are ticked.
+Space ticks or unticks the change the cursor is in.
+Splitting is forgotten once the file is committed, stashed,
+or checked or unchecked as a whole.
+
 **Commit** then asks first,
 naming how many changes of each such file are committed.
 Tktaalik:

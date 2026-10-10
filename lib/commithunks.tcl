@@ -5,9 +5,16 @@
 # kept meanwhile, and dropped once the files are back.
 
 namespace eval tkcommit {
-    variable hunksOff           ;# array: path -> keys of the hunks unticked
+    variable hunksOff           ;# array: path -> keys of the units unticked
+    variable hunksSplit         ;# array: path -> keys of the hunks split
     variable shownHunks {}      ;# the hunks of the diff shown (their dicts)
+    variable shownDiff ""       ;# that diff, as Fossil gave it
 }
+
+# A unit of choice is a hunk, or a part of one (a run of changes) once the
+# hunk is split: its dict (as hunks::parse or hunks::parts give them), with
+# hunk, the number of its hunk, and part, its number in it ("" for a whole
+# hunk).
 
 # Whether the changes of PATH can be chosen hunk by hunk: an edited file,
 # no merge in progress (Fossil commits all then), and the plain diff
@@ -37,25 +44,75 @@ proc tkcommit::partly {path} {
     expr {$checked($path) && [info exists hunksOff($path)] && [llength $hunksOff($path)]}
 }
 
+# The units of PATH for its HUNKS.
+proc tkcommit::units {path hunks} {
+    variable hunksSplit
+    set split [expr {[info exists hunksSplit($path)] ? $hunksSplit($path) : {}}]
+    set result {}
+    set n 0
+    foreach h $hunks {
+        set parts [hunks::parts $h]
+        if {[dict get $h key] in $split && [llength $parts] > 1} {
+            set p 0
+            foreach part $parts {
+                lappend result [dict merge $part [dict create hunk $n part $p]]
+                incr p
+            }
+        } else {
+            lappend result [dict merge $h [dict create hunk $n part ""]]
+        }
+        incr n
+    }
+    return $result
+}
+
 # The diff of PATH (OUT, as "fossil diff" gave it) in the text D, with a
-# check box on each hunk.
+# check box on each hunk, and on each part of a hunk split; a hunk of
+# several runs of changes not split yet has a mark to split it.
 proc tkcommit::showHunks {d path out} {
     variable shownHunks
+    variable shownDiff
     variable hunksOff
+    variable hunksSplit
     set shownHunks [hunks::parse $out]
-    # (Choices of hunks the file no longer has are forgotten.)
-    if {[info exists hunksOff($path)]} {
-        set keys [lmap h $shownHunks { dict get $h key }]
-        set hunksOff($path) [lmap k $hunksOff($path) { if {$k ni $keys} continue; set k }]
+    set shownDiff $out
+    # (Choices the file no longer has are forgotten.)
+    set hkeys [lmap h $shownHunks { dict get $h key }]
+    if {[info exists hunksSplit($path)]} {
+        set hunksSplit($path) [lmap k $hunksSplit($path) { if {$k ni $hkeys} continue; set k }]
     }
-    set starts [lmap h $shownHunks { dict get $h line }]
+    set units [units $path $shownHunks]
+    set ukeys [lmap u $units { dict get $u key }]
+    if {[info exists hunksOff($path)]} {
+        set hunksOff($path) [lmap k $hunksOff($path) { if {$k ni $ukeys} continue; set k }]
+    }
+    # Where the boxes go: the line of each hunk, and of each part.
+    set at {}
+    foreach u $units {
+        dict lappend at [dict get $u line] $u
+    }
+    foreach h $shownHunks n [lsearch -all $shownHunks *] {
+        if {![dict exists $at [dict get $h line]]} { dict set at [dict get $h line] [list [dict create hunk $n part "" header 1]] }
+    }
     set n -1
+    set p ""
     set i 0
     foreach line [split $out \n] {
-        if {[set k [lsearch -exact $starts $i]] >= 0} {
-            set n $k
-            set on [hunkOn $path [dict get [lindex $shownHunks $n] key]]
-            $d insert end [expr {$on ? "\u2611" : "\u2610"}] [list box hk$n] " " hk$n
+        set tags {}
+        if {[dict exists $at $i]} {
+            set u [lindex [dict get $at $i] 0]
+            set n [dict get $u hunk]
+            if {[dict get $u part] eq "" || [dict exists $u header]} {
+                # A hunk's header: its box (of all its parts, if split).
+                set p ""
+                $d insert end [Box [hunkState $path $n]] [list box hbox$n hk$n] " " hk$n
+            } else {
+                set p [dict get $u part]
+                $d insert end [Box [expr {[hunkOn $path [dict get $u key]] ? "on" : "off"}]] \
+                    [list box pbox hk$n hp$n.$p] " " [list hk$n hp$n.$p]
+            }
+        } elseif {$p ne "" && [string index $line 0] ni {- + \\}} {
+            set p ""
         }
         switch -glob -- $line {
             "+++ *" - "--- *" - "Index: *" - "=====*" { set tag meta }
@@ -64,68 +121,156 @@ proc tkcommit::showHunks {d path out} {
             "-*"    { set tag removed }
             default { set tag "" }
         }
-        $d insert end $line\n [concat $tag [expr {$n >= 0 ? "hk$n" : ""}]]
+        if {$n >= 0} { lappend tags hk$n }
+        if {$p ne ""} { lappend tags hp$n.$p }
+        $d insert end $line [concat $tag $tags]
+        if {$tag eq "hunk" && [llength [hunks::parts [lindex $shownHunks $n]]] > 1
+                && !([info exists hunksSplit($path)] && [dict get [lindex $shownHunks $n] key] in $hunksSplit($path))} {
+            $d insert end "  " hk$n "\u2702" [list split split$n hk$n]
+        }
+        $d insert end \n [concat $tag $tags]
         incr i
     }
-    for {set k 0} {$k < [llength $shownHunks]} {incr k} { greyHunk $d $path $k }
-}
-
-proc tkcommit::greyHunk {d path k} {
-    variable shownHunks
-    set range [$d tag ranges hk$k]
-    if {![llength $range]} return
-    if {[hunkOn $path [dict get [lindex $shownHunks $k] key]]} {
-        $d tag remove off {*}$range
-    } else {
-        $d tag add off {*}$range
+    # Greyed: the units unticked.
+    foreach u $units {
+        set tag [expr {[dict get $u part] eq "" ? "hk[dict get $u hunk]" : "hp[dict get $u hunk].[dict get $u part]"}]
+        if {![hunkOn $path [dict get $u key]]} {
+            set range [$d tag ranges $tag]
+            if {[llength $range]} { $d tag add off {*}$range }
+        }
     }
 }
 
-# Tick or untick the hunk K of the diff shown (a click on its box, Space).
-proc tkcommit::toggleHunk {k} {
+proc tkcommit::Box {state} {
+    dict get {on \u2611 off \u2610 some \u25a3} $state
+}
+
+# The state of the hunk N of the diff shown: on, off, or some (of its
+# parts).
+proc tkcommit::hunkState {path n} {
+    variable shownHunks
+    set keys [lmap u [units $path $shownHunks] {
+        if {[dict get $u hunk] != $n} continue
+        dict get $u key
+    }]
+    set on [llength [lmap k $keys { if {![hunkOn $path $k]} continue; set k }]]
+    expr {$on == [llength $keys] ? "on" : $on == 0 ? "off" : "some"}
+}
+
+# Tick or untick the units KEYS of the file shown together: all on if one
+# is off, else all off.
+proc tkcommit::toggleUnits {keys} {
     variable current
     variable shownHunks
     variable hunksOff
     variable checked
-    if {$current eq "" || $k < 0 || $k >= [llength $shownHunks]} return
     set path $current
-    set keys [lmap h $shownHunks { dict get $h key }]
-    set key [lindex $keys $k]
+    if {$path eq "" || ![llength $keys]} return
+    set all [lmap u [units $path $shownHunks] { dict get $u key }]
     if {![info exists hunksOff($path)]} { set hunksOff($path) {} }
     if {!$checked($path)} {
-        # A file not checked: only this hunk now.
+        # A file not checked: only these now.
         set checked($path) 1
-        set hunksOff($path) [lsearch -all -inline -exact -not $keys $key]
-    } elseif {$key in $hunksOff($path)} {
-        set hunksOff($path) [lsearch -all -inline -exact -not $hunksOff($path) $key]
+        set hunksOff($path) [lmap k $all { if {$k in $keys} continue; set k }]
+    } elseif {[llength [lmap k $keys { if {[hunkOn $path $k]} continue; set k }]]} {
+        set hunksOff($path) [lmap k $hunksOff($path) { if {$k in $keys} continue; set k }]
     } else {
-        lappend hunksOff($path) $key
-        # None left: the file not checked (all its hunks, if checked again).
-        if {![llength [lmap x $keys { if {$x in $hunksOff($path)} continue; set x }]]} {
+        lappend hunksOff($path) {*}$keys
+        # None left: the file not checked (all of it, if checked again).
+        if {![llength [lmap k $all { if {$k in $hunksOff($path)} continue; set k }]]} {
             set checked($path) 0
             set hunksOff($path) {}
         }
     }
-    set d .commit.main.diff.text
-    $d configure -state normal
-    for {set i 0} {$i < [llength $keys]} {incr i} {
-        set at [lindex [$d tag ranges hk$i] 0]
-        if {$at eq ""} continue
-        $d replace $at "$at + 1 char" [expr {[hunkOn $path [lindex $keys $i]] ? "\u2611" : "\u2610"}] \
-            [list box hk$i]
-        greyHunk $d $path $i
-    }
-    $d configure -state disabled
+    Redraw
     .commit.main.files.t set $path check [mark $path]
+    updateStatus
+}
+
+# The diff shown again (its boxes), where it was scrolled to.
+proc tkcommit::Redraw {} {
+    variable current
+    variable shownDiff
+    set d .commit.main.diff.text
+    set top [lindex [$d yview] 0]
+    set left [lindex [$d xview] 0]
+    set insert [$d index insert]
+    $d configure -state normal
+    $d delete 1.0 end
+    showHunks $d $current $shownDiff
+    $d configure -state disabled
+    $d yview moveto $top
+    $d xview moveto $left
+    $d mark set insert $insert
+}
+
+# Tick or untick the hunk K of the diff shown (all its parts if split).
+proc tkcommit::toggleHunk {k} {
+    variable current
+    variable shownHunks
+    if {$current eq "" || $k < 0 || $k >= [llength $shownHunks]} return
+    toggleUnits [lmap u [units $current $shownHunks] {
+        if {[dict get $u hunk] != $k} continue
+        dict get $u key
+    }]
+}
+
+# The box or the line at IDX (a click on a box, Space): its part if the
+# hunk is split and IDX is in one, else its hunk.
+proc tkcommit::toggleAt {idx} {
+    variable current
+    variable shownHunks
+    lassign [unitAt $idx] k p
+    if {$k < 0} return
+    if {$p eq ""} {
+        toggleHunk $k
+    } else {
+        toggleUnits [lmap u [units $current $shownHunks] {
+            if {[dict get $u hunk] != $k || [dict get $u part] ne $p} continue
+            dict get $u key
+        }]
+    }
+}
+
+# Split the hunk at IDX into its parts (a click on its mark, the key S),
+# each ticked as the hunk was.
+proc tkcommit::splitAt {idx} {
+    variable current
+    variable shownHunks
+    variable hunksSplit
+    variable hunksOff
+    set k [hunkAt $idx]
+    if {$current eq "" || $k < 0} return
+    set path $current
+    set h [lindex $shownHunks $k]
+    set parts [hunks::parts $h]
+    if {[llength $parts] < 2} { bell; return }
+    if {![info exists hunksSplit($path)]} { set hunksSplit($path) {} }
+    if {[dict get $h key] in $hunksSplit($path)} return
+    lappend hunksSplit($path) [dict get $h key]
+    if {[info exists hunksOff($path)] && [dict get $h key] in $hunksOff($path)} {
+        set hunksOff($path) [lmap k2 $hunksOff($path) { if {$k2 eq [dict get $h key]} continue; set k2 }]
+        lappend hunksOff($path) {*}[lmap part $parts { dict get $part key }]
+    }
+    Redraw
     updateStatus
 }
 
 # The hunk at the index IDX of the diff text: its number, -1 if none.
 proc tkcommit::hunkAt {idx} {
+    lindex [unitAt $idx] 0
+}
+
+# The hunk and part at IDX: {number part}, part "" if not in one; -1 if
+# not in a hunk.
+proc tkcommit::unitAt {idx} {
+    set k -1
+    set p ""
     foreach tag [.commit.main.diff.text tag names $idx] {
-        if {[regexp {^hk(\d+)$} $tag -> k]} { return $k }
+        if {[regexp {^hk(\d+)$} $tag -> n]} { set k $n }
+        if {[regexp {^hp\d+\.(\d+)$} $tag -> q]} { set p $q }
     }
-    return -1
+    list $k $p
 }
 
 # -------------------------------------------------------- committing part
@@ -148,7 +293,8 @@ proc tkcommit::partialFiles {paths} {
         }
         lassign [fossil diff -i -N {*}[diffArgs] [filearg $path]] code out
         if {$code} { error "fossil diff failed for $path: $out" }
-        set hunks [hunks::parse $out]
+        # (The hunks, or their parts where split.)
+        set hunks [units $path [hunks::parse $out]]
         set keys [lmap h $hunks { dict get $h key }]
         set ticked [lmap k $keys { if {![hunkOn $path $k]} continue; set k }]
         set others [lmap k $keys { if {[hunkOn $path $k]} continue; set k }]
@@ -265,7 +411,7 @@ proc tkcommit::stashChecked {} {
         lassign [fossil {*}$args] code out
     }
     if {$code} { ui::errorBox -title Stash "fossil stash save failed:" $out }
-    foreach p $parts { unset -nocomplain ::tkcommit::hunksOff([dict get $p path]) }
+    foreach p $parts { unset -nocomplain ::tkcommit::hunksOff([dict get $p path]) ::tkcommit::hunksSplit([dict get $p path]) }
     refresh
     set ::tkcommit::status [expr {$code ? "Not stashed" : "Stashed"}]
 }

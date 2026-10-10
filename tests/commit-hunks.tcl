@@ -45,7 +45,7 @@ proc show {path} {
 proc boxes {} {
     set r ""
     foreach {key value index} [.commit.main.diff.text dump -text 1.0 end] {
-        if {$value in {"☑" "☐"}} { append r $value }
+        if {$value in {"☑" "☐" "▣"}} { append r $value }
     }
     return $r
 }
@@ -128,4 +128,41 @@ check "hk-c.txt untouched" {[bytes $co/hk-c.txt] eq $workC}
 fossilIn $co stash apply
 check "applied: all the changes again" {[bytes $co/hk-a.txt] eq $workA}
 check "in the Commit menu" {![catch {.commit.menu.commit index "Stash the checked changes…"}]}
+
+# Splitting a hunk: two changes 4 lines apart are one hunk (their context
+# lines meet); split (the mark, or S), each part has its box.
+writeBytes $co/hk-s.txt [lines 30]
+fossilIn $co add hk-s.txt
+fossilIn $co commit --nosync --no-warnings -m "hunks: split base" hk-s.txt
+set workS [lines 30 \n {10 TEN 14 FOURTEEN}]
+writeBytes $co/hk-s.txt $workS
+foreach p [array names tkcommit::checked] { set tkcommit::checked($p) 0 }
+tkcommit::refresh; update
+set tkcommit::checked(hk-s.txt) 1
+show hk-s.txt
+check "one hunk, its split mark: [boxes]" {[boxes] eq "\u2611" && [llength [$d tag ranges split]]}
+$d mark set insert [lindex [$d tag ranges hk0] 0]
+focus -force $d; update
+event generate $d <Key-S>; update
+check "split (S): the hunk and its two parts: [boxes]" {[boxes] eq "\u2611\u2611\u2611" && ![llength [$d tag ranges split]]}
+# Only the second part.
+tkcommit::toggleAt [lindex [$d tag ranges hp0.0] 0]
+check "the first part off: [boxes]" {[boxes] eq "\u25a3\u2610\u2611"}
+check "greyed: only its lines" {[$d get {*}[$d tag ranges off]] eq "\u2610 -line 10\n+TEN\n"}
+# The hunk's box: all on, then all off (the file unchecked), then all on.
+tkcommit::toggleHunk 0
+check "the hunk's box: all on: [boxes]" {[boxes] eq "\u2611\u2611\u2611"}
+tkcommit::toggleHunk 0
+check "all off: the file unchecked: [boxes]" {[boxes] eq "\u2610\u2610\u2610" && !$tkcommit::checked(hk-s.txt)}
+tkcommit::toggleAt [lindex [$d tag ranges hp0.1] 0]
+check "the second part alone: [boxes], the file checked" {[boxes] eq "\u25a3\u2610\u2611" && $tkcommit::checked(hk-s.txt)}
+.commit.bottom.msg.text insert end "The second part"
+set ::answers [dict create yesno yes]
+tkcommit::commit
+destroy .commit.log
+fossil::inDir $co { fossil::runTo $W/got-s cat -r current ./hk-s.txt }
+check "committed: only the second change" {[bytes $W/got-s] eq [lines 30 \n {14 FOURTEEN}]}
+check "the file still has both" {[bytes $co/hk-s.txt] eq $workS}
+show hk-s.txt
+check "the rest: one hunk, not split (one change): [boxes]" {[boxes] eq "\u2611" && ![llength [$d tag ranges split]]}
 done

@@ -8,6 +8,11 @@
 #                              0; lead, trail: the unchanged lines around
 #                              the changes; line: the header's line in
 #                              DIFF, from 0; key: the hunk's text)
+#   hunks::parts HUNK          the runs of changes of HUNK (a dict of
+#                              hunks::parse), each a hunk of its own: its
+#                              key, line (of its first change in DIFF),
+#                              old, oldCount, new, newCount, lead, trail;
+#                              one if the hunk has a single run
 #   hunks::lines DATA          DATA split into lines with their line ends
 #   hunks::apply BASE WORK HUNKS KEYS
 #                              BASE with the changes of the hunks whose key
@@ -59,6 +64,48 @@ proc hunks::parse {diff} {
         set i [expr {$j - 1}]
     }
     return $result
+}
+
+proc hunks::parts {h} {
+    set body [lrange [split [dict get $h key] \n] 1 end]
+    set result {}
+    set old [dict get $h old]
+    set new [dict get $h new]
+    # Walking the lines: a run is from a change to the next unchanged line.
+    set run ""
+    set i 0
+    foreach line $body {
+        set c [string index $line 0]
+        if {$c eq "\\"} { incr i; continue }
+        if {$c in {- +}} {
+            if {$run eq ""} { set run [dict create old $old new $new oldCount 0 newCount 0 first $i] }
+            if {$c eq "-"} { dict incr run oldCount; incr old } else { dict incr run newCount; incr new }
+        } else {
+            if {$run ne ""} { lappend result $run; set run "" }
+            incr old
+            incr new
+        }
+        incr i
+    }
+    if {$run ne ""} { lappend result $run }
+    set n 0
+    set parts {}
+    foreach r $result {
+        set part [dict create key "[dict get $h key]\n#$n" line [expr {[dict get $h line] + 1 + [dict get $r first]}] \
+            old [dict get $r old] oldCount [dict get $r oldCount] new [dict get $r new] \
+            newCount [dict get $r newCount] lead 0 trail 0]
+        # (The last one with the hunk's unchanged lines after it: at the end
+        # of the files, the last line's end goes with it.)
+        if {$n == [llength $result] - 1} {
+            set t [dict get $h trail]
+            dict incr part oldCount $t
+            dict incr part newCount $t
+            dict set part trail $t
+        }
+        lappend parts $part
+        incr n
+    }
+    return $parts
 }
 
 proc hunks::lines {data} {

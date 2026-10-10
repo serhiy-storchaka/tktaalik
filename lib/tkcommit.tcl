@@ -113,9 +113,9 @@ proc tkcommit::loadChanges {} {
         if {$merging} { set checked($path) [expr {$what ni $uncommittable}] }
     }
     # (Hunks chosen: only of files still edited.)
-    foreach path [array names ::tkcommit::hunksOff] {
+    foreach path [concat [array names ::tkcommit::hunksOff] [array names ::tkcommit::hunksSplit]] {
         if {![dict exists $files $path] || [dict get $files $path] ne "EDITED"} {
-            unset ::tkcommit::hunksOff($path)
+            unset -nocomplain ::tkcommit::hunksOff($path) ::tkcommit::hunksSplit($path)
         }
     }
     return 1
@@ -323,7 +323,7 @@ proc tkcommit::toggle {path} {
     if {$path eq "" || $merging} return
     set checked($path) [expr {!$checked($path)}]
     # (The whole file, or none of it.)
-    unset -nocomplain ::tkcommit::hunksOff($path)
+    unset -nocomplain ::tkcommit::hunksOff($path) ::tkcommit::hunksSplit($path)
     .commit.main.files.t set $path check [mark $path]
     if {$path eq $::tkcommit::current} { showDiff $path }
     updateStatus
@@ -338,7 +338,7 @@ proc tkcommit::toggleSelected {} {
     set to [expr {!$checked([lindex $paths 0])}]
     foreach path $paths {
         set checked($path) $to
-        unset -nocomplain ::tkcommit::hunksOff($path)
+        unset -nocomplain ::tkcommit::hunksOff($path) ::tkcommit::hunksSplit($path)
         .commit.main.files.t set $path check [mark $path]
     }
     if {$::tkcommit::current in $paths} { showDiff $::tkcommit::current }
@@ -618,7 +618,7 @@ proc tkcommit::commit {{dryRun 0}} {
     .commit.bottom.msg.text delete 1.0 end
     set branch ""
     # (What is left of the files committed in part: all ticked again.)
-    foreach p $parts { unset -nocomplain ::tkcommit::hunksOff([dict get $p path]) }
+    foreach p $parts { unset -nocomplain ::tkcommit::hunksOff([dict get $p path]) ::tkcommit::hunksSplit([dict get $p path]) }
     resetOpts
     remember
     refresh
@@ -775,10 +775,17 @@ proc tkcommit::build {} {
     # A hunk not ticked: greyed, over the colours of its lines.
     $d tag configure off -foreground gray60 -background [$d cget -background]
     $d tag configure box -font TkTextFont
-    $d tag bind box <ButtonPress-1> {tkcommit::toggleHunk [tkcommit::hunkAt @%x,%y]; break}
+    $d tag bind box <ButtonPress-1> {tkcommit::toggleAt @%x,%y; break}
+    # A hunk of several runs of changes: split into them (each a box).
+    $d tag configure split -foreground blue4
+    $d tag bind split <ButtonPress-1> {tkcommit::splitAt @%x,%y; break}
+    $d tag bind split <Enter> {.commit.main.diff.text configure -cursor hand2}
+    $d tag bind split <Leave> {.commit.main.diff.text configure -cursor xterm}
+    bind $d <Key-s> {tkcommit::splitAt insert; break}
+    bind $d <Key-S> {tkcommit::splitAt insert; break}
     $d tag bind box <Enter> {.commit.main.diff.text configure -cursor hand2}
     $d tag bind box <Leave> {.commit.main.diff.text configure -cursor xterm}
-    bind $d <space> {tkcommit::toggleHunk [tkcommit::hunkAt insert]; break}
+    bind $d <space> {tkcommit::toggleAt insert; break}
     # The selection over the colours: tags made later are above it.
     $d tag raise sel
     .commit.main add .commit.main.files -weight 1
