@@ -675,6 +675,7 @@ proc tktsearch::build {} {
     tktaalik::shortcut tickets <Control-n> tktsearch::newTicket
     tktaalik::shortcut tickets <Control-e> {tktsearch::editTicket $tktsearch::shownTicket}
     tktaalik::shortcut tickets <Control-f> {focus .tickets.top.q; .tickets.top.q selection range 0 end}
+    tktaalik::shortcut tickets <Control-slash> {focus .tickets.top.q; .tickets.top.q selection range 0 end}
     tktaalik::shortcut tickets <F5> tktsearch::search
 
     # The settings.

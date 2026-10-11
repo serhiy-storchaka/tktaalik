@@ -72,7 +72,7 @@ each with the value in effect and where it comes from.
 | Global | the value set for all repositories |
 
 The last two columns are hidden at first (right-click a heading to show them).
-**Find** (Ctrl+F) narrows the list to names containing the text;
+**Find** (Ctrl+F or Ctrl+/) narrows the list to names containing the text;
 **Only the ones set** hides those at their default.
 The status line counts the settings and those set.
 

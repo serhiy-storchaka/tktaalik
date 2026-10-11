@@ -339,6 +339,7 @@ proc tksettings::build {} {
     bind $t <<TreeviewSelect>> {tksettings::showDetails [lindex [.settings.main.list.t selection] 0]}
     bind .settings <F5> tksettings::reload
     bind .settings <Control-f> {focus .settings.top.filter}
+    bind .settings <Control-slash> {focus .settings.top.filter}
     popup::attach .settings.main.list.t tksettings::popupMenu
 }
 

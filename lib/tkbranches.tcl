@@ -1379,6 +1379,7 @@ proc tkbranches::build {} {
     }
     tktaalik::shortcut branches <F5> tkbranches::reload
     tktaalik::shortcut branches <Control-f> {focus .branches.top.q; .branches.top.q selection range 0 end}
+    tktaalik::shortcut branches <Control-slash> {focus .branches.top.q; .branches.top.q selection range 0 end}
 
     # The settings.
     variable config

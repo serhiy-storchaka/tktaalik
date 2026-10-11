@@ -196,6 +196,7 @@ proc tkwiki::build {} {
     bind $p.head.version <<ComboboxSelected>> tkwiki::showVersion
     tktaalik::shortcut wiki <F5> tkwiki::reload
     tktaalik::shortcut wiki <Control-f> {focus .wiki.top.filter; .wiki.top.filter selection range 0 end}
+    tktaalik::shortcut wiki <Control-slash> {focus .wiki.top.filter; .wiki.top.filter selection range 0 end}
     popup::attach .wiki.main.list.t tkwiki::popupMenu
 }
 

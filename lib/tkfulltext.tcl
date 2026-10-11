@@ -142,6 +142,7 @@ proc tkfulltext::build {} {
     bind $d <Return> {tkfulltext::openResult $tkfulltext::current; break}
     tktaalik::shortcut search <F5> tkfulltext::search
     tktaalik::shortcut search <Control-f> {focus .search.top.q; .search.top.q selection range 0 end}
+    tktaalik::shortcut search <Control-slash> {focus .search.top.q; .search.top.q selection range 0 end}
 }
 
 proc tkfulltext::setRepository {path newRoot} {

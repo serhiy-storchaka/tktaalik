@@ -55,7 +55,7 @@ carriage returns, inverted, lines of context.
 The box at the top searches the stashes as you type.
 Return (or the search button) also remembers the search in the box's list;
 Escape (or the clear button) clears it.
-Ctrl+F goes to the box.
+Ctrl+F or Ctrl+/ goes to the box.
 
 Words match a part of the comment or of a stashed file's name; a word with `*`,
 `?` or `[…]` is a glob pattern for the file names.

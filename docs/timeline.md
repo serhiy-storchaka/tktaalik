@@ -63,7 +63,7 @@ shown.
 |---|---|
 | Double-click, or Return | A check-in: its diff in the [diff viewer](diffs.md).  A ticket change: the ticket in the [Tickets](tickets.md) tab.  A wiki or technote edit: the page or technote in the [Wiki](wiki.md) tab; a forum post: its thread in the [Forum](forum.md) tab (also the Show in Wiki / Show in Forum button of the details, and the context menu) |
 | Right-click a row | The context menu (below) |
-| Ctrl+F | Go to the search box |
+| Ctrl+F, Ctrl+/ | Go to the search box |
 | Escape in the search box | Clear the search |
 | F5, File ▸ Refresh | Read the repository again |
 

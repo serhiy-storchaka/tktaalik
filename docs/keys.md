@@ -23,7 +23,7 @@ The Commit and Stash tabs need a checkout: without one, their keys only beep.
 | Key | Where | Action |
 |---|---|---|
 | F5 | every tab | read the repository again (File ▸ Refresh) |
-| Ctrl+F | every tab: Timeline, Tickets, Branches, Tags, Files, Stash, Wiki, Forum, Search | to the search or filter box, its text selected |
+| Ctrl+F, Ctrl+/ | every tab: Timeline, Tickets, Branches, Tags, Files, Stash, Wiki, Forum, Search | to the search or filter box, its text selected |
 | Return | a search box | search (and record a place for Back) |
 | Escape | the search box of Tickets, Timeline, Branches | clear the search |
 | Down | the Search tab's box | to the results |
@@ -48,7 +48,7 @@ and in the Go to and Ticket reports windows:
 | Key | Action |
 |---|---|
 | F5 | read again (Information, Settings, Users, Remotes, Unversioned files, Ticket reports) |
-| Ctrl+F | Settings: to the filter |
+| Ctrl+F, Ctrl+/ | Settings: to the filter |
 | Return, double-click | Unversioned files: view the file; Go to: open the one chosen |
 | double-click | Users: edit the user; Remotes: open it in the browser; Ticket reports: the ticket of the row |
 | Delete | Unversioned files: remove the selected files |

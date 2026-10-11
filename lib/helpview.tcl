@@ -198,6 +198,7 @@ proc help::build {} {
     popup::attach .help.main.toc.t help::tocMenu
     bind .help.bar.find <Return> {help::findNext; break}
     bind .help <Control-f> {focus .help.bar.find; .help.bar.find selection range 0 end}
+    bind .help <Control-slash> {focus .help.bar.find; .help.bar.find selection range 0 end}
     bind .help <Escape> {wm withdraw .help}
     # Keys to scroll the page (it is read only: no insert cursor).
     foreach {key what} {Prior {-1 pages} Next {1 pages} Up {-1 units} Down {1 units}} {

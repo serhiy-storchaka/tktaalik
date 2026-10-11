@@ -135,6 +135,7 @@ proc tkforum::build {} {
     tktaalik::shortcut forum <Control-n> tkforum::compose
     ttk::style configure Small.TButton -padding {8 0} -width 0
     tktaalik::shortcut forum <Control-f> {focus .forum.top.filter; .forum.top.filter selection range 0 end}
+    tktaalik::shortcut forum <Control-slash> {focus .forum.top.filter; .forum.top.filter selection range 0 end}
     popup::attach .forum.main.list.t tkforum::popupMenu
 }
 

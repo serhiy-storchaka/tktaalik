@@ -42,7 +42,7 @@ click it again for the other order.
 **Find file** narrows the tree to the files whose path contains the text
 (upper and lower case are the same).
 The tree is filtered as you type; with a filter, the directories are shown open.
-Ctrl+F goes to this box.
+Ctrl+F or Ctrl+/ goes to this box.
 
 When the version is `checkout` and the checkout has moved
 (an update, a merge, a commit in another tab or outside),

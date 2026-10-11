@@ -149,6 +149,7 @@ proc tktags::build {} {
     }
     tktaalik::shortcut tags <F5> tktags::reload
     tktaalik::shortcut tags <Control-f> {focus .tags.top.filter; .tags.top.filter selection range 0 end}
+    tktaalik::shortcut tags <Control-slash> {focus .tags.top.filter; .tags.top.filter selection range 0 end}
     popup::attach .tags.main.list.t tktags::popupMenu
 }
 

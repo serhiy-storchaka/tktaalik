@@ -783,6 +783,7 @@ proc tkstash::build {} {
     }
     tktaalik::shortcut stash <F5> tkstash::reload
     tktaalik::shortcut stash <Control-f> {focus .stash.top.q; .stash.top.q selection range 0 end}
+    tktaalik::shortcut stash <Control-slash> {focus .stash.top.q; .stash.top.q selection range 0 end}
     set history [getdef $config history {}]
     .stash.top.q configure -values $history
     set query [getdef $config query ""]

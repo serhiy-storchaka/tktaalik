@@ -30,7 +30,7 @@ Under the box, **Open**, **Pending**,
 they replace the `is:` term of the search (All removes it).
 The search box remembers your earlier searches in its drop-down.
 
-Ctrl+F goes to the search box from anywhere in the tab; F5 searches again.
+Ctrl+F or Ctrl+/ goes to the search box from anywhere in the tab; F5 searches again.
 
 ### Built-in and saved searches
 

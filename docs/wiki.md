@@ -29,7 +29,7 @@ right-click it to choose the columns.
 Above the list:
 
 - **Find**: shows the pages whose name (or technote title) contains the text;
-  Ctrl+F goes there.
+  Ctrl+F or Ctrl+/ goes there.
 - **All**, **Wiki pages**, **Technotes**, **Notes**: which kinds are listed.
   Notes are the pages Fossil attaches to branches (`branch/NAME`), check-ins,
   tags and tickets.

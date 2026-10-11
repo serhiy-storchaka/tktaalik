@@ -59,7 +59,7 @@ have these buttons (Add tag… and Cancel tag… there),
 **Save as archive…**
 (the tag's check-in, a release…, as a ZIP, tarball or SQL archive:
 see [Archives](timeline.md#archives)), **Copy name** and **Copy check-in**.
-Ctrl+F goes to Find; F5 (File ▸ Refresh) reads the repository again.
+Ctrl+F or Ctrl+/ goes to Find; F5 (File ▸ Refresh) reads the repository again.
 Back and Forward remember the filter, the check boxes and the selected tag.
 
 ### Examples

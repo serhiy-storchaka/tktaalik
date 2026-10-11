@@ -31,7 +31,7 @@ Click a heading to sort the threads shown by that column;
 the columns can be chosen and moved like in the other tabs
 ([Columns and sorting](configuration.md#columns-and-sorting)).
 
-**Find** (Ctrl+F) narrows the list to the threads whose title contains what you
+**Find** (Ctrl+F or Ctrl+/) narrows the list to the threads whose title contains what you
 type, or that were started by a user whose name contains it. Upper and lower
 case are the same.
 The list follows as you type.

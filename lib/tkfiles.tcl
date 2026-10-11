@@ -1102,6 +1102,7 @@ proc tkfiles::build {} {
     bind .files.main.right.nb <<NotebookTabChanged>> tkfiles::loadShown
     tktaalik::shortcut files <F5> tkfiles::refresh
     tktaalik::shortcut files <Control-f> {focus .files.top.filter; .files.top.filter selection range 0 end}
+    tktaalik::shortcut files <Control-slash> {focus .files.top.filter; .files.top.filter selection range 0 end}
 }
 
 proc tkfiles::refresh {} {

@@ -1121,6 +1121,7 @@ proc tktimeline::build {} {
     bind $t <ButtonPress-3> {+tktimeline::contextMenu %x %y %X %Y}
     tktaalik::shortcut timeline <F5> tktimeline::search
     tktaalik::shortcut timeline <Control-f> {focus .timeline.top.q; .timeline.top.q selection range 0 end}
+    tktaalik::shortcut timeline <Control-slash> {focus .timeline.top.q; .timeline.top.q selection range 0 end}
 
     loadConfig
     set table [getdef $config table {}]
