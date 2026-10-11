@@ -484,6 +484,15 @@ The search is an ordinary one: it can be narrowed further, and it is kept
 in the box's history.
 **Changelog…** in the same window also opens the changelog of it.
 
+The window also opens from a release:
+a check-in with such a tag has **Compare TAG with the previous release…**
+in its menu (Event, or the context menu),
+and so has a tag in the [Tags](tags.md) tab.
+Then the newer is that tag,
+and the older the release before it:
+the newest older tag with the same name but the last number,
+so `core-9-0-2` for `core-9-0-3`, not a newer `core-8-6-17`.
+
 **File ▸ Changelog of the search…** makes a changelog of the check-ins
 the search finds (all of them, not only the rows shown),
 grouped by the tickets their comments name (`[hash]`),

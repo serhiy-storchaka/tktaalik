@@ -6,7 +6,17 @@
 # features, Other tickets, then the other check-ins.  Nothing is written
 # to the repository; the text can be edited, copied and saved.
 #
-#   tktimeline::compareReleases     the window to choose the two releases
+#   tktimeline::compareReleases ?NEWER?
+#                                   the window to choose the two releases
+#                                   (NEWER given: it, and the release
+#                                   before it, as previousTag says)
+#   tktimeline::previousTag NAME TAGS
+#                                   the release before NAME in TAGS
+#                                   (newest first): the next one with the
+#                                   same name but the last number
+#                                   (core-9-0-3: core-9-0-2), else the next
+#   tktimeline::releaseTagOf RID    the release-like tag of the check-in RID
+#                                   (one given to it alone), or ""
 #   tktimeline::changelog           the changelog of the search shown
 #   tktimeline::changelogData QUERY {checkins tickets}: the check-ins the
 #                                   search finds, oldest first (dicts:
@@ -31,13 +41,30 @@ proc tktimeline::releaseTags {} {
         GROUP BY t.tagname ORDER BY max(x.mtime) DESC LIMIT 500"] { lindex $row 0 }
 }
 
-proc tktimeline::compareReleases {} {
+proc tktimeline::previousTag {name tags} {
+    set i [lsearch -exact $tags $name]
+    set later [expr {$i < 0 ? $tags : [lrange $tags $i+1 end]}]
+    set stem [regsub {[0-9]+$} $name ""]
+    if {$stem ne $name} {
+        foreach t $later {
+            if {[regsub {[0-9]+$} $t ""] eq $stem && $t ne $name} { return $t }
+        }
+    }
+    lindex $later 0
+}
+
+proc tktimeline::releaseTagOf {rid} {
+    lindex [sql "SELECT [fossil::outcol substr(t.tagname,5)] FROM tagxref x JOIN tag t ON t.tagid=x.tagid
+        WHERE x.rid=$rid AND x.tagtype=1 AND t.tagname GLOB 'sym-*' ORDER BY x.mtime DESC LIMIT 1"] 0 0
+}
+
+proc tktimeline::compareReleases {{newer ""}} {
     variable cl
     variable repo
     if {$repo eq ""} return
     set tags [releaseTags]
-    set cl(to) [lindex $tags 0]
-    set cl(from) [lindex $tags 1]
+    set cl(to) [expr {$newer ne "" ? $newer : [lindex $tags 0]}]
+    set cl(from) [previousTag $cl(to) $tags]
     set w .timeline.compare
     set f [ui::dialog $w "Compare releases" -escape [list destroy $w] -help timeline#releases-and-changelogs]
     ttk::label $f.intro -wraplength 460 -justify left -text "The check-ins in the newer release that\

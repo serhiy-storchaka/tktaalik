@@ -99,4 +99,41 @@ set f [open $D/changes.md]; fconfigure $f -encoding utf-8; set saved [read $f]; 
 check "saved" {$saved eq [formattext::get $e]}
 check "nothing written to the repository" {[lindex [exec fossil sql --readonly -R $R "SELECT count(*) FROM blob"] 0] == $before}
 destroy .timeline.changelog
+
+# The release before: the same name but the last number, else the next.
+check "previous of core-9-0-3: core-9-0-2, not the newer 8.6 one" {
+    [tktimeline::previousTag core-9-0-3 {core-9-0-3 core-8-6-17 core-9-0-2 core-9-0-1}] eq "core-9-0-2"}
+check "previous of a name without a number: the next" {[tktimeline::previousTag beta {beta alpha}] eq "alpha"}
+check "previous of the oldest: none" {[tktimeline::previousTag rel-1 {rel-2 rel-1}] eq ""}
+# The Event menu of a released check-in; not of another one.
+set t .timeline.main.list.t
+set tktimeline::query "kind:ci"; tktimeline::search 1; after cancel tktimeline::search; update
+set rel2 [lindex [sql "SELECT x.rid FROM tagxref x JOIN tag t USING(tagid) WHERE t.tagname='sym-rel-2' AND x.tagtype=1" $R] 0 0]
+set m .timeline.menu.event
+proc entries {m} { set l {}; for {set i 0} {$i <= [$m index end]} {incr i} { catch {lappend l [$m entrycget $i -label]} }; return $l }
+$m delete 0 end
+tktimeline::fillEventMenu $m $rel2
+check "Event menu of rel-2: Compare [lsearch -inline -glob [entries $m] Compare*]" {"Compare rel-2 with the previous release\u2026" in [entries $m]}
+set other [lindex [sql "SELECT objid FROM event WHERE type='ci' AND comment GLOB 'Tidy*'" $R] 0 0]
+$m delete 0 end
+tktimeline::fillEventMenu $m $other
+check "not for a check-in without a release tag" {[lsearch -glob [entries $m] Compare*] < 0}
+$m delete 0 end
+tktimeline::fillEventMenu $m $rel2
+$m invoke [lsearch -glob [entries $m] Compare*]; update
+check "it opens the window: rel-2 and rel-1" {[winfo exists .timeline.compare] && $tktimeline::cl(to) eq "rel-2" && $tktimeline::cl(from) eq "rel-1"}
+destroy .timeline.compare
+# The Tags tab: on a tag, the same; the window in the Timeline.
+tktaalik::show tags; update
+waitUntil {[winfo exists .tags.main.list.t] && [llength [.tags.main.list.t children {}]]}
+set tm .tags.menu.tag
+$tm delete 0 end
+tktags::popupMenu $tm rel-2
+check "Tags: Compare with the previous release" {"Compare with the previous release\u2026" in [entries $tm]
+    && [$tm entrycget [lsearch -exact [entries $tm] "Compare with the previous release\u2026"] -state] eq "normal"}
+$tm invoke [lsearch -exact [entries $tm] "Compare with the previous release\u2026"]; update
+check "from Tags: the Timeline, the window with rel-2 and rel-1" {$tktaalik::active eq "timeline"
+    && [winfo exists .timeline.compare] && $tktimeline::cl(to) eq "rel-2" && $tktimeline::cl(from) eq "rel-1"}
+tktimeline::compareDone 0; update
+check "Show: the range" {$tktimeline::query eq "in:rel-2 -in:rel-1 kind:ci"}
 done

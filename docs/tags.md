@@ -58,7 +58,13 @@ The context menu of a tag, and the **Tag** menu for the tag selected,
 have these buttons (Add tag… and Cancel tag… there),
 **Save as archive…**
 (the tag's check-in, a release…, as a ZIP, tarball or SQL archive:
-see [Archives](timeline.md#archives)), **Copy name** and **Copy check-in**.
+see [Archives](timeline.md#archives)),
+**Compare with the previous release…**
+(the Timeline's [Compare releases](timeline.md#releases-and-changelogs) window,
+with this tag and the release before it:
+the newest older tag with the same name but the last number,
+so `core-9-0-2` for `core-9-0-3`),
+**Copy name** and **Copy check-in**.
 Ctrl+F or Ctrl+/ goes to Find; F5 (File ▸ Refresh) reads the repository again.
 Back and Forward remember the filter, the check boxes and the selected tag.
 

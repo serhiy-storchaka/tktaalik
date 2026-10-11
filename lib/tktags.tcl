@@ -435,6 +435,9 @@ proc tktags::popupMenu {m item} {
     foreach b {timeline branch browse} { popup::button $m .tags.b.$b }
     $m add command -label "Save as archive\u2026" -command tktags::archive \
         -state [expr {[info exists tags($item)] && [dict get $tags($item) kind] eq "Tag" ? "normal" : "disabled"}]
+    $m add command -label "Compare with the previous release\u2026" \
+        -command [list tktags::compare [string trim $item]] \
+        -state [expr {[info exists tags($item)] && [dict get $tags($item) kind] eq "Tag" ? "normal" : "disabled"}]
     popup::separator $m
     popup::button $m .tags.b.add "Add tag\u2026"
     popup::button $m .tags.b.cancel "Cancel tag\u2026"
@@ -442,6 +445,15 @@ proc tktags::popupMenu {m item} {
     popup::copy $m "Copy name" [string trim $item]
     popup::copy $m "Copy check-in" [expr {[info exists tags($item)] ? [dict get $tags($item) uuid] : ""}]
     popup::default $m [.tags.b.timeline cget -text]
+}
+
+# A release (the tag NAME) compared with the one before it, in the
+# Timeline (its Compare releases window).
+proc tktags::compare {name} {
+    if {$name eq ""} return
+    tktaalik::show timeline
+    update idletasks
+    tktimeline::compareReleases $name
 }
 
 # The check-in of the tag selected (a release...) as an archive.

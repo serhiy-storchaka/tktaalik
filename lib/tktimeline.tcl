@@ -681,6 +681,12 @@ proc tktimeline::fillEventMenu {m rid} {
         $m add command -label "Diff" -command [list tktimeline::diff [dict get $r uuid]]
         $m add command -label "Show branch [dict get $r branch]" \
             -command [list tktimeline::showBranch [dict get $r branch]]
+        # A release (a tag of its own): compared with the one before.
+        set release [releaseTagOf $rid]
+        if {$release ne ""} {
+            $m add command -label "Compare $release with the previous release\u2026" \
+                -command [list tktimeline::compareReleases $release]
+        }
         $m add separator
         $m add command -label "Edit check-in\u2026" -command [list tktimeline::editCheckin $rid]
         $m add command -label "Add tag\u2026" -command [list tktimeline::addTag $rid]
