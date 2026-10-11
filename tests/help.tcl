@@ -32,6 +32,8 @@ check "every page and required section: missing [list $missing]" {![llength $mis
 set bad {}
 dict for {page info} $pages {
     set f [open [file join $help::dir $page.md]]; fconfigure $f -encoding utf-8; set text [read $f]; close $f
+    # (Not the examples in code: `[text](url)` is no link.)
+    regsub -all {`[^`\n]*`} $text "" text
     foreach {- target} [regexp -all -inline {\]\(([^)\s]+)\)} $text] {
         if {[regexp {^https?://} $target]} continue
         if {![regexp {^(?:([a-z0-9_-]+)\.md)?(?:#(.*))?$} $target -> to anchor]} { lappend bad "$page: $target"; continue }

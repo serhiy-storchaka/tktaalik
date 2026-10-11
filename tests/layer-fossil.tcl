@@ -117,6 +117,7 @@ unset env(http_proxy)
 array set env $saved
 set s "a b/[encoding convertfrom utf-8 \xc3\xa9]"
 check "urlquery: [fossil::urlquery $s]" {[fossil::urlquery $s] eq "a%20b%2F%C3%A9" && [fossil::urlquery $s /] eq "a%20b/%C3%A9"}
+check "urlquery: unreserved kept: [fossil::urlquery a-b_c.d~e]" {[fossil::urlquery a-b_c.d~e] eq "a-b_c.d~e"}
 check "urlDecode" {[fossil::urlDecode "a%20b+%2F%C3%A9"] eq "a b /[encoding convertfrom utf-8 \xc3\xa9]"}
 # Control characters in the results as they are (newer Fossils' SQLite
 # shell escapes them unless told not to: fossil::sqlMode).

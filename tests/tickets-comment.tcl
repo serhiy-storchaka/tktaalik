@@ -16,13 +16,14 @@ $d.reply.add invoke; update
 set w .tickets.comment
 set e $w.f.editor
 check "the dialog: [wm title $w]" {[winfo ismapped $w] && [string match "Comment on [string range $uuid 0 9]" [wm title $w]]}
-check "Write and Preview tabs" {[$e.nb tab 0 -text] eq "Write" && [$e.nb tab 1 -text] eq "Preview"}
+check "the Preview button, the text shown" {[$e.top.preview cget -text] eq "Preview" && [winfo ismapped $e.src.t] && ![winfo ismapped $e.pre.t]}
 check "focus in the text" {[focus] eq [formattext::widget $e]}
 # Markdown, previewed.
 set tktsearch::format Markdown
 [formattext::widget $e] insert end "## A heading\n\nSome *emphasis* and `code`.\n"
-$e.nb select $e.nb.pre; update
-set p $e.nb.pre.t
+$e.top.preview invoke; update
+set p $e.pre.t
+check "Preview: in place of the text, the markup off" {[winfo ismapped $p] && ![winfo ismapped $e.src.t] && [$e.top.bold instate disabled]}
 set heading 0
 foreach tag [$p tag names] { if {[regexp {^ht-font-.*-[01][01][1-6]$} $tag] && [llength [$p tag ranges $tag]]} { set heading 1 } }
 check "preview: rendered, [string trim [$p get 1.0 end]]" {$heading && [string first "##" [$p get 1.0 end]] < 0 && [string first "A heading" [$p get 1.0 end]] >= 0}
@@ -35,7 +36,8 @@ event generate $e.top.format <<ComboboxSelected>>; update
 # Ctrl+Shift+P: back to Write.
 focus -force $p; update
 event generate $p <Control-P>; update
-check "Ctrl+Shift+P: Write" {[$e.nb select] eq "$e.nb.src"}
+check "Ctrl+Shift+P: the text again" {[winfo ismapped $e.src.t] && ![winfo ismapped $p] && !$formattext::previewOn($e)
+    && ![$e.top.bold instate disabled]}
 # Post: as Markdown, after a confirmation.
 set before [llength [fossil::sql $R "SELECT 1 FROM ticketchng WHERE tkt_id=(SELECT tkt_id FROM ticket WHERE tkt_uuid='$uuid')"]]
 tktsearch::postComment $uuid; update
@@ -46,21 +48,21 @@ check "shown rendered in the details" {[string first "A heading" [$d get 1.0 end
 # New ticket: the description with its preview.
 tktsearch::newTicket; update
 set f .tickets.new.f
-check "new ticket: the editor" {[winfo exists $f.editor.nb.pre]}
+check "new ticket: the editor" {[winfo exists $f.editor.pre]}
 check "Create needs a description" {[$f.buttons.create instate disabled]}
 $f.etitle insert 0 "A test ticket"
 [formattext::widget $f.editor] insert end "Steps:\n\n1. one\n2. two\n"
 update
 check "Create enabled" {[$f.buttons.create instate !disabled]}
 set tktsearch::format Markdown
-$f.editor.nb select $f.editor.nb.pre; update
-check "new ticket preview: a list" {[string match "*1.\tone*" [$f.editor.nb.pre.t get 1.0 end]]}
+formattext::toggle $f.editor 1; update
+check "new ticket preview: a list" {[string match "*1.\tone*" [$f.editor.pre.t get 1.0 end]]}
 tktsearch::createTicket; update
 set new [lindex [fossil::sql $R "SELECT cmimetype, [fossil::outcol comment] FROM ticket WHERE title='A test ticket'"] 0]
 check "created: [lindex $new 0]" {[lindex $new 0] eq "text/x-markdown" && [string match "Steps:*" [lindex $new 1]]}
 # Edit ticket: the comment with its preview.
 tktsearch::editTicket $uuid; update
-check "edit ticket: the editor" {[winfo exists .tickets.edit.f.editor.nb.pre]}
+check "edit ticket: the editor" {[winfo exists .tickets.edit.f.editor.pre]}
 destroy .tickets.edit
 # F1 in the dialog: the comments in the manual.
 tktsearch::commentDialog $uuid; update

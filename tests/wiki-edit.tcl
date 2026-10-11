@@ -14,7 +14,7 @@ set t .wiki.main.list.t
 proc edit {mode fields text {more {}}} {
     after 300 [list apply {{fields text more} {
         foreach {var value} $fields { set tkwiki::$var $value }
-        set s .wiki.edit.f.editor.nb.src.t
+        set s .wiki.edit.f.editor.src.t
         $s delete 1.0 end
         $s insert end $text
         set tkwiki::editDone ok
@@ -37,10 +37,10 @@ edit edit {} "# Hello\n\nchanged"
 check "edited: 2 versions, new text" {[llength $tkwiki::versions] == 2 && [string match "*changed*" [.wiki.main.page.text get 1.0 end]]}
 # The preview.
 whenOpen .wiki.edit {
-    .wiki.edit.f.editor.nb.src.t insert end "\n\n**bold**"
-    .wiki.edit.f.editor.nb select .wiki.edit.f.editor.nb.pre
+    .wiki.edit.f.editor.src.t insert end "\n\n**bold**"
+    .wiki.edit.f.editor.top.preview invoke
     update
-    set ::previewed [.wiki.edit.f.editor.nb.pre.t get 1.0 end]
+    set ::previewed [.wiki.edit.f.editor.pre.t get 1.0 end]
     set tkwiki::editDone cancel
 }
 tkwiki::editor edit; update
@@ -73,8 +73,8 @@ exec fossil wiki create "Web Page" $T(tmp)/crlf -R $R
 tkwiki::reload; update
 $t selection set [list "wiki-Web Page"]; update
 whenOpen .wiki.edit {
-    set ::edited [.wiki.edit.f.editor.nb.src.t get 1.0 "end - 1 char"]
-    .wiki.edit.f.editor.nb.src.t replace 2.0 "2.0 lineend" "line 2"
+    set ::edited [.wiki.edit.f.editor.src.t get 1.0 "end - 1 char"]
+    .wiki.edit.f.editor.src.t replace 2.0 "2.0 lineend" "line 2"
     set tkwiki::editDone ok
 }
 tkwiki::editor edit; update
