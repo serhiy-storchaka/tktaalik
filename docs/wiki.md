@@ -97,10 +97,14 @@ The editor has:
   A new technote starts with the date now;
   the date of an existing one cannot be changed here,
   as Fossil finds the technote by its date;
-- the **Format**: Fossil wiki, Markdown or Plain text;
-- **Write** and **Preview** tabs
-  (Alt+W, Alt+P, or Ctrl+Shift+P to go from one to the other):
-  the preview renders the text as it will be shown.
+- the **Format**: Fossil wiki, Markdown or Plain text,
+  with the markup buttons and keys of the comment editor
+  (bold, italic, code, link, heading, lists, quote, code block,
+  references to tickets, check-ins and branches:
+  see [Tickets](tickets.md#comments));
+- the **Preview** button (Ctrl+Shift+P), at the right:
+  while it is down, the text is shown rendered, as it will be shown,
+  in place of the text written.
 
 **Commit** checks the input first: a page needs a name not used yet,
 a technote a comment and a date `YYYY-MM-DD HH:MM:SS` that no other technote

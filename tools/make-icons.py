@@ -39,6 +39,13 @@ def star(n):
     d.line([px-L, py, px+L, py], fill=ACCENT, width=pw)
     d.line([px, py-L, px, py+L], fill=ACCENT, width=pw)
     return done(im, n)
+def link(n):
+    # two links of a chain, across the icon
+    S = n*8; im = canvas(n); d = ImageDraw.Draw(im); w = max(S//10, 8)
+    h = S*0.30; L = S*0.50
+    for x0 in (S*0.06, S*0.44):
+        d.rounded_rectangle([x0, S/2-h/2, x0+L, S/2+h/2], radius=h/2, outline=INK, width=w)
+    return done(im.rotate(45, resample=Image.BICUBIC), n)
 def cross(n):
     S = n*8; im = canvas(n); d = ImageDraw.Draw(im); w = max(S//8, 8)
     m = S*0.24
@@ -135,6 +142,14 @@ def kind_icon(name, n):
         for x in (S*0.08,S*0.92): d.ellipse([x-r,S/2-r,x+r,S/2+r], fill=(0,0,0,0))
         for y in range(int(a+S*0.08), int(b-S*0.04), int(S*0.12)):
             d.rectangle([S*0.64-w*0.35,y,S*0.64+w*0.35,y+S*0.06], fill=WHITE)
+    elif name=='k-branch':
+        # a branch: a line forking off another, a ring at each end
+        x0,x1=S*0.30,S*0.72
+        d.line([x0,S*0.96,x0,S*0.04], fill=DARK, width=w)
+        d.line([x0,S*0.70,x1,S*0.42,x1,S*0.30], fill=DARK, width=w, joint='curve')
+        r=S*0.14
+        for x,y in ((x0,S*0.80),(x1,S*0.26)):
+            d.ellipse([x-r,y-r,x+r,y+r], fill=WHITE, outline=DARK, width=w)
     elif name=='k-tag':
         # a tag: a pentagon with a hole
         d.polygon([(S*0.08,S*0.24),(S*0.60,S*0.24),(S*0.94,S/2),(S*0.60,S*0.76),(S*0.08,S*0.76)], fill=AMBER)
@@ -276,13 +291,13 @@ def app_icon(n):
 
 # ------------------------------------------------------------------ main
 
-BUTTONS = {'search': search, 'save': star, 'clear': cross, 'help': help_}
+BUTTONS = {'search': search, 'save': star, 'clear': cross, 'help': help_, 'link': link}
 TICKETS = ['st-open', 'st-pending', 'st-fixed', 'st-closed', 'st-duplicate',
            'st-rejected', 'st-invalid', 'st-worksforme', 'st-outofdate',
            'st-postponed', 'st-deleted',
            'pr-9', 'pr-8', 'pr-7', 'pr-6', 'pr-5', 'pr-low',
            'sv-critical', 'sv-severe', 'sv-major', 'sv-minor', 'sv-cosmetic']
-KINDS = ['k-checkin', 'k-ticket', 'k-tag', 'k-wiki', 'k-forum', 'k-technote']
+KINDS = ['k-checkin', 'k-branch', 'k-ticket', 'k-tag', 'k-wiki', 'k-forum', 'k-technote']
 ATTACHMENTS = ['a-patch', 'a-tcl', 'a-c', 'a-text', 'a-image', 'a-binary']
 SIZES = (16, 24, 32)
 APP_SIZES = (16, 24, 32, 48, 64, 128, 256)

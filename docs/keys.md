@@ -37,7 +37,11 @@ The Commit and Stash tabs need a checkout: without one, their keys only beep.
 | Ctrl+N, Ctrl+E | Tickets | new ticket, edit the ticket shown |
 | Alt+C, Alt+I, Alt+A, Alt+H | Tickets details | Comments, Check-ins, Attachments, History |
 | Ctrl+Return | Tickets comment window | post the comment |
-| Ctrl+Shift+P | text editors (comments, descriptions, wiki pages) | Write ↔ Preview |
+| Ctrl+Shift+P | text editors (comments, descriptions, wiki pages) | the Preview button: the text rendered, and back |
+| Ctrl+B, Ctrl+I, Ctrl+E, Ctrl+K | text editors | bold, italic, code, link (around the selection; again: off) |
+| Ctrl+Shift+8, Ctrl+Shift+7, Ctrl+Shift+. | text editors | bulleted list, numbered list, quote (on the lines) |
+| Ctrl+Shift+H, Ctrl+Shift+E | text editors | heading, code block |
+| Ctrl+Shift+T, Ctrl+Shift+C, Ctrl+Shift+B | text editors | a reference to a ticket, check-in, branch (chosen in a window) |
 | Ctrl+Return | Commit | commit |
 
 The pages of the tabs describe their keys in detail.

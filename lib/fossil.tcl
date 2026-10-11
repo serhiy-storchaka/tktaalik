@@ -549,7 +549,9 @@ proc fossil::autosyncValue {setting {subsystem ""}} {
 proc fossil::urlquery {text {keep ""}} {
     set out ""
     foreach byte [split [encoding convertto utf-8 $text] ""] {
-        if {[string match {[A-Za-z0-9._~-]} $byte] || ($byte ne "" && [string first $byte $keep] >= 0)} {
+        # (Not "-" in the brackets: string match takes it for a range.)
+        if {[string match {[A-Za-z0-9._~]} $byte] || $byte eq "-"
+                || ($byte ne "" && [string first $byte $keep] >= 0)} {
             append out $byte
         } else {
             append out [format %%%02X [scan $byte %c]]

@@ -229,9 +229,28 @@ At the end is the **Add a comment…** button.
 It opens a window with the ticket's title and the editor of the comment:
 
 - the **Format**: Fossil wiki, Markdown, Plain text or HTML;
-- the **Write** and **Preview** tabs
-  (Alt+W, Alt+P, or Ctrl+Shift+P to go from one to the other):
-  the preview shows the comment as it will be shown, rendered by Fossil.
+- the markup buttons next to it:
+  **B** (bold, Ctrl+B), ***I*** (italic, Ctrl+I), **<>** (code, Ctrl+E),
+  a chain link (link, Ctrl+K), **H** (heading, Ctrl+Shift+H),
+  **•** (bulleted list, Ctrl+Shift+8), **1.** (numbered list, Ctrl+Shift+7),
+  **“** (quote, Ctrl+Shift+.) and **{ }** (code block, Ctrl+Shift+E).
+  Each writes the markup of the format chosen around the selected text,
+  or on its lines (on the cursor's line without a selection);
+  pressed again, it takes the markup off.
+  A link takes the selection as its text
+  (or as its address, if it is one)
+  and leaves the part to type selected.
+  They are disabled for plain text;
+- the reference buttons:
+  a ticket (Ctrl+Shift+T), a check-in (Ctrl+Shift+C)
+  or a branch (Ctrl+Shift+B) of the repository,
+  as a link in the format chosen
+  (see [References](#references));
+- the **Preview** button (Ctrl+Shift+P), at the right:
+  while it is down, the comment is shown as it will be,
+  rendered by Fossil, in place of the text written;
+  the markup buttons wait meanwhile
+  (a markup key goes back to the text first).
 
 **Post** (or Ctrl+Return) asks first, showing the comment;
 once written it cannot be changed or taken back, and it is not pushed.
@@ -249,6 +268,33 @@ after a line saying who added it and when,
 as Fossil's ticket pages did then (`fossil ticket set ID +comment ...`).
 The format is then Fossil wiki, and cannot be chosen.
 
+### References
+
+The ticket, check-in and branch buttons of the editor
+(Ctrl+Shift+T, Ctrl+Shift+C, Ctrl+Shift+B)
+put a link to one of the repository's tickets, check-ins or branches
+where the cursor is.
+If the selected text is the start of the hash of one ticket or check-in,
+or the name of a branch,
+the link to it replaces the selection at once.
+Otherwise a window lists the tickets, check-ins or branches,
+the newest first:
+typing searches their titles, comments or names
+(and a hash, by its start);
+Up and Down choose, and **Insert** (Return, double-click) puts the link in.
+The selected text, if any, is searched for,
+and becomes the text of the link.
+
+| | Ticket | Check-in | Branch |
+|---|---|---|---|
+| Fossil wiki | `[hash]` | `[hash]` | `[/timeline?r=NAME\|NAME]` |
+| Markdown | `[hash](/tktview/hash)` | `[hash](/info/hash)` | `[NAME](/timeline?r=NAME)` |
+| HTML | `<a href="/tktview/hash">` | `<a href="/info/hash">` | `<a href="/timeline?r=NAME">` |
+
+The hash is shortened to ten digits;
+with a text, Fossil wiki writes `[hash|text]`.
+The buttons are disabled for plain text.
+
 ## Editing tickets
 
 **Ticket ▸ Edit ticket…** (Ctrl+E), the **Edit…** button of the details,
@@ -262,7 +308,7 @@ and search keys by their name, `fix_version:9.0.4`).
 Status, Resolution, Priority and Severity are menus with their icons;
 fields with choices in the repository's ticket setup offer them in a drop-down.
 An optional comment can be added in the same change,
-in the same editor as in the comment window (format, Write, Preview).
+in the same editor as in the comment window (format, markup, Preview).
 
 **Save** shows what changes
 (each field old → new,
@@ -278,7 +324,7 @@ subsystem and severity,
 the repository's own fields
 (those of its ticket setup that Tktaalik does not know, empty ones left out),
 and a description, written in the same editor
-(format, Write, Preview: see [Comments](#comments)).
+(format, markup, Preview: see [Comments](#comments)).
 **Create** is enabled when there are a title and a description.
 The new ticket also gets what the web form sets: status Open, resolution None,
 priority "5 Medium", nobody assigned,
@@ -326,7 +372,7 @@ the **Close…** button of the details (shown while the ticket is not closed),
 or **Close ticket…** in the list's context menu opens a window with the ticket's
 **Resolution** — **Fixed** for a bug, **Accepted** for other types,
 any of the repository's resolutions to choose — and an optional closing comment,
-written in the same editor as other comments (format, Write, Preview).
+written in the same editor as other comments (format, markup, Preview).
 **Close** (or Ctrl+Return in the comment) shows the change and asks before
 writing it: the status Closed,
 the resolution and the comment go in one ticket change,

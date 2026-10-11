@@ -32,7 +32,10 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   an image in a window; JPEG and other formats only with the optional Img
   extension, loaded when needed),
   `lib/formattext.tcl` (a text in a chosen format with its preview: use it
-  wherever text can be written in more than one format),
+  wherever text can be written in more than one format; its markup
+  buttons and keys, and its Preview button),
+  `lib/refpick.tcl` (references to tickets, check-ins and branches for
+  formattext: what a text names, and a window to find one),
   `lib/tagwrite.tcl` (tag, amend and reparent dialogs: `tagwrite::apply`
   runs the dry run, confirms, then runs), `lib/commitops.tcl` and
   `lib/diffopts.tcl` (the Commit tab's operations and diff options),
