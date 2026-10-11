@@ -38,6 +38,8 @@ namespace eval help {
         .tablecolsPopup             configuration#columns-and-sorting
         .timeline.top               timeline#search-syntax
         .timeline.pull              timeline#pull
+        .timeline.compare           timeline#releases-and-changelogs
+        .timeline.changelog         timeline#releases-and-changelogs
         .timeline.bisectrun         timeline#bisect
         .tagwrite                   timeline#editing-check-ins
         .tickets.top                tickets#search-syntax

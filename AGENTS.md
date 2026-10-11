@@ -26,7 +26,7 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   (tickets), the parts of the large tabs (sourced at the end of the tab's
   file, in its namespace): `lib/ticketdialogs.tcl`, `lib/ticketdetails.tcl`,
   `lib/ticketattach.tcl` (Tickets), `lib/branchops.tcl` (Branches),
-  `lib/bisect.tcl`, `lib/pull.tcl` (Timeline),
+  `lib/bisect.tcl`, `lib/pull.tcl`, `lib/changelog.tcl` (Timeline),
   `lib/goto.tcl` (Go to: what a hash or name is, and the tab for it),
   `lib/imageview.tcl` (attachments: the kind of file and its icon, and
   an image in a window; JPEG and other formats only with the optional Img

@@ -472,6 +472,42 @@ after a confirmation.
 The context menu of a purge has them too;
 that of an artifact also **Copy hash**.
 
+## Releases and changelogs
+
+**File ▸ Compare releases…** asks for two check-ins,
+the newer and the older
+(by default the two newest tags given to single check-ins, as release tags are;
+any tag, branch or hash will do),
+and searches for the check-ins of the newer that the older does not have:
+`in:NEWER -in:OLDER kind:ci`.
+The search is an ordinary one: it can be narrowed further, and it is kept
+in the box's history.
+**Changelog…** in the same window also opens the changelog of it.
+
+**File ▸ Changelog of the search…** makes a changelog of the check-ins
+the search finds (all of them, not only the rows shown),
+grouped by the tickets their comments name (`[hash]`),
+as Tcl's and Tk's own `changes.md` are:
+
+- **Bug fixes**: the tickets of type Bug;
+- **New features**: RFEs;
+- **Other tickets**: the other types;
+- **Other changes**: the check-ins that name no ticket,
+  each with the first line of its comment and its hash.
+
+A ticket comes once, however many check-ins name it,
+as a link to its page on the server (the repository's remote URL;
+**Links to** changes it, empty for links relative to the page).
+A ticket that is not closed yet says so: "(still open)".
+Merges are left out unless **Merges too** is checked;
+**Check-ins that name no ticket** leaves out the last section when unchecked.
+
+The changelog is Markdown, in the editor of the comments,
+with its Preview and markup buttons:
+edit it, then **Copy** it or **Save…** it to a file.
+Changing an option makes the text again, after asking if you have edited it.
+Nothing is written to the repository.
+
 ## Pull
 
 **File ▸ Pull…** brings new artifacts from a remote into the local repository,
