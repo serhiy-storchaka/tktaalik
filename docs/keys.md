@@ -46,6 +46,13 @@ The Commit and Stash tabs need a checkout: without one, their keys only beep.
 
 The pages of the tabs describe their keys in detail.
 
+In text and entry fields,
+Ctrl+A selects all the text, as in most programs
+(not Tk's "go to the start of the line").
+Ctrl+F, Ctrl+/ and Ctrl+Shift+P do there only what the table says:
+Tk's own meanings of them (forward one character, select all,
+extend the selection up a line) are turned off.
+
 In the windows of the Repository menu,
 and in the Go to and Ticket reports windows:
 

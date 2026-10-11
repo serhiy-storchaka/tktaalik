@@ -635,6 +635,18 @@ proc tktaalik::key {sequence} {
 
 # ----------------------------------------------------------------- window
 
+# The keys of the text and entry fields, where Tk's own (Emacs-like, on X11)
+# would do what other programs do not, or what Tktaalik's keys do: Ctrl+A
+# selects all (not to the line start); Ctrl+F and Ctrl+/ (the search box)
+# and Ctrl+Shift+P (Preview) do nothing there.
+proc tktaalik::textKeys {} {
+    event delete <<LineStart>> <Control-Key-a> <Control-Lock-Key-A>
+    event add <<SelectAll>> <Control-Key-a> <Control-Lock-Key-A>
+    event delete <<SelectAll>> <Control-Key-slash>
+    event delete <<NextChar>> <Control-Key-f> <Control-Lock-Key-F>
+    event delete <<SelectPrevLine>> <Control-Key-P> <Control-Lock-Key-p>
+}
+
 proc tktaalik::buildWindow {} {
     variable tabs
     if {[tk windowingsystem] eq "x11" && "clam" in [ttk::style theme names]} {
@@ -647,6 +659,7 @@ proc tktaalik::buildWindow {} {
     ttk::style configure Treeview -rowheight [expr {[font metrics $font -linespace] + 4}]
     ttk::style configure Item.Toolbutton -anchor w -padding {4 2}
     option add *tearOff 0
+    textKeys
 
     menu .menubar
     . configure -menu .menubar

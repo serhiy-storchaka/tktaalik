@@ -40,4 +40,29 @@ foreach key {<Control-f> <Control-slash>} {
     check "settings $key: [focus]" {[focus] eq ".settings.top.filter"}
 }
 destroy .settings
+
+# In text and entry fields: Ctrl+A selects all; Tk's Ctrl+F, Ctrl+/ and
+# Ctrl+Shift+P do nothing there (Tktaalik's keys).
+toplevel .tk
+text .tk.t; ttk::entry .tk.e; pack .tk.t .tk.e
+.tk.t insert 1.0 "one\ntwo"; .tk.e insert 0 "words here"
+proc key {w k} { focus -force $w; update; event generate $w $k; update }
+.tk.t mark set insert 2.1
+key .tk.t <Control-a>
+check "text Ctrl+A: all selected" {[.tk.t get sel.first sel.last] eq "one\ntwo\n" || [.tk.t get sel.first sel.last] eq "one\ntwo"}
+.tk.t tag remove sel 1.0 end; .tk.t mark set insert 1.1
+key .tk.t <Control-f>
+check "text Ctrl+F: the cursor stays ([.tk.t index insert])" {[.tk.t index insert] eq "1.1"}
+key .tk.t <Control-slash>
+check "text Ctrl+/: nothing selected" {![llength [.tk.t tag ranges sel]]}
+.tk.t mark set insert 2.1
+key .tk.t <Control-P>
+check "text Ctrl+Shift+P: nothing selected, the cursor stays" {![llength [.tk.t tag ranges sel]] && [.tk.t index insert] eq "2.1"}
+.tk.e icursor 3; .tk.e selection clear
+key .tk.e <Control-a>
+check "entry Ctrl+A: all selected" {[.tk.e selection present] && [.tk.e index sel.first] == 0 && [.tk.e index sel.last] == 10}
+.tk.e selection clear; .tk.e icursor 3
+key .tk.e <Control-f>
+check "entry Ctrl+F: the cursor stays" {[.tk.e index insert] == 3}
+destroy .tk
 done
