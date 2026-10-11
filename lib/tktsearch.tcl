@@ -655,6 +655,7 @@ proc tktsearch::build {} {
     bind .tickets.top.q <Return> {tktaalik::navigate; tktsearch::search}
     bind .tickets.top.q <<ComboboxSelected>> {tktaalik::navigate; tktsearch::search}
     bind .tickets.top.q <Escape> tktsearch::clearSearch
+    complete::attach .tickets.top.q tktsearch::completion
     set t .tickets.main.list.t
     bind $t <<TreeviewSelect>> {tktsearch::showDetails [lindex [.tickets.main.list.t selection] 0]}
     # (The ticket is shown below: double-click edits it; the web page is
@@ -717,3 +718,68 @@ proc tktsearch::setQuery {q} {
 source [file join [file dirname [file normalize [info script]]] ticketdialogs.tcl]
 source [file join [file dirname [file normalize [info script]]] ticketdetails.tcl]
 source [file join [file dirname [file normalize [info script]]] ticketattach.tcl]
+
+# The keys of the search, with their values, for the completion of the
+# search box (complete::attach): those of the repository's ticket table.
+proc tktsearch::completion {} {
+    set repo $::tickets::repo
+    set keys {}
+    dict for {key col} $::tickets::fields {
+        set values [list complete::column $repo ticket $col]
+        if {$col eq "foundin"} {
+            set values [list tktsearch::versions $repo]
+        } elseif {$col in $::tickets::people} {
+            set values [list ::apply {{repo col prefix} {
+                linsert [complete::column $repo ticket $col $prefix] 0 @me
+            }} $repo $col]
+        } elseif {$col eq "status"} {
+            set values [list ::apply {{repo prefix} {
+                lsort -unique -nocase [concat $::tickets::states [complete::column $repo ticket status $prefix]]
+            }} $repo]
+        }
+        # (The icons of the list's columns: status, priority, severity.)
+        set icons {status {tktsearch::iconName state} priority {tktsearch::iconName priority}
+            severity {tktsearch::iconName severity}}
+        set icon [expr {[dict exists $icons $col] ? [dict get $icons $col] : ""}]
+        dict set keys $key [list "the field $col" $values $icon]
+    }
+    dict for {key col} $::tickets::dateFields {
+        dict set keys $key [list "a date (YYYY, YYYY-MM, >=, ..)" ""]
+    }
+    foreach key [lsort -unique [dict values $::tickets::countKeys]] {
+        dict set keys $key [list "the number of $key (N, >N, N..M)" ""]
+    }
+    set fieldNames [dict keys $::tickets::fields]
+    set counted [lsort -unique [dict values $::tickets::countKeys]]
+    dict set keys is [list "a state, a type or private" \
+        [list complete::fixed [concat $::tickets::states {bug rfe patch support private}]] \
+        {tktsearch::iconName state}]
+    dict set keys has [list "the field or count is not empty" [list complete::fixed [concat $counted $fieldNames]]]
+    dict set keys no [list "the field or count is empty" [list complete::fixed [concat $counted $fieldNames]]]
+    if {[llength $::tickets::people]} {
+        dict set keys involves [list "the submitter, assignee or closer" [list ::apply {{repo prefix} {
+            set people {}
+            foreach col $::tickets::people { lappend people {*}[complete::column $repo ticket $col $prefix] }
+            linsert [lsort -unique -nocase $people] 0 @me
+        }} $repo]]
+    }
+    dict set keys id [list "a prefix of the ticket's id" ""]
+    dict set keys in [list "words in the title only" {complete::fixed title}]
+    return $keys
+}
+
+# The versions in the "Found in" values (which often list several, or say
+# more), the newest first: for version:.
+proc tktsearch::versions {repo prefix} {
+    set found {}
+    foreach text [complete::cached $repo ticket.foundin.all \
+            "SELECT DISTINCT [fossil::outcol foundin] FROM ticket WHERE trim(coalesce(foundin,''))<>''"] {
+        # (Two digits at most before the dots: not the typos, 8609.2.)
+        foreach v [regexp -all -inline {\m[0-9]{1,2}\.[0-9]{1,2}(?:\.[0-9]+)?(?:[ab][0-9]+)?\M} $text] {
+            dict set found $v 1
+        }
+    }
+    lsort -command {::apply {{a b} {
+        tickets::versionCompare [tickets::versionKey $b] [tickets::versionKey $a]
+    }}} [dict keys $found]
+}

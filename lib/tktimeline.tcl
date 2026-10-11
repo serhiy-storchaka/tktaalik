@@ -1111,6 +1111,7 @@ proc tktimeline::build {} {
     bind .timeline.top.q <KP_Enter> {set tktaalik::typing ""; tktimeline::search 1}
     bind .timeline.top.q <<ComboboxSelected>> {set tktaalik::typing ""; tktimeline::search 1}
     bind .timeline.top.q <Escape> {tktaalik::navigate; set tktimeline::query ""; tktimeline::search}
+    complete::attach .timeline.top.q tktimeline::completion
     bind $t <<TreeviewSelect>> {tktimeline::showDetails [lindex [.timeline.main.list.t selection] 0]}
     bind $t <Double-1> {
         if {[.timeline.main.list.t identify region %x %y] in {cell tree}} {
@@ -1243,3 +1244,30 @@ proc tktimeline::activate {} {
 
 source [file join [file dirname [file normalize [info script]]] bisect.tcl]
 source [file join [file dirname [file normalize [info script]]] pull.tcl]
+
+# The keys of the search, with their values, for the completion of the
+# search box (complete::attach).
+proc tktimeline::completion {} {
+    variable repo
+    set branches [list ::apply {{repo prefix} {
+        linsert [complete::branches $repo $prefix] 0 @current
+    }} $repo]
+    dict create \
+        comment [list "a part of the comment" ""] \
+        user [list "who made it" [list complete::users $repo]] \
+        kind [list "the kind of event" {complete::fixed {ci ticket tag wiki forum technote}} \
+            {::apply {{kind} { tktimeline::kindIcon [dict get {ci ci ticket t tag g wiki w forum f technote e} $kind] }}}] \
+        branch [list "check-ins on the branch" $branches {complete::icon k-branch}] \
+        tag [list "check-ins with the tag" [list complete::tags $repo] {complete::icon k-tag}] \
+        ticket [list "the ticket's changes and check-ins" ""] \
+        hash [list "the artifact with the hash" ""] \
+        date [list "the date (YYYY, YYYY-MM, >=, ..)" ""] \
+        pull [list "brought by the last N pulls" ""] \
+        in [list "check-ins in the release" [list complete::tags $repo] {complete::icon k-tag}] \
+        desc [list "the check-in and its descendants" [list complete::tags $repo] {complete::icon k-tag}] \
+        after [list "events after the check-in" [list complete::tags $repo] {complete::icon k-tag}] \
+        before [list "events before the check-in" [list complete::tags $repo] {complete::icon k-tag}] \
+        path [list "check-ins that changed the file" [list complete::files $repo] complete::fileIcon] \
+        is [list "unsent, private, leaf, open, closed, merge, current" \
+            {complete::fixed {unsent private leaf open closed merge current}}]
+}

@@ -1279,6 +1279,7 @@ proc tkbranches::build {} {
     bind .branches.top.q <KP_Enter> {set tktaalik::typing ""; tkbranches::search 1}
     bind .branches.top.q <<ComboboxSelected>> {set tktaalik::typing ""; tkbranches::search 1}
     bind .branches.top.q <Escape> {tktaalik::navigate; set tkbranches::query ""; tkbranches::search}
+    complete::attach .branches.top.q tkbranches::completion
     # Searched while typing, a moment after the last key.
     trace add variable ::tkbranches::query write {::apply {args {
         tktaalik::typing .branches.top.q
@@ -1429,3 +1430,24 @@ proc tkbranches::fileMenu {m item} {
 }
 
 source [file join [file dirname [file normalize [info script]]] branchops.tcl]
+
+# The keys of the search, with their values, for the completion of the
+# search box (complete::attach).
+proc tkbranches::completion {} {
+    variable repo
+    set branches [list complete::branches $repo]
+    dict create \
+        name [list "the branch's name" $branches {complete::icon k-branch}] \
+        comment [list "a part of its check-ins' comments" ""] \
+        user [list "who made check-ins on it" [list complete::users $repo]] \
+        created [list "the date it was made" ""] \
+        updated [list "the date of its last check-in" ""] \
+        checkins [list "the number of its check-ins" ""] \
+        base [list "made from the branch" $branches {complete::icon k-branch}] \
+        merged [list "merged into the branch" $branches {complete::icon k-branch}] \
+        descendant [list "a descendant of the branch" $branches {complete::icon k-branch}] \
+        ticket [list "mentions the ticket" ""] \
+        has [list "ci, forks, tickets" {complete::fixed {ci forks tickets}}] \
+        is [list "open, closed, leaf, forked, hidden, private, current" \
+            {complete::fixed {open closed leaf forked hidden private current}}]
+}

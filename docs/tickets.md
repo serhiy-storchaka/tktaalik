@@ -61,6 +61,8 @@ Saved searches are kept in the settings file `tickets.conf`
 
 Terms are combined with AND: a ticket must match all of them.
 A term is `key:value`, or a word.
+A list below the box completes the keys and their values as you type
+(see [Completion](keys.md#completion-in-the-search-boxes)).
 
 | Term | Finds |
 |---|---|

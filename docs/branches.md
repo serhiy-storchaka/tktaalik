@@ -112,6 +112,8 @@ with the rest of the search.
 Type in the search box;
 the list follows a moment after you stop typing. Return also searches and
 remembers the search in the drop-down history.
+A list below the box completes the keys and their values as you type
+(see [Completion](keys.md#completion-in-the-search-boxes)).
 
 - A plain word matches a part of the branch name **or** of any check-in comment
   on the branch.

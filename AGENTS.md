@@ -36,6 +36,8 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   buttons and keys, and its Preview button),
   `lib/refpick.tcl` (references to tickets, check-ins and branches for
   formattext: what a text names, and a window to find one),
+  `lib/complete.tcl` (completion in the search boxes: each tab gives its
+  keys, where their values come from and their icons, `TAB::completion`),
   `lib/tagwrite.tcl` (tag, amend and reparent dialogs: `tagwrite::apply`
   runs the dry run, confirms, then runs), `lib/commitops.tcl` and
   `lib/diffopts.tcl` (the Commit tab's operations and diff options),

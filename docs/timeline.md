@@ -132,6 +132,8 @@ rest of the search.
 Type in the search box;
 the list follows a moment after you stop typing. Return also searches and
 remembers the search in the box's drop-down history (the last 30).
+A list below the box completes the keys and their values as you type
+(see [Completion](keys.md#completion-in-the-search-boxes)).
 
 - A plain word matches a part of the comment
   (upper and lower case are the same).

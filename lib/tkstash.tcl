@@ -719,6 +719,7 @@ proc tkstash::build {} {
     bind .stash.top.q <KP_Enter> {set tktaalik::typing ""; tkstash::search 1}
     bind .stash.top.q <<ComboboxSelected>> {set tktaalik::typing ""; tkstash::search 1}
     bind .stash.top.q <Escape> {tktaalik::navigate; set tkstash::query ""; tkstash::search}
+    complete::attach .stash.top.q tkstash::completion
 
     ttk::frame .stash.bar -padding {6 4 6 2}
     foreach {name label command} {
@@ -876,4 +877,23 @@ proc tkstash::saveAll {skip} {
     foreach path [.stash.save.f.files.t children {}] {
         if {[info exists saveSkip($path)] != $skip} { saveToggle $path }
     }
+}
+
+# The keys of the search, with their values, for the completion of the
+# search box (complete::attach).
+proc tkstash::completion {} {
+    variable repo
+    set files [list complete::files $repo]
+    dict create \
+        comment [list "a part of the comment" ""] \
+        date [list "the date it was made" ""] \
+        branch [list "made on the branch" [list complete::branches $repo] {complete::icon k-branch}] \
+        on [list "made on the check-in" ""] \
+        file [list "changes the file" $files complete::fileIcon] \
+        added [list "adds the file" $files complete::fileIcon] \
+        deleted [list "deletes the file" $files complete::fileIcon] \
+        renamed [list "renames the file" $files complete::fileIcon] \
+        files [list "the number of files" ""] \
+        diff [list "a part of the changed lines" ""] \
+        is [list "current" {complete::fixed current}]
 }

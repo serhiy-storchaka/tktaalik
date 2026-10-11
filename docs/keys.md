@@ -77,6 +77,33 @@ In the window of an attached image (see [Images](tickets.md#images)):
 
 In dialogs, Return is usually the default button and Escape cancels.
 
+## Completion in the search boxes
+
+The search boxes of Timeline, Tickets, Branches and Stash
+complete what you type with a list below the box:
+the keys of the search (`user:`, `is:`…) while you type a word,
+with what each one finds,
+and their values after `key:` or after a comma:
+the repository's users, branches, tags and file names,
+the values of a ticket field
+(for `version:`, the versions they name, the newest first),
+or the fixed ones (`is:open`…).
+
+| Key | Action |
+|---|---|
+| Down, Up | choose in the list |
+| Tab | take the one chosen, or the first; a key goes on to its values |
+| Return | take the one chosen; with none chosen, search as before |
+| click | take that one |
+| Escape | close the list (without it, Escape clears the box as before) |
+| Ctrl+Space | the list of all the keys |
+
+With Tk 9 the values have the icons of the tables:
+ticket states, priorities and severities, the kinds of the Timeline,
+branches, tags and kinds of file.
+A value with a space or a comma is put in quotes.
+`-` before a key (not) is kept.
+
 ## Mouse
 
 | Mouse | Action |

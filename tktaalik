@@ -70,6 +70,7 @@ namespace eval tktaalik {
 set tktaalik::lib [file join [file dirname [file normalize [info script]]] lib]
 source [file join $tktaalik::lib fossil.tcl]
 source [file join $tktaalik::lib ui.tcl]
+source [file join $tktaalik::lib complete.tcl]
 source [file join $tktaalik::lib diffview.tcl]
 source [file join $tktaalik::lib htmltext.tcl]
 source [file join $tktaalik::lib imageview.tcl]
