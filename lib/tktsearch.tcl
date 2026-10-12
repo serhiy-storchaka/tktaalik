@@ -371,12 +371,10 @@ proc tktsearch::contextMenu {x y X Y} {
 # The entries for the ticket ITEM: the context menu, and the Ticket menu
 # for the ticket shown.
 proc tktsearch::fillTicketMenu {m item} {
-    variable rows
     variable remote
     set state [expr {$item eq "" ? "disabled" : "normal"}]
     $m add command -label "Open in browser" -command [list tktsearch::openTicket $item] \
         -state [expr {$remote eq "" ? "disabled" : $state}]
-    $m add command -label "Copy ticket id" -command [list ui::copy $item] -state $state
     $m add command -label "Edit ticket\u2026" -command [list tktsearch::editTicket $item] -state $state
     set closable [expr {$item ne "" && [::tickets::canWrite status]}]
     if {$closable} {
@@ -390,8 +388,6 @@ proc tktsearch::fillTicketMenu {m item} {
         -state [expr {$item ne "" && ($closable || ![::tickets::canWrite status]) ? "normal" : "disabled"}]
     $m add command -label "Attach files\u2026" -command [list tktsearch::attachFiles $item] \
         -state [expr {$item ne "" && [canWrite] ? "normal" : "disabled"}]
-    set title [expr {[info exists rows($item)] ? [dict get $rows($item) title] : ""}]
-    popup::copy $m "Copy title" $title
 }
 
 # The Ticket menu: a new ticket, the entries for the ticket shown, the
@@ -666,6 +662,8 @@ proc tktsearch::build {} {
         }
     }
     bind $t <Return> {tktsearch::editTicket [lindex [.tickets.main.list.t selection] 0]}
+    # (Ctrl+C: the id; the title has its button in the details.)
+    popup::copyKey $t
     if {[tk windowingsystem] eq "aqua"} {
         bind $t <2> {tktsearch::rightClick %x %y %X %Y}
         bind $t <Control-1> {tktsearch::rightClick %x %y %X %Y}

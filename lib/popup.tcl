@@ -10,6 +10,10 @@
 #                             command)
 #   popup::menuEntries M SRC  the command entries and separators of SRC
 #   popup::copy M LABEL TEXT  an entry copying TEXT to the clipboard
+#   popup::copyKey W ?CMD?    Ctrl+C (<<Copy>>) in the treeview W copies its
+#                             selected rows, a line each: the item, or what
+#                             the command prefix CMD returns for it ("" for
+#                             none)
 #   popup::column             the column of the row clicked (treeviews)
 #   popup::default M LABEL    the entry LABEL of M in bold: what a
 #                             double-click on the row does
@@ -127,6 +131,19 @@ proc popup::DefaultFont {} {
 proc popup::copy {m label text} {
     $m add command -label $label -command [list ui::copy $text] \
         -state [expr {$text eq "" ? "disabled" : "normal"}]
+}
+
+proc popup::copyKey {w {command ""}} {
+    bind $w <<Copy>> [list popup::copyRows $w $command]
+}
+
+proc popup::copyRows {w command} {
+    set values {}
+    foreach item [$w selection] {
+        set v [expr {$command eq "" ? $item : [uplevel #0 [list {*}$command $item]]}]
+        if {$v ne ""} { lappend values $v }
+    }
+    if {[llength $values]} { ui::copy [join $values \n] }
 }
 
 proc popup::separator {m} {

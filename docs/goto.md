@@ -68,6 +68,7 @@ Then the window lists them all instead of choosing:
 
 Double-click one, or choose it with the arrow keys
 (Down from the box goes to the list) and press Return.
+Ctrl+C copies the name of the one selected.
 An "Artifact" without anything to show
 (a control artifact or a cluster,
 Fossil's own records) is listed in grey and cannot be opened.

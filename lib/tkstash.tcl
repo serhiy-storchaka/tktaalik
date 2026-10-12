@@ -353,12 +353,15 @@ proc tkstash::showDetails {id} {
     set d .stash.main.details.text
     $d configure -state normal
     $d delete 1.0 end
+    destroy $d.copyhash
     if {$id eq "" || ![info exists stashes($id)]} {
         $d configure -state disabled
         return
     }
     set s $stashes($id)
     $d insert end "Stash $id  " title "[dict get $s date]  \u00b7  on [string range [dict get $s hash] 0 9]" meta
+    $d window create end -align center -padx 2 -window [icons::copyButton $d.copyhash \
+        "Copy the check-in's hash (all of it)" [list ui::copy [dict get $s hash]]]
     if {[dict get $s branch] ne ""} { $d insert end " ([dict get $s branch])" meta }
     if {[dict get $s hash] eq $current} { $d insert end "  \u00b7  the check-in of the checkout" meta }
     $d insert end \n\n "" [dict get $s comment] comment \n\n ""
@@ -601,6 +604,7 @@ proc tkstash::save {} {
         [expr {min(10, max(3, [llength $changed]))}] -selectmode browse \
         -yscrollcommand [list $w.f.files.y set]
     popup::attach $w.f.files.t tkstash::saveMenu
+    popup::copyKey $w.f.files.t
     ttk::scrollbar $w.f.files.y -command [list $w.f.files.t yview]
     set char [font measure TkDefaultFont 0]
     $w.f.files.t heading status -text Status -anchor w
@@ -683,7 +687,6 @@ proc tkstash::build {} {
         "Go back\u2026"                      tkstash::goBack
         "Drop\u2026"                         tkstash::drop
         "Drop all\u2026"                     tkstash::dropAll
-        "Copy comment"                  tkstash::copyComment
         --                              {}
         "Diff options"                  >diffopts
         "Stash changes\u2026"                tkstash::save
@@ -796,6 +799,8 @@ proc tkstash::build {} {
     }}}
     showWidgets 0
     popup::attach .stash.main.list.t tkstash::popupMenu
+    # (Ctrl+C: the comment; the check-in has its button in the details.)
+    popup::copyKey .stash.main.list.t {::apply {{id} { .stash.main.list.t set $id comment }}}
 }
 
 proc tkstash::showWidgets {on} {
@@ -855,12 +860,6 @@ proc tkstash::popupMenu {m item} {
     popup::default $m "Show diff"
 }
 
-proc tkstash::copyComment {} {
-    set id [selected]
-    if {$id eq ""} { bell; return }
-    ui::copy [.stash.main.list.t set $id comment]
-}
-
 # The context menu of the files to stash: check or uncheck them all.
 proc tkstash::saveMenu {m item} {
     variable saveSkip
@@ -868,8 +867,6 @@ proc tkstash::saveMenu {m item} {
         -command [list tkstash::saveToggle $item]
     $m add command -label "Check all" -command [list tkstash::saveAll 0]
     $m add command -label "Uncheck all" -command [list tkstash::saveAll 1]
-    popup::separator $m
-    popup::copy $m "Copy path" $item
 }
 
 proc tkstash::saveAll {skip} {

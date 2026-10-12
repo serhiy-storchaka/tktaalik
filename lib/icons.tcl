@@ -1,10 +1,12 @@
 # Icons for the buttons of tktaalik, and the buttons with them.
 #
-#   icons::get NAME ?row?        the image (search, save, clear, help; for
-#                                tickets st-*, pr-*, sv-*; for the timeline
+#   icons::get NAME ?row?        the image (search, save, clear, help, link,
+#                                copy; for tickets st-*, pr-*, sv-*; for the timeline
 #                                k-*), in the size that suits the default
 #                                font, or with "row" a table row
 #   icons::button W NAME TIP CMD a ttk::button with the icon and a tooltip
+#   icons::copyButton W TIP CMD  a small flat copy button, as high as a
+#                                line of text (the details of a selection)
 #   icons::appIcon               the application icon, for all windows
 #   icons::tooltip W TEXT        a tooltip for any widget
 #   icons::tipLater W TEXT ?X Y? show a tooltip after a moment: below W, or
@@ -56,6 +58,20 @@ proc icons::appIcon {} {
 proc icons::button {w name tip command} {
     ttk::style configure Icon.TButton -padding {6 2}
     ttk::button $w -image [get $name] -style Icon.TButton -width 0 -command $command
+    tooltip $w $tip
+    return $w
+}
+
+proc icons::copyButton {w tip command} {
+    # In a text widget: on its background, not a grey square.
+    set style Toolbutton
+    set parent [string range $w 0 [string last . $w]-1]
+    if {[winfo class $parent] eq "Text"} {
+        set bg [$parent cget -background]
+        set style Copy[string map {# "" " " ""} $bg].Toolbutton
+        ttk::style configure $style -background $bg
+    }
+    ttk::button $w -image [get copy row] -style $style -takefocus 0 -command $command
     tooltip $w $tip
     return $w
 }

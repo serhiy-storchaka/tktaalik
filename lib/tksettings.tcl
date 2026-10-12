@@ -151,16 +151,22 @@ proc tksettings::showDetails {name} {
     set d .settings.main.details.help
     $d configure -state normal
     $d delete 1.0 end
+    destroy $d.copyname
     set e .settings.main.details.edit
     $e.value delete 1.0 end
     if {$name eq "" || ![info exists settings($name)]} {
         $d configure -state disabled
         foreach b {local global unlocal unglobal} { $e.b.$b state disabled }
+        $e.copy state disabled
         return
     }
+    $e.copy state !disabled
     set s $settings($name)
     lassign [help $name] header text
-    $d insert end "$name\n" title
+    $d insert end $name title
+    $d window create end -align center -padx 4 -window [icons::copyButton $d.copyname \
+        "Copy the name" [list ui::copy $name]]
+    $d insert end \n title
     set extra ""
     regexp {\(([^)]*)\)\s*$} $header -> extra
     set where [origin $s]
@@ -308,7 +314,13 @@ proc tksettings::build {} {
     $d tag configure help -font TkFixedFont -foreground gray25
     set e .settings.main.details.edit
     ttk::frame $e -padding {0 6 0 0}
+    ttk::frame $e.h
     ttk::label $e.l -text "Value:"
+    # (What is in the box: the value to set.)
+    icons::copyButton $e.copy "Copy the value" \
+        {ui::copy [string trim [.settings.main.details.edit.value get 1.0 end]]}
+    $e.copy state disabled
+    pack $e.l $e.copy -in $e.h -side left -padx {0 4}
     text $e.value -height 3 -width 40 -wrap none -font TkFixedFont -undo 1
     ttk::frame $e.b
     foreach {b label how scope} {
@@ -320,7 +332,7 @@ proc tksettings::build {} {
         ttk::button $e.b.$b -text $label -command [list tksettings::change $how $scope]
         pack $e.b.$b -side left -padx {0 4}
     }
-    grid $e.l -sticky w
+    grid $e.h -sticky w
     grid $e.value -sticky ew
     grid $e.b -sticky w -pady {4 0}
     grid columnconfigure $e 0 -weight 1
@@ -341,6 +353,7 @@ proc tksettings::build {} {
     bind .settings <Control-f> {focus .settings.top.filter}
     bind .settings <Control-slash> {focus .settings.top.filter}
     popup::attach .settings.main.list.t tksettings::popupMenu
+    popup::copyKey .settings.main.list.t
 }
 
 proc tksettings::setRepository {path newRoot} {
@@ -351,11 +364,8 @@ proc tksettings::setRepository {path newRoot} {
 }
 
 # The context menu of a setting: the buttons of its details (they set the
-# value in the box there), and copying.
+# value in the box there).
 proc tksettings::popupMenu {m item} {
     set e .settings.main.details.edit.b
     foreach b {local global unlocal unglobal} { popup::button $m $e.$b }
-    popup::separator $m
-    popup::copy $m "Copy name" $item
-    popup::copy $m "Copy value" [string trim [.settings.main.details.edit.value get 1.0 end]]
 }

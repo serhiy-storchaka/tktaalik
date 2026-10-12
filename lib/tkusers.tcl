@@ -123,6 +123,7 @@ proc tkusers::build {} {
     bind $t <Double-1> {tkusers::edit [lindex [.users.main.list.t selection] 0]}
     bind .users <F5> tkusers::reload
     popup::attach .users.main.list.t tkusers::popupMenu
+    popup::copyKey .users.main.list.t
 }
 
 proc tkusers::setRepository {path newRoot} {
@@ -210,6 +211,7 @@ proc tkusers::showDetails {login} {
     set d .users.main.details.text
     $d configure -state normal
     $d delete 1.0 end
+    destroy $d.copylogin $d.copyinfo
     if {$login eq "" || ![info exists users($login)]} {
         $d configure -state disabled
         .users.b.default state disabled
@@ -217,8 +219,17 @@ proc tkusers::showDetails {login} {
         return
     }
     set u $users($login)
-    $d insert end "$login\n" title
-    if {[dict get $u info] ne ""} { $d insert end "[dict get $u info]\n" meta }
+    # The login and the contact, each with a button that copies it.
+    $d insert end $login title
+    $d window create end -align center -padx 4 -window [icons::copyButton $d.copylogin \
+        "Copy the user name" [list ui::copy $login]]
+    $d insert end \n title
+    if {[dict get $u info] ne ""} {
+        $d insert end [dict get $u info] meta
+        $d window create end -align center -padx 4 -window [icons::copyButton $d.copyinfo \
+            "Copy the contact" [list ui::copy [dict get $u info]]]
+        $d insert end \n meta
+    }
     if {$login eq $default} { $d insert end "The default user: changes are recorded as $login.\n" meta }
     $d insert end \n
     set cap [dict get $u cap]
@@ -451,8 +462,5 @@ proc tkusers::save {login oldCap} {
 proc tkusers::popupMenu {m item} {
     variable users
     foreach b {edit default unset} { popup::button $m .users.b.$b }
-    popup::separator $m
-    popup::copy $m "Copy user name" $item
-    popup::copy $m "Copy contact" [expr {[info exists users($item)] ? [dict get $users($item) info] : ""}]
     popup::default $m [.users.b.edit cget -text]
 }

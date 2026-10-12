@@ -51,7 +51,9 @@ the tree is read again when you come back to the tab.
 time.
 
 Select a file in the tree to show it on the right;
-its path is the title above the three tabs.
+its path is the title above the three tabs,
+with a button that copies it.
+Ctrl+C in the tree copies the path of the file or directory selected.
 Right-click a file for its context menu:
 
 | Entry | What it does |
@@ -61,13 +63,12 @@ Right-click a file for its context menu:
 | Blame | the Blame tab |
 | Find in its history… | the Find in history tab, see [Find in history](#find-in-history) |
 | Open in browser | the file's history page on the remote's web site (only when the repository has a remote) |
-| Copy path | the file's path, to the clipboard |
 
 The **File** menu has more for the version and the file:
 
 - **History of the file**, **Find in the file's history…**,
-  **Content of the file**, **Blame of the file**, **Open the file in browser**,
-  **Copy the file's path**: the entries of the file's context menu;
+  **Content of the file**, **Blame of the file**, **Open the file in browser**:
+  the entries of the file's context menu;
 - **Find a local file in history…**:
   see [A local file in history](#a-local-file-in-history);
 - **Save this version as an archive…**: see [Archives](#archives).
@@ -159,6 +160,7 @@ The **Name** column appears only when the name changed somewhere in the history.
 Double-click a version (or press Return) for its diff:
 the changes that check-in made to the file, side by side,
 under the name the file had in it.
+Ctrl+C copies its check-in's hash.
 Right-click a version for its context menu:
 
 | Entry | What it does |
@@ -169,7 +171,6 @@ Right-click a version for its context menu:
 | Blame of this version | the Blame tab at that version |
 | Save this version… | saves the file as it was in that check-in to a file you choose (`fossil cat -o`) |
 | Open in browser | the file at that check-in on the remote's web site |
-| Copy check-in | the full hash, to the clipboard |
 | Copy file hash | the hash of the file's content in that version |
 
 Content, Blame and Save are disabled for a version that deletes the file.
@@ -209,8 +210,8 @@ with the name the file had in each: the date, the check-in, the user,
 the name and the comment.
 Double-click one (or **Show it**) for the Files tab at that check-in,
 with the file's content.
-Its context menu also has **Show in Timeline**,
-**Copy check-in** and **Copy file name**.
+Its context menu also has **Show in Timeline**;
+Ctrl+C copies the check-in's hash.
 If the content is in no version of the repository, the window says so.
 
 ## Archives

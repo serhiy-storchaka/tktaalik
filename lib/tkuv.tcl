@@ -88,6 +88,7 @@ proc tkuv::build {} {
     bind $t <Control-a> {%W selection set [%W children {}]}
     bind .uv <F5> tkuv::reload
     popup::attach .uv.list.t tkuv::popupMenu
+    popup::copyKey .uv.list.t
 }
 
 proc tkuv::setRepository {path newRoot} {
@@ -506,8 +507,6 @@ proc tkuv::popupMenu {m item} {
     foreach b {view export edit rename touch remove} { popup::button $m .uv.b.$b }
     popup::separator $m
     popup::button $m .uv.b.browse
-    popup::separator $m
-    popup::copy $m "Copy name" $item
     popup::default $m [.uv.b.view cget -text]
 }
 

@@ -254,5 +254,5 @@ check "an empty check-in" {[lindex [fossil::sql $W/tk.fossil "SELECT count(*) FR
 tkcommit::toggleMore; update
 check "more options shown" {[winfo ismapped .commit.bottom.more]}
 tkcommit::toggleMore; update
-check "file menu: [.commit.ctx index end] entries" {[.commit.ctx index end] == 8}
+check "file menu: [.commit.ctx index end] entries" {[.commit.ctx index end] == 7}
 done

@@ -133,7 +133,12 @@ proc tkwiki::build {} {
     set p .wiki.main.page
     ttk::frame $p
     ttk::frame $p.head -padding {8 6 8 4}
+    # The title, and a button that copies it.
+    ttk::frame $p.head.t
     ttk::label $p.head.title -font TkHeadingFont
+    icons::copyButton $p.head.copy "Copy the name" {ui::copy [.wiki.main.page.head.title cget -text]}
+    $p.head.copy state disabled
+    pack $p.head.title $p.head.copy -in $p.head.t -side left
     ttk::label $p.head.meta -foreground gray35
     ttk::frame $p.head.v
     ttk::frame $p.head.a
@@ -156,12 +161,15 @@ proc tkwiki::build {} {
     pack $p.head.vl $p.head.version $p.head.changes $p.head.since -in $p.head.v \
         -side left -padx {0 6}
     pack $p.head.edit $p.head.save $p.head.attach -in $p.head.a -side left -padx {6 0}
-    grid $p.head.title - -sticky ew
+    grid $p.head.t - -sticky ew
     grid $p.head.meta $p.head.a -sticky w
     grid $p.head.a -sticky e
     grid $p.head.v - -sticky w -pady {2 0}
     # A long title wraps.
-    bind $p.head <Configure> {.wiki.main.page.head.title configure -wraplength [expr {max(0, %w - 16)}]}
+    bind $p.head <Configure> {
+        .wiki.main.page.head.title configure \
+            -wraplength [expr {max(0, %w - 16 - [winfo reqwidth .wiki.main.page.head.copy])}]
+    }
     grid columnconfigure $p.head 0 -weight 1
     set d $p.text
     text $d -wrap word -width 70 -height 30 -padx 10 -pady 6 -font TkTextFont \
@@ -198,6 +206,7 @@ proc tkwiki::build {} {
     tktaalik::shortcut wiki <Control-f> {focus .wiki.top.filter; .wiki.top.filter selection range 0 end}
     tktaalik::shortcut wiki <Control-slash> {focus .wiki.top.filter; .wiki.top.filter selection range 0 end}
     popup::attach .wiki.main.list.t tkwiki::popupMenu
+    popup::copyKey .wiki.main.list.t tkwiki::rowName
 }
 
 proc tkwiki::setRepository {path newRoot} {
@@ -410,6 +419,7 @@ proc tkwiki::showPage {tag} {
         foreach b {changes since edit save attach} { $p.head.$b state disabled }
         fillAttachments ""
         $p.head.title configure -text ""
+        $p.head.copy state disabled
         $p.head.meta configure -text ""
         $p.head.version configure -values {}
         set version ""
@@ -452,6 +462,7 @@ proc tkwiki::showVersion {} {
     lassign [artifact $uuid] cards text
     set page $pages($shown)
     $p.head.title configure -text [dict get $page title]
+    $p.head.copy state !disabled
     set meta [dict get $page kind]
     if {[dict exists $cards E]} {
         append meta " for [string map {T " "} [string range [lindex [dict get $cards E] 0] 0 15]]"
@@ -699,6 +710,7 @@ proc tkwiki::buildAttachments {f} {
         }
     }
     bind $tv <Return> {tkwiki::openAttachment [lindex [%W selection] 0]}
+    popup::copyKey $tv tkwiki::attachmentName
     if {[tk windowingsystem] eq "aqua"} {
         bind $tv <2> {tkwiki::attachmentMenu %W %x %y %X %Y}
         bind $tv <Control-1> {tkwiki::attachmentMenu %W %x %y %X %Y}
@@ -772,7 +784,6 @@ proc tkwiki::attachmentMenu {tv x y X Y} {
     $m add separator
     $m add command -label "Open in browser" -state [expr {$remote ne "" ? "normal" : "disabled"}] \
         -command [list tkwiki::browseAttachment $name]
-    $m add command -label "Copy file name" -command [list ui::copy $name]
     $m add separator
     $m add command -label "Delete\u2026" -command [list tkwiki::deleteAttachment $name]
     popup::default $m [expr {$canView eq "normal" ? "View" : "Open in browser"}]
@@ -1136,6 +1147,15 @@ proc tkwiki::popupMenu {m item} {
     popup::button $m $p.attach
     popup::separator $m
     popup::button $m .wiki.b.browse
-    popup::separator $m
-    popup::copy $m "Copy name" [expr {$item eq "" ? "" : [.wiki.main.list.t set $item title]}]
+}
+
+# The name of a row of the list (Ctrl+C).
+proc tkwiki::rowName {item} {
+    .wiki.main.list.t set $item title
+}
+
+# The file name of the attachment I (Ctrl+C).
+proc tkwiki::attachmentName {i} {
+    variable attached
+    expr {[info exists attached($i)] ? [dict get $attached($i) name] : ""}
 }

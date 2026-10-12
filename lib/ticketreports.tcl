@@ -75,6 +75,10 @@ proc ticketreports::build {} {
     bind .reports <F5> ticketreports::run
     popup::attach .reports.main.list ticketreports::listMenu
     popup::attach .reports.main.out.t ticketreports::rowMenu
+    # (Ctrl+C: the rows, their cells separated by tabs.)
+    popup::copyKey .reports.main.out.t {::apply {{item} {
+        join [.reports.main.out.t item $item -values] \t
+    }}}
 }
 
 # The reports of the repository of the Tickets tab.
@@ -286,7 +290,6 @@ proc ticketreports::rowMenu {m item} {
         popup::separator $m
         popup::copy $m "Copy $name" $value
     }
-    popup::copy $m "Copy row" [join [$t item $item -values] \t]
     popup::default $m "Show the ticket"
 }
 

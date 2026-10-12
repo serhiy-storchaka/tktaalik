@@ -485,6 +485,7 @@ proc tkcommit::cleanFiles {} {
     ttk::treeview $f.t -columns {check path kind} -show headings -height 10 \
         -selectmode browse -yscrollcommand [list $f.y set]
     popup::attach $f.t tkcommit::cleanMenu
+    popup::copyKey $f.t
     ttk::scrollbar $f.y -command [list $f.t yview]
     set char [font measure TkDefaultFont 0]
     $f.t heading path -text File -anchor w
@@ -1386,8 +1387,6 @@ proc tkcommit::cleanMenu {m item} {
         -command [list tkcommit::cleanToggle $item]
     $m add command -label "Check all" -command [list tkcommit::cleanAll 0]
     $m add command -label "Uncheck all" -command [list tkcommit::cleanAll 1]
-    popup::separator $m
-    popup::copy $m "Copy path" $item
 }
 
 proc tkcommit::cleanAll {skip} {

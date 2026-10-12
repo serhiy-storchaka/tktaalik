@@ -26,11 +26,9 @@ proc entries {m} {
 set same {
     "Undo for these files…" "Undo for the selected files…"
     "Redo for these files…" "Redo for the selected files…"
-    "Copy names" "Copy names of the selected files"
     Content "Content of the file"
     Blame "Blame of the file"
     "Open in browser" "Open the file in browser"
-    "Copy path" "Copy the file's path"
     "Find in its history…" "Find in the file's history…"
 }
 start timeline $W/co 1300x900

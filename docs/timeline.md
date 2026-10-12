@@ -63,6 +63,7 @@ shown.
 |---|---|
 | Double-click, or Return | A check-in: its diff in the [diff viewer](diffs.md).  A ticket change: the ticket in the [Tickets](tickets.md) tab.  A wiki or technote edit: the page or technote in the [Wiki](wiki.md) tab; a forum post: its thread in the [Forum](forum.md) tab (also the Show in Wiki / Show in Forum button of the details, and the context menu) |
 | Right-click a row | The context menu (below) |
+| Ctrl+C | Copy the hash of the event selected |
 | Ctrl+F, Ctrl+/ | Go to the search box |
 | Escape in the search box | Clear the search |
 | F5, File ▸ Refresh | Read the repository again |
@@ -92,7 +93,6 @@ but for the Search and Exclude ones.
 | Open in browser | The event's page on the server (`/info/HASH`) |
 | Search user:NAME, Exclude user:NAME | Add the term to the search |
 | Search branch:NAME, Search kind:KIND | Add the term to the search |
-| Copy hash, Copy comment | To the clipboard |
 | Show artifact | The event's artifact as Fossil stores it (the manifest of a check-in, the control artifact of a tag change, …) in a window |
 | Save artifact… | The same, saved to a file, as `fossil artifact HASH FILE` |
 
@@ -219,7 +219,8 @@ after:current branch:@current
 ## Details
 
 Below the list, the details of the selected event: its kind, date,
-user and hash, its branch, whether it is not pushed yet or private,
+user and hash (with a button that copies all of it),
+its branch, whether it is not pushed yet or private,
 and its full comment.
 Then, by kind:
 
@@ -470,7 +471,7 @@ each purge with its artifacts (`fossil purge list -l`):
 **Obliterate…** removes it for good (`fossil purge obliterate`),
 after a confirmation.
 The context menu of a purge has them too;
-that of an artifact also **Copy hash**.
+Ctrl+C copies the hash of an artifact selected.
 
 ## Releases and changelogs
 

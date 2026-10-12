@@ -281,7 +281,7 @@ proc tktsearch::showDetails {uuid} {
         $w configure -state normal
         $w delete 1.0 end
     }
-    destroy $d.reply $h.edit $h.close $h.fix
+    destroy $d.reply $h.edit $h.close $h.fix $h.copytitle $h.copyid
     # (The links of the values shown before.)
     foreach tag [$h tag names] { if {[string match fl-* $tag]} { $h tag delete $tag } }
     htmltext::reset $d
@@ -350,6 +350,7 @@ proc tktsearch::showDetails {uuid} {
 
     # The header, above the tabs: the title, the fields, then who and when.
     $h insert end $title title
+    copyButton $h.copytitle $title "Copy the title"
     # Edit and Close: buttons with a frame, after the title.
     if {[canWrite]} {
         $h insert end "   " title
@@ -402,7 +403,9 @@ proc tktsearch::showDetails {uuid} {
     }
     $h insert end \n fields
     # "by ..." only where the tickets record who.
-    $h insert end "[string range $uuid 0 9]  \u00b7  opened $created" {meta when}
+    $h insert end [string range $uuid 0 9] {meta when}
+    copyButton $h.copyid $uuid "Copy the ticket id (all of it)"
+    $h insert end "  \u00b7  opened $created" {meta when}
     if {$submitter ne ""} {
         $h insert end " by " {meta when}
         fieldLink $h author $submitter $submitter {meta when}
@@ -435,6 +438,12 @@ proc tktsearch::showDetails {uuid} {
     }
     $d configure -state disabled
     $d yview moveto 0
+}
+
+# A small button W at the end of the header that copies TEXT.
+proc tktsearch::copyButton {w text tip} {
+    icons::copyButton $w $tip [list ui::copy $text]
+    [winfo parent $w] window create end -window $w -align center -padx 2
 }
 
 # The tab labels with their counts; empty tabs disabled.  The tab shown

@@ -1,0 +1,80 @@
+# Branches: Ctrl+C in the list and in the details' lists, and the copy
+# button of the branch name; no Copy entries left in their menus.
+source [file join [file dirname [info script]] common.tcl]
+start branches "" 1400x840
+set tkbranches::view all; tkbranches::showList; update
+set t .branches.main.list.t
+set nb .branches.main.details.nb
+proc copied {w} {
+    clipboard clear
+    focus -force $w; update
+    event generate $w <Control-c>; update
+    if {[catch {clipboard get} s]} { return "" }
+    return $s
+}
+proc commands {m} {
+    set r {}
+    for {set i 0} {$i <= [$m index end]} {incr i} {
+        if {[$m type $i] eq "command"} { lappend r [$m entrycget $i -label] }
+    }
+    return $r
+}
+
+$t selection set {}; update
+check "no branch: the copy buttons disabled" {[.branches.main.details.copy instate disabled] && [.branches.main.details.copytip instate disabled] && $tkbranches::tipHash eq ""}
+$t selection set [list core-8-6-branch]; $t focus core-8-6-branch; update
+check "Ctrl+C: the branch name" {[copied $t] eq "core-8-6-branch"}
+$t selection set [list core-8-6-branch main]; update
+check "Ctrl+C: the names selected, a line each: [list [copied $t]]" {[lsort [split [copied $t] \n]] eq {core-8-6-branch main}}
+$t selection set [list core-8-6-branch]; $t focus core-8-6-branch; update
+clipboard clear
+.branches.main.details.copy invoke
+check "the copy button: the name" {[.branches.main.details.copy instate !disabled] && [clipboard get] eq "core-8-6-branch"}
+set tip [dict get $tkbranches::branches(core-8-6-branch) tip]
+check "the last check-in shown: $tkbranches::tipHash" {$tkbranches::tipHash eq [string range $tip 0 9]}
+.branches.main.details.copytip invoke
+check "its copy button: the whole hash" {[clipboard get] eq $tip && [string length $tip] >= 40}
+set m .branches.ctx
+tkbranches::fillBranchMenu $m core-8-6-branch
+check "branch menu: no Copy entries: [commands $m]" {[llength [commands $m]] && ![string match *Copy* [commands $m]] && [$m type end] ne "separator"}
+
+# The check-ins.
+set c $nb.checkins.t
+set ci [lindex [$c children {}] 0]
+$c selection set [list $ci]; update
+check "Ctrl+C in Check-ins: the hash" {[copied $c] eq $ci && [string length $ci] >= 40}
+$nb select $nb.checkins; update
+$c see $ci; waitUntil {[$c bbox $ci] ne ""}
+lassign [$c bbox $ci] x y
+tkbranches::checkinMenu [expr {$x + 5}] [expr {$y + 5}] 0 0; update
+tk::MenuUnpost .branches.cictx
+check "check-in menu: no Copy check-in: [commands .branches.cictx]" {[llength [commands .branches.cictx]] && ![string match *Copy* [commands .branches.cictx]]}
+
+# The tickets.
+set tk $nb.tickets.t
+$nb select $nb.tickets; update
+set id [lindex [$tk children {}] 0]
+check "a ticket: $id" {$id ne ""}
+$tk selection set [list $id]; update
+check "Ctrl+C in Tickets: the id" {[copied $tk] eq $id}
+set m [menu .tm -tearoff 0]
+tkbranches::ticketMenu $m $id
+check "ticket menu: no Copy ticket id: [commands $m]" {![string match *Copy* [commands $m]]}
+
+# The files, of a small branch (diff --numstat is slow on a big one).
+set small [lindex [lmap n [$t children {}] {
+    if {[dict get $tkbranches::branches($n) checkins] in {2 3}} { set n } else continue
+}] 0]
+$t selection set [list $small]; $t focus $small; update
+$nb select $nb.files; update
+set f $nb.files.t
+waitUntil {[llength [$f children {}]] > 1}
+set rows [lmap i [$f children {}] { if {[$f tag has total $i]} continue; set i }]
+$f selection set [$f children {}]; update
+set want [join [lmap i $rows { $f set $i file }] \n]
+check "Ctrl+C in Files of $small: the paths, without the total: [list [copied $f]]" {[copied $f] eq $want && $want ne ""}
+destroy .tm
+set m [menu .tm -tearoff 0]
+tkbranches::fileMenu $m [lindex $rows 0]
+check "file menu: no Copy path: [commands $m]" {[llength [commands $m]] && ![string match *Copy* [commands $m]]}
+done

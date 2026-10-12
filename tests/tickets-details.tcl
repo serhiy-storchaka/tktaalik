@@ -21,6 +21,32 @@ check "tab labels have counts" {[lindex [tabs] 1 0] eq "Check-ins ($nc)" && [lin
 check "header: title and fields, [$h cget -height] lines" {[string match "*Status: *" [$h get 1.0 end]] && [$h cget -height] >= 3}
 lassign [$h dlineinfo "end - 1 char"] - ly - lh
 check "header: the last line visible ([expr {$ly + $lh}] <= [winfo height $h])" {[$h dlineinfo "end - 1 char"] ne "" && $ly + $lh <= [winfo height $h]}
+# The copy buttons: after the title and after the id; Ctrl+C in the list.
+set title [dict get $tktsearch::rows($first) title]
+check "copy buttons in the header" {[winfo exists $h.copytitle] && [winfo exists $h.copyid] && [$h index $h.copytitle] eq [$h index "1.0 + [string length $title] chars"]}
+$h.copytitle invoke
+check "the title copied: [clipboard get]" {[clipboard get] eq $title}
+$h.copyid invoke
+check "the id copied: [clipboard get]" {[clipboard get] eq $first}
+clipboard clear
+focus -force $t; update
+event generate $t <Control-c>; update
+check "Ctrl+C in the list: the id" {[clipboard get] eq $first}
+proc menuLabels {m} {
+    set labels {}
+    for {set i 0} {$i <= [$m index end]} {incr i} {
+        if {[$m type $i] eq "command"} { lappend labels [$m entrycget $i -label] }
+    }
+    return $labels
+}
+$t see $first; waitUntil {[$t bbox $first] ne ""}
+lassign [$t bbox $first] x y
+tktsearch::contextMenu [expr {$x+5}] [expr {$y+5}] 300 300; update
+set labels [menuLabels .tickets.ctx]
+tk::MenuUnpost .tickets.ctx
+tktsearch::ticketMenu .tickets.ctx
+lappend labels {*}[menuLabels .tickets.ctx]
+check "no Copy entries in the menus: $labels" {[llength $labels] && ![string match *Copy* $labels]}
 check "comments tab: cards, comment button" {[string match "*commented*" [$d get 1.0 end]] && [winfo exists $d.reply.add]}
 check "no check-ins or attachments in the comments" {![string match "*mentioning this ticket*" [$d get 1.0 end]]}
 $nb select $nb.checkins; update

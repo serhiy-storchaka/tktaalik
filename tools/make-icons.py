@@ -6,7 +6,7 @@
 #   tools/make-icons.py --preview F also write a preview sheet to F
 #
 # The application: tktaalik (16 to 256 pixels, and tktaalik.ico).  Buttons: search, save,
-# clear, help.  Tickets: st-* (status), pr-*
+# clear, help, link, copy.  Tickets: st-* (status), pr-*
 # (priority), sv-* (severity).  Timeline: k-* (event kinds).  Attachments:
 # a-* (the kind of file).
 import math, os, sys
@@ -46,6 +46,14 @@ def link(n):
     for x0 in (S*0.06, S*0.44):
         d.rounded_rectangle([x0, S/2-h/2, x0+L, S/2+h/2], radius=h/2, outline=INK, width=w)
     return done(im.rotate(45, resample=Image.BICUBIC), n)
+def copy(n):
+    # two pages, the front one over the back one
+    S = n*8; im = canvas(n); d = ImageDraw.Draw(im); w = max(S//12, 6)
+    a = S*0.56; r = S*0.08
+    d.rounded_rectangle([S*0.10, S*0.10, S*0.10+a, S*0.10+a], radius=r, outline=INK, width=w)
+    x0 = S*0.34
+    d.rounded_rectangle([x0, x0, x0+a, x0+a], radius=r, outline=INK, fill=(255,255,255,255), width=w)
+    return done(im, n)
 def cross(n):
     S = n*8; im = canvas(n); d = ImageDraw.Draw(im); w = max(S//8, 8)
     m = S*0.24
@@ -291,7 +299,8 @@ def app_icon(n):
 
 # ------------------------------------------------------------------ main
 
-BUTTONS = {'search': search, 'save': star, 'clear': cross, 'help': help_, 'link': link}
+BUTTONS = {'search': search, 'save': star, 'clear': cross, 'help': help_, 'link': link,
+           'copy': copy}
 TICKETS = ['st-open', 'st-pending', 'st-fixed', 'st-closed', 'st-duplicate',
            'st-rejected', 'st-invalid', 'st-worksforme', 'st-outofdate',
            'st-postponed', 'st-deleted',

@@ -78,6 +78,9 @@ The status line counts the settings and those set.
 
 Selecting a setting shows, on the right, where its value comes from,
 the values for this repository and globally, and Fossil's own help for it.
+Buttons after the name and after **Value:** copy them
+(the value in the box, the one to set);
+Ctrl+C in the list copies the name of the setting selected.
 A *versioned* setting is a file `.fossil-settings/NAME` in the checkout;
 it overrides the other values, and its content is shown.
 To change it, edit and commit that file.
@@ -110,6 +113,8 @@ or the environment (`USER`, ...).
 Selecting a user shows its capabilities on the right, each letter explained,
 and the capabilities it also has from nobody, anonymous,
 reader (`u`) or developer (`v`).
+Buttons after its name and its contact copy them;
+Ctrl+C in the list copies the name of the user selected.
 
 | Button | What it does |
 |---|---|
@@ -134,6 +139,7 @@ The remote repositories this one syncs with (`fossil remote list`):
 the *default* remote, in bold, which `fossil pull` and `fossil push` use,
 and named ones.
 Passwords are never shown.
+Ctrl+C copies the URL of the remote selected.
 
 | Button | What it does |
 |---|---|
@@ -168,7 +174,7 @@ such as downloads and release archives: only the newest of each.
 
 **Find** takes part of a name,
 or a pattern like `*.zip` or `doc/*`. Several files can be selected
-(Ctrl+A selects all).
+(Ctrl+A selects all); Ctrl+C copies their names.
 
 | Button | What it does |
 |---|---|

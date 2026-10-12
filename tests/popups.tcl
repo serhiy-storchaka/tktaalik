@@ -39,25 +39,25 @@ proc menuCheck {name w want {item ""}} {
 }
 # Tabs.
 tktaalik::show tags; update
-menuCheck Tags .tags.main.list.t {"Show in Timeline" "Copy name" "Copy check-in"}
+menuCheck Tags .tags.main.list.t {"Show in Timeline" "Compare with the previous release\u2026"}
 set first [lindex [.tags.main.list.t children {}] 0]
 check "the row clicked is selected" {[.tags.main.list.t selection] eq [list $first]}
 tktaalik::show wiki; update
-menuCheck Wiki .wiki.main.list.t {"Edit…" "Open in browser" "Copy name"}
+menuCheck Wiki .wiki.main.list.t {"Edit…" "Open in browser"}
 tktaalik::show forum; update
 if {[llength [.forum.main.list.t children {}]]} {
-    menuCheck Forum .forum.main.list.t {"Open in browser" "Copy title"}
+    menuCheck Forum .forum.main.list.t {"Open in browser"}
 }
 tktaalik::show stash; update
 if {[llength [.stash.main.list.t children {}]]} {
-    menuCheck Stash .stash.main.list.t {"Copy comment"}
+    menuCheck Stash .stash.main.list.t {"Show diff"}
 }
 tktaalik::show branches; update
 .branches.main.list.t selection set [list core-8-6-branch]; update
 set nb .branches.main.details.nb
 $nb select $nb.tickets; update
 if {[llength [$nb.tickets.t children {}]]} {
-    menuCheck "Branch tickets" $nb.tickets.t {"Show the ticket" "Copy ticket id"}
+    menuCheck "Branch tickets" $nb.tickets.t {"Show the ticket" "Open in browser"}
 }
 # The entry a double-click does: in bold (popup::default); none where a
 # double-click does nothing.
@@ -86,7 +86,7 @@ tktaalik::show tickets; update
 check "Tickets: the default bold" {[bold [rclick .tickets.main.list.t]] eq [list "Edit ticket\u2026"]}
 # Windows.
 tkusers::window; update
-menuCheck Users .users.main.list.t {"Edit…" "Copy user name"}
+menuCheck Users .users.main.list.t {"Edit…"}
 # The menu mirrors the buttons: a special user cannot be the default.
 set m [rclick .users.main.list.t nobody]
 set i [lsearch -exact [labels $m] "Make default user…"]
@@ -95,34 +95,34 @@ check "Users: the default bold" {[bold [rclick .users.main.list.t nobody]] eq [l
 wm withdraw .users
 exec fossil remote https://example.invalid/tk -R $W/tk.fossil
 tkremotes::window; update
-menuCheck Remotes .remotes.list.t {"Open in browser" "Copy URL"}
+menuCheck Remotes .remotes.list.t {"Open in browser"}
 wm withdraw .remotes
 tksettings::window; update
-menuCheck Settings .settings.main.list.t {"Set for this repository" "Copy name"}
+menuCheck Settings .settings.main.list.t {"Set for this repository"}
 wm withdraw .settings
 ticketreports::window; update
 menuCheck "Reports list" .reports.main.list {Run}
 .reports.main.list selection clear 0 end; .reports.main.list selection set 3; event generate .reports.main.list <<ListboxSelect>>; update
-menuCheck "Report rows" .reports.main.out.t {"Show the ticket" "Copy row"}
+menuCheck "Report rows" .reports.main.out.t {"Show the ticket"}
 wm withdraw .reports
 help::show index; update
-menuCheck "Manual contents" .help.main.toc.t {"Open all" "Copy link"}
+menuCheck "Manual contents" .help.main.toc.t {"Open all"}
 wm withdraw .help
 goto::window; update
 set goto::text [lindex [fossil::sql $W/tk.fossil "SELECT substr(uuid,1,4) FROM blob GROUP BY substr(uuid,1,4) HAVING count(*)>2 LIMIT 1"] 0 0]
 goto::go; update
-menuCheck "Go to" .goto.list.t {"Go to it" "Copy name"}
+menuCheck "Go to" .goto.list.t {"Go to it"}
 wm withdraw .goto
 set w [diffview::show "x" "--- a\n+++ a\n@@ -1 +1 @@\n-x\n+y\n--- b\n+++ b\n@@ -1 +1 @@\n-x\n+y\n"]
 update
-menuCheck "Diff files" $w.p.files.t {"Copy file name" "Copy its diff"}
+menuCheck "Diff files" $w.p.files.t {"Copy its diff"}
 destroy $w
 # Dialogs with check lists: Check all, Uncheck all.
 set f [open $W/co/zz-extra.txt w]; puts $f x; close $f
 tktaalik::show commit; update
 whenOpen .commit.clean {
     set t .commit.clean.f.opts.list.t
-    menuCheck "Delete unmanaged files" $t {"Check all" "Uncheck all" "Copy path"}
+    menuCheck "Delete unmanaged files" $t {"Check all" "Uncheck all"}
     tkcommit::cleanAll 1; update
     set ::unchecked [llength [array names tkcommit::cleanSkip]]
     tkcommit::cleanAll 0; update

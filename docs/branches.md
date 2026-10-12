@@ -52,6 +52,7 @@ The Branch column is always shown.
 | Click, Shift+click, Ctrl+click | Select one or several branches (closing and hiding work on all of them) |
 | Double-click | The diff of the branch in the [diff viewer](diffs.md) |
 | Right-click | The branch menu (also the **Branch** menu in the menu bar, but for the Search entries) |
+| Ctrl+C | Copy the names of the branches selected |
 | Ctrl+F, Ctrl+/ | Go to the search box |
 | Escape in the search box | Clear the search |
 | F5, File ▸ Refresh | Read the repository again |
@@ -74,7 +75,6 @@ The Branch column is always shown.
 | Advanced ▸ Switch checkout to NAME without merging… | `fossil checkout --keep` to its last check-in: the files stay, only the version changes; see [Switching without merging](timeline.md#switching-without-merging) |
 | Advanced ▸ Purge the branch… | `fossil purge checkins NAME`, after its dry run; see [Purging](timeline.md#purging) |
 | Search base:NAME, Search user:NAME | Add the term to the search |
-| Copy name, Copy last check-in | To the clipboard |
 
 **File** has Merge targets… (see [Merge state](#merge-state)),
 Changes between releases…
@@ -216,12 +216,15 @@ A target named `core-X-Y-branch` gets the short heading `X.Y`.
 
 ## Details
 
-Above the details, a summary line: the name and state,
+Above the details, a summary line,
+after a button that copies the branch name: the name and state,
 the base branch and when it started, how many check-ins by whom,
 the merge state into each target, the CI tags,
 a warning if it has several open leaves,
 and the first releases of each line whose check-ins contain the branch's last
 check-in (release tags like `core-9-0-3`), or "not released".
+On its right, the last check-in,
+with a button that copies its whole hash.
 
 Then three tabs:
 
@@ -230,6 +233,9 @@ Then three tabs:
 | Check-ins | The check-ins of the branch, newest first (the newest 1000 of a big branch): date, hash, user, the branches each was merged into, and the comment; leaves in bold |
 | Files | The files the branch changed, with lines added and deleted and a total (`fossil diff --numstat --branch`), read when the tab is opened |
 | Tickets | The tickets mentioned in its comments: id, status, type, title; double-click opens the ticket in the [Tickets](tickets.md) tab |
+
+Ctrl+C in a tab copies what its selected rows are:
+the check-ins' hashes, the files' paths, the tickets' ids.
 
 In the Check-ins tab, double-click a check-in for its diff; right-click it for:
 
@@ -247,7 +253,6 @@ In the Check-ins tab, double-click a check-in for its diff; right-click it for:
 | Save as archive… | The check-in as an archive; see [Archives](timeline.md#archives) |
 | Show artifact | Its manifest as Fossil stores it, in a window |
 | Branches descended from it | Searches `descendant:HASH` |
-| Copy check-in | Its hash to the clipboard |
 
 ## Update and merge
 

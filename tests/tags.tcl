@@ -30,6 +30,25 @@ set uuid [lindex [fossil::sql $T(repo) "SELECT b.uuid FROM tagxref x JOIN tag t 
 $t selection set [list core-9-0-4]; update
 set d [.tags.main.details.text get 1.0 end]
 check "core-9-0-4: on [string range $uuid 0 9]" {[$t set core-9-0-4 hash] eq [string range $uuid 0 9] && [string match "*added to [string range $uuid 0 9]*" $d]}
+# The copy buttons after the name and the check-in; Ctrl+C in the list.
+set dt .tags.main.details.text
+check "copy buttons: after the name, after the hash" {[$dt index $dt.copyname] eq "1.10" && [$dt get "$dt.copyhash linestart" $dt.copyhash] eq "Check-in [string range $uuid 0 9]"}
+$dt.copyname invoke
+check "the name copied: [clipboard get]" {[clipboard get] eq "core-9-0-4"}
+$dt.copyhash invoke
+check "the check-in copied: [clipboard get]" {[clipboard get] eq $uuid}
+clipboard clear
+focus -force $t; update
+event generate $t <Control-c>; update
+check "Ctrl+C in the list: the name" {[clipboard get] eq "core-9-0-4"}
+set m [menu .tagmenu -tearoff 0]
+tktags::popupMenu $m core-9-0-4
+set labels {}
+for {set i 0} {$i <= [$m index end]} {incr i} {
+    if {[$m type $i] eq "command"} { lappend labels [$m entrycget $i -label] }
+}
+destroy $m
+check "menu: no Copy entries: $labels" {[llength $labels] && ![string match *Copy* $labels]}
 check "buttons: Timeline on, Branches off" {![.tags.b.timeline instate disabled] && [.tags.b.branch instate disabled]}
 .tags.b.timeline invoke; update
 check "Show in Timeline: hash:[string range $uuid 0 9]" {$tktaalik::active eq "timeline" && $tktimeline::query eq "hash:[string range $uuid 0 9]" && [dict get $tktimeline::rows([lindex [.timeline.main.list.t selection] 0]) uuid] eq $uuid}

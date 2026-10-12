@@ -514,6 +514,12 @@ proc tktimeline::addTerm {key value neg} {
 
 # ---------------------------------------------------------------- details
 
+# The hash of the row RID (Ctrl+C in the list).
+proc tktimeline::rowHash {rid} {
+    variable rows
+    expr {[info exists rows($rid)] ? [dict get $rows($rid) uuid] : ""}
+}
+
 proc tktimeline::showDetails {rid} {
     variable rows
     variable kinds
@@ -521,6 +527,7 @@ proc tktimeline::showDetails {rid} {
     $d configure -state normal
     $d delete 1.0 end
     foreach b [winfo children .timeline.main.details.buttons] { destroy $b }
+    destroy $d.copyhash
     if {$rid eq "" || ![info exists rows($rid)]} {
         $d configure -state disabled
         return
@@ -531,6 +538,8 @@ proc tktimeline::showDetails {rid} {
     $d image create end -image [icons::get [kindIcon $type] row] -align center -padx 2
     $d insert end " [string totitle [dict get $kinds $type]]  " title \
         "[dict get $r date] by [dict get $r user]  \u00b7  [string range $uuid 0 9]" meta
+    $d window create end -align center -padx 2 -window [icons::copyButton $d.copyhash \
+        "Copy the hash (all of it)" [list ui::copy $uuid]]
     if {[dict get $r branch] ne ""} { $d insert end "  \u00b7  branch [dict get $r branch]" meta }
     if {[dict get $r unsent]} { $d insert end "  \u00b7  not pushed" unsent }
     if {[dict get $r private]} { $d insert end "  \u00b7  private: never pushed" private }
@@ -765,8 +774,6 @@ proc tktimeline::fillEventMenu {m rid} {
             -command [list tktimeline::addTerm kind [dict get $kinds [dict get $r type]] 0]
         $m add separator
     }
-    $m add command -label "Copy hash" -command [list ui::copy [dict get $r uuid]]
-    $m add command -label "Copy comment" -command [list ui::copy [dict get $r comment]]
     $m add command -label "Show artifact" \
         -command [list histops::showArtifact $::tktimeline::repo [dict get $r uuid]]
     $m add command -label "Save artifact\u2026" -command [list tktimeline::saveArtifact $rid]
@@ -1129,6 +1136,7 @@ proc tktimeline::build {} {
         }
     }
     bind $t <Return> {tktimeline::activateRow [lindex [.timeline.main.list.t selection] 0]}
+    popup::copyKey $t tktimeline::rowHash
     bind $t <ButtonPress-3> {+tktimeline::contextMenu %x %y %X %Y}
     tktaalik::shortcut timeline <F5> tktimeline::search
     tktaalik::shortcut timeline <Control-f> {focus .timeline.top.q; .timeline.top.q selection range 0 end}

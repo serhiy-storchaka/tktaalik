@@ -171,6 +171,7 @@ Assignee and Updated, besides the title and id.
 
 Double-click a ticket (or press Return) to edit it:
 see [Editing tickets](#editing-tickets).
+Ctrl+C copies its id (all of it).
 Its web page is in the context menu (Open in browser).
 Right-click a ticket for the entries below; the **Ticket** menu has them too,
 for the ticket shown, but for Filter and Exclude:
@@ -179,11 +180,9 @@ for the ticket shown, but for Filter and Exclude:
 |---|---|
 | Filter *term* / Exclude *term* | add `key:value` (or `-key:value`) of the cell you clicked to the search |
 | Open in browser | the ticket on the server |
-| Copy ticket id | to the clipboard |
 | Edit ticket… | see [Editing tickets](#editing-tickets) |
 | Attach files… | see [Attaching files](#attaching-files) |
 | Close ticket…, Start fix… | see [Closing tickets](#closing-tickets), [Starting a fix](#starting-a-fix) |
-| Copy title | to the clipboard |
 
 ## Details
 
@@ -193,6 +192,8 @@ the fields with their icons
 (TIP, Type, Status with the resolution, Subsystem, Priority, Severity, Found in,
 Assignee) and an **Edit…** button, then the short id,
 when it was opened and by whom, updated, and closed and by whom.
+The copy buttons after the title and after the id
+copy them to the clipboard (the id all of it).
 
 The values are links (in blue): click one to search the tickets with that value,
 for example **Bug** searches `type:bug`, the submitter `author:NAME`,
@@ -210,7 +211,8 @@ and their labels count the items.
   (any prefix of its id): date, check-in, user and comment.
   Double-click or Return shows the check-in in the [Timeline](timeline.md)
   (its files and diff are there); right-click for Show in Timeline,
-  Diff of this check-in, Open in browser and Copy check-in.
+  Diff of this check-in and Open in browser;
+  Ctrl+C copies its hash.
 - **Attachments**: see [Attachments](#attachments).
 - **History**: see [History](#history).
 
@@ -400,8 +402,9 @@ save it instead.
   an attachment that is not here opens on the server.
 - Right-click: **View**, **Save…**,
   **Apply to the checkout…** (for `.patch` and `.diff` files),
-  **Open in browser**, **Copy file name**,
+  **Open in browser**,
   **Delete…** (see [Deleting attachments](#deleting-attachments)).
+- Ctrl+C copies the file name.
 
 **Apply to the checkout…** needs an open checkout and the `patch` program
 (on Windows, if it is not on the `PATH`,
@@ -494,6 +497,8 @@ Choose one on the left to run it.
   An error is shown in the status line.
 - Double-click a row of a report with a `#` column to show that ticket in the
   Tickets tab.
+- Ctrl+C copies the row selected, its cells separated by tabs;
+  right-click a cell for **Only rows with** its value and **Copy** it.
 - **Open in browser** opens the report on the server.
   F5 runs it again.
 - **Save as…** writes the results

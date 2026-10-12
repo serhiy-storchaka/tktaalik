@@ -198,6 +198,7 @@ proc help::build {} {
     fillContents
     bind .help.main.toc.t <<TreeviewSelect>> help::tocSelected
     popup::attach .help.main.toc.t help::tocMenu
+    popup::copyKey .help.main.toc.t help::tocLink
     bind .help.bar.find <Return> {help::findNext; break}
     bind .help <Control-f> {focus .help.bar.find; .help.bar.find selection range 0 end}
     bind .help <Control-slash> {focus .help.bar.find; .help.bar.find selection range 0 end}
@@ -448,6 +449,9 @@ proc help::tocMenu {m item} {
         foreach i [$t children {}] { $t item $i -open 1 } }} $t]
     $m add command -label "Close all" -command [list apply {{t} {
         foreach i [$t children {}] { $t item $i -open 0 } }} $t]
-    popup::separator $m
-    popup::copy $m "Copy link" [string map {# .md#} $item][expr {[string first # $item] < 0 ? ".md" : ""}]
+}
+
+# The link to a row of the contents, as written in the manual (Ctrl+C).
+proc help::tocLink {item} {
+    return [string map {# .md#} $item][expr {[string first # $item] < 0 ? ".md" : ""}]
 }

@@ -16,6 +16,7 @@ namespace eval tkfiles {
     variable files {}           ;# the files at the version
     variable filter ""
     variable file ""            ;# the selected file
+    variable titleName ""       ;# its name in the title (in the version shown)
     variable loaded {}          ;# what is shown of the file: history content blame
     variable blamePipe ""
     variable blameRows {}       ;# line -> check-in
@@ -219,12 +220,19 @@ proc tkfiles::selectFile {} {
 proc tkfiles::showTitle {} {
     variable file
     variable at
+    variable titleName $file
     set text $file
     if {[llength $at]} {
-        lassign $at uuid name
-        set text "$name at [string range $uuid 0 9]"
+        lassign $at uuid titleName
+        set text "$titleName at [string range $uuid 0 9]"
     }
     .files.main.right.title configure -text $text
+    .files.main.right.copy state [expr {$titleName eq "" ? "disabled" : "!disabled"}]
+}
+
+# The path of a row of the tree (Ctrl+C): a file's or a directory's.
+proc tkfiles::treePath {id} {
+    string range $id 2 end
 }
 
 # The file at a version from the history: its content or blame.
@@ -580,6 +588,7 @@ proc tkfiles::findLocal {{path ""}} {
         bind $w.f.t <Double-1> {tkfiles::openFound [.files.found.f.t identify item %x %y]}
         bind $w.f.t <Return> {tkfiles::openFound [lindex [.files.found.f.t selection] 0]}
         popup::attach $w.f.t tkfiles::foundMenu
+        popup::copyKey $w.f.t
     }
     wm title $w "Found in history: [file tail $path]"
     raise $w
@@ -615,13 +624,10 @@ proc tkfiles::findLocal {{path ""}} {
 }
 
 # A check-in found: the Files tab at it, the file's content.
-# The context menu of a check-in found: its button, the Timeline, copies.
+# The context menu of a check-in found: its button, the Timeline.
 proc tkfiles::foundMenu {m ci} {
     popup::button $m .files.found.b.open
     $m add command -label "Show in Timeline" -command [list goto::checkin $ci]
-    popup::separator $m
-    popup::copy $m "Copy check-in" $ci
-    popup::copy $m "Copy file name" [.files.found.f.t set $ci name]
     popup::default $m [.files.found.b.open cget -text]
 }
 
@@ -797,7 +803,6 @@ proc tkfiles::historyMenu {x y X Y} {
     $m add command -label "Open in browser" -state [expr {$remote eq "" ? "disabled" : "normal"}] \
         -command [list fossil::browse $remote/file?name=[fossil::urlquery $name /]&ci=$uuid]
     $m add separator
-    $m add command -label "Copy check-in" -command [list ui::copy $uuid]
     variable fileHashes
     set fh [expr {[dict exists $fileHashes $uuid] ? [dict get $fileHashes $uuid] : ""}]
     $m add command -label "Copy file hash" -command [list ui::copy $fh] \
@@ -823,8 +828,6 @@ proc tkfiles::treeMenu {x y X Y} {
     $m add command -label Blame -command {tkfiles::showPane blame}
     $m add command -label "Open in browser" -state [expr {$remote eq "" ? "disabled" : "normal"}] \
         -command tkfiles::browseFile
-    $m add separator
-    $m add command -label "Copy path" -command [list ui::copy $file]
     tk_popup $m $X $Y
 }
 
@@ -939,8 +942,6 @@ proc tkfiles::build {} {
     .files.menu.file add command -label "Content of the file" -command {tkfiles::showPane content}
     .files.menu.file add command -label "Blame of the file" -command {tkfiles::showPane blame}
     .files.menu.file add command -label "Open the file in browser" -command tkfiles::browseFile
-    .files.menu.file add command -label "Copy the file's path" \
-        -command {if {$tkfiles::file eq ""} bell else {ui::copy $tkfiles::file}}
     .files.menu.file add command -label "Find a local file in history\u2026" -underline 5 \
         -command tkfiles::findLocal
     .files.menu.file add command -label "Save this version as an archive\u2026" -underline 0 \
@@ -985,7 +986,11 @@ proc tkfiles::build {} {
     .files.main.tree.t tag configure dir -foreground gray30
 
     ttk::frame .files.main.right
+    ttk::frame .files.main.right.top
     ttk::label .files.main.right.title -font TkHeadingFont -padding {6 4}
+    icons::copyButton .files.main.right.copy "Copy the file name" {ui::copy $tkfiles::titleName}
+    .files.main.right.copy state disabled
+    pack .files.main.right.title .files.main.right.copy -in .files.main.right.top -side left
     ttk::notebook .files.main.right.nb
     # History.
     set f .files.main.right.nb.history
@@ -1005,6 +1010,7 @@ proc tkfiles::build {} {
     bind $f.t <Double-1> {tkfiles::diffCheckin [.files.main.right.nb.history.t identify item %x %y]}
     bind $f.t <Return> {tkfiles::diffCheckin [lindex [.files.main.right.nb.history.t selection] 0]}
     bind $f.t <ButtonPress-3> {tkfiles::historyMenu %x %y %X %Y}
+    popup::copyKey $f.t
     $f.t configure -displaycolumns {date hash fhash user branch how comment}
     # Blame and content.
     foreach tab {blame content} {
@@ -1087,7 +1093,7 @@ proc tkfiles::build {} {
     .files.main.right.nb add .files.main.right.nb.blame -text Blame
     .files.main.right.nb add .files.main.right.nb.content -text Content
     .files.main.right.nb add .files.main.right.nb.grep -text "Find in history"
-    pack .files.main.right.title -fill x
+    pack .files.main.right.top -fill x
     pack .files.main.right.nb -fill both -expand 1
     .files.main add .files.main.tree -weight 1
     .files.main add .files.main.right -weight 3
@@ -1099,6 +1105,7 @@ proc tkfiles::build {} {
 
     bind .files.main.tree.t <<TreeviewSelect>> tkfiles::selectFile
     bind .files.main.tree.t <ButtonPress-3> {tkfiles::treeMenu %x %y %X %Y}
+    popup::copyKey .files.main.tree.t tkfiles::treePath
     bind .files.main.right.nb <<NotebookTabChanged>> tkfiles::loadShown
     tktaalik::shortcut files <F5> tkfiles::refresh
     tktaalik::shortcut files <Control-f> {focus .files.top.filter; .files.top.filter selection range 0 end}
@@ -1162,6 +1169,8 @@ proc tkfiles::setRepository {path newRoot} {
     set version [lindex $values 0]
     tktaalik::setTitle files "Files \u2014 [file rootname [file tail $repo]]"
     .files.main.right.title configure -text ""
+    set titleName ""
+    .files.main.right.copy state disabled
     foreach t {history} { .files.main.right.nb.$t.t delete [.files.main.right.nb.$t.t children {}] }
     foreach t {blame content} {
         .files.main.right.nb.$t.t configure -state normal

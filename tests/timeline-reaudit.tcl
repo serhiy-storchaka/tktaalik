@@ -179,9 +179,12 @@ proc lseq0 {n} { set r {}; for {set i 0} {$i <= $n} {incr i} { lappend r $i }; r
 check "graveyard: the menu of a purge: [rclick $new]" {[rclick $new] eq "Undo\u2026 Obliterate\u2026"}
 $g item $new -open 1; update
 set art [lindex [$g children $new] 0]
-check "graveyard: of an artifact: [rclick $art]" {[rclick $art] eq "Undo\u2026 Obliterate\u2026 -- {Copy hash}"}
-$::posted invoke "Copy hash"
-check "the hash copied: [clipboard get]" {[clipboard get] eq [lindex [$g set $art what] 0] && [string length [clipboard get]] >= 16}
+check "graveyard: of an artifact: [rclick $art]" {[rclick $art] eq "Undo\u2026 Obliterate\u2026"}
+tk::MenuUnpost $::posted
+clipboard clear
+$g selection set [list $art]; focus -force $g; update
+event generate $g <Control-c>; update
+check "Ctrl+C: the hash: [clipboard get]" {[clipboard get] eq [lindex [$g set $art what] 0] && [string length [clipboard get]] >= 16}
 $g selection set [list $new]; update
 histops::graveUndo $R tktimeline::changedHere
 check "undone: back" {[ridOf $A] ne "" && [llength [sql "SELECT 1 FROM event WHERE objid=[ridOf $A]"]]}

@@ -63,8 +63,8 @@ see [Archives](timeline.md#archives)),
 (the Timeline's [Compare releases](timeline.md#releases-and-changelogs) window,
 with this tag and the release before it:
 the newest older tag with the same name but the last number,
-so `core-9-0-2` for `core-9-0-3`),
-**Copy name** and **Copy check-in**.
+so `core-9-0-2` for `core-9-0-3`).
+Ctrl+C copies the name of the tag selected.
 Ctrl+F or Ctrl+/ goes to Find; F5 (File ▸ Refresh) reads the repository again.
 Back and Forward remember the filter, the check boxes and the selected tag.
 
@@ -79,6 +79,9 @@ check **Properties** and find `bgcolor`.
 ## History
 
 Below the list, the details of the selected tag:
+its name and its check-in (as in the Check-in column),
+each with a button that copies it (the check-in's whole hash);
+then:
 
 - For a tag or a property: each check-in it was added to or cancelled on,
   oldest first, with the date, the check-in's hash,

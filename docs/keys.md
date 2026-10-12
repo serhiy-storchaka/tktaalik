@@ -43,8 +43,11 @@ The Commit and Stash tabs need a checkout: without one, their keys only beep.
 | Ctrl+Shift+H, Ctrl+Shift+E | text editors | heading, code block |
 | Ctrl+Shift+T, Ctrl+Shift+C, Ctrl+Shift+B | text editors | a reference to a ticket, check-in, branch (chosen in a window) |
 | Ctrl+Return | Commit | commit |
+| Ctrl+C | the lists of every tab and of their details | copy what the selected rows are: a hash, a ticket id, a name, a path (each tab's page says which) |
 
 The pages of the tabs describe their keys in detail.
+The details of what is selected have small copy buttons
+after what they show: a name, a title, a hash.
 
 In text and entry fields,
 Ctrl+A selects all the text, as in most programs
@@ -64,6 +67,7 @@ and in the Go to and Ticket reports windows:
 | double-click | Users: edit the user; Remotes: open it in the browser; Ticket reports: the ticket of the row |
 | Delete | Unversioned files: remove the selected files |
 | Ctrl+A | Unversioned files: select all |
+| Ctrl+C | copy the selected rows: Settings, Users, Unversioned files, Go to: the names; Remotes: the URL; Ticket reports: the row, its cells separated by tabs; Purge graveyard: an artifact's hash |
 | Escape | close the window (it keeps its state for the next time) |
 
 In the window of an attached image (see [Images](tickets.md#images)):

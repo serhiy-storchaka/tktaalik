@@ -31,7 +31,9 @@ It has:
   "From HASH DATE → to HASH DATE",
   or "to the checkout's files" for the changes not committed (`fossil diff -h`);
 - on the left, the files changed,
-  each with the number of lines added (+) and removed (−);
+  each with the number of lines added (+) and removed (−)
+  (Ctrl+C copies the name of the one selected,
+  and its context menu has **Copy its diff**);
 - on the right, the diff;
 - at the bottom, a status line: how many files, and lines added and removed.
 

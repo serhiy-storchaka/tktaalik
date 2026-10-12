@@ -37,6 +37,7 @@ namespace eval tkbranches {
     variable searched ""        ;# the query of the list shown
     variable shown {}           ;# the query, view and options of the list shown
     variable header ""          ;# the line above the details
+    variable tipHash ""         ;# its last check-in, short
     variable status ""          ;# the status line
     variable statusTail ""      ;# its part after the number of branches
     variable filesPipe ""       ;# the running "fossil diff --numstat" (fossil::start)
@@ -955,6 +956,7 @@ proc tkbranches::showDetails {name} {
     variable branches
     variable selected
     variable header
+    variable tipHash
     variable targets
     set selected $name
     set c .branches.main.details.nb.checkins.t
@@ -964,8 +966,12 @@ proc tkbranches::showDetails {name} {
     .branches.main.details.finish state [expr {[finishable $name] ? "!disabled" : "disabled"}]
     if {$name eq "" || ![info exists branches($name)]} {
         set header ""
+        set tipHash ""
+        foreach w {copy copytip} { .branches.main.details.$w state disabled }
         return
     }
+    set tipHash [string range [dict get $branches($name) tip] 0 9]
+    foreach w {copy copytip} { .branches.main.details.$w state !disabled }
     set b $branches($name)
     set state [expr {[dict get $b closed] ? "closed" : "open"}]
     foreach k {hidden private} { if {[dict get $b $k]} { append state ", $k" } }
@@ -1163,9 +1169,7 @@ proc tkbranches::fillBranchMenu {m name} {
                 -command [list tkbranches::addTerm user $user 0]
         }
     }
-    $m add command -label "Copy name" -state $state -command [list ui::copy $name]
-    $m add command -label "Copy last check-in" -state $state \
-        -command [list ui::copy [expr {$ok ? [dict get $branches($name) tip] : ""}]]
+    if {[$m type end] eq "separator"} { $m delete end }
 }
 
 proc tkbranches::checkinMenu {x y X Y} {
@@ -1195,8 +1199,6 @@ proc tkbranches::checkinMenu {x y X Y} {
     $m add command -label "Show artifact" -command [list histops::showArtifact $::tkbranches::repo $uuid]
     $m add command -label "Branches descended from it" \
         -command [list tkbranches::showDescendants $uuid]
-    $m add separator
-    $m add command -label "Copy check-in" -command [list ui::copy $uuid]
     popup::default $m "Diff of this check-in"
     tk_popup $m $X $Y
 }
@@ -1326,6 +1328,17 @@ proc tkbranches::build {} {
     icons::tooltip .branches.main.details.finish \
         "After the merge: cancel its CI tags, close its tickets, close the branch"
     pack .branches.main.details.finish -in .branches.main.details.top -side right -padx {4 6}
+    # Its last check-in, with a button that copies its whole hash.
+    icons::copyButton .branches.main.details.copytip "Copy the last check-in's hash (all of it)" \
+        {ui::copy [dict get $tkbranches::branches($tkbranches::selected) tip]}
+    ttk::label .branches.main.details.tip -textvariable tkbranches::tipHash -font TkFixedFont
+    ttk::label .branches.main.details.tiplabel -text "Last check-in" -foreground gray40
+    pack .branches.main.details.copytip .branches.main.details.tip .branches.main.details.tiplabel \
+        -in .branches.main.details.top -side right -padx {4 0}
+    icons::copyButton .branches.main.details.copy "Copy the branch name" \
+        {ui::copy $tkbranches::selected}
+    foreach w {copy copytip} { .branches.main.details.$w state disabled }
+    pack .branches.main.details.copy -in .branches.main.details.top -side left -padx {4 0}
     pack .branches.main.details.header -in .branches.main.details.top -side left -fill x -expand 1
     bind .branches.main.details.header <Configure> {%W configure -wraplength [expr {max(0, %w - 12)}]}
     ttk::notebook .branches.main.details.nb
@@ -1375,6 +1388,11 @@ proc tkbranches::build {} {
     bind .branches.main.details.nb.tickets.t <Double-1> {
         tkbranches::showTicket [.branches.main.details.nb.tickets.t identify item %x %y]
     }
+    # Ctrl+C: the branch names, the check-ins, the paths, the ticket ids.
+    popup::copyKey $t
+    popup::copyKey $c
+    popup::copyKey .branches.main.details.nb.files.t tkbranches::filePath
+    popup::copyKey .branches.main.details.nb.tickets.t
     bind .branches.main.details.nb <<NotebookTabChanged>> {
         if {[.branches.main.details.nb select] eq ".branches.main.details.nb.files"} tkbranches::loadFiles
     }
@@ -1411,8 +1429,6 @@ proc tkbranches::activate {} {
 proc tkbranches::ticketMenu {m item} {
     $m add command -label "Show the ticket" -command [list tkbranches::showTicket $item]
     $m add command -label "Open in browser" -command [list tkbranches::openUrl tktview/$item]
-    popup::separator $m
-    popup::copy $m "Copy ticket id" $item
     popup::default $m "Show the ticket"
 }
 
@@ -1425,8 +1441,13 @@ proc tkbranches::fileMenu {m item} {
     set branch [lindex [.branches.main.list.t selection] 0]
     $m add command -label "Diff of this file in the branch" \
         -command [list diffview::run "$path in $branch" -- -R $repo --branch [fossil::arg $branch] [fossil::arg $path]]
-    popup::separator $m
-    popup::copy $m "Copy path" $path
+}
+
+# The path of a row of the files (Ctrl+C), none of the total or an error.
+proc tkbranches::filePath {item} {
+    set t .branches.main.details.nb.files.t
+    if {[$t tag has total $item] || [$t tag has error $item]} { return "" }
+    $t set $item file
 }
 
 source [file join [file dirname [file normalize [info script]]] branchops.tcl]

@@ -59,7 +59,9 @@ Links can be clicked:
 **Open in browser** shows the page or technote on the server.
 The context menu of the list, and the **Page** menu for the page selected,
 have the page's buttons
-(Edit…, the changes, Save…, Attach…, Open in browser) and **Copy name**.
+(Edit…, the changes, Save…, Attach…, Open in browser).
+Ctrl+C in the list copies the name of the page or technote selected,
+and so does the button after the title above it.
 **New page…** and **New technote…** are described under [Editing](#editing).
 
 ## Versions and changes
@@ -135,9 +137,10 @@ An attachment whose content is not in the local repository says "not local".
   one that is not here opens on the server.
   A binary file cannot be viewed
   (**View** is greyed out, a double-click opens it on the server): save it.
-- Right-click: **View**, **Save…**, **Open in browser**, **Copy file name**,
+- Right-click: **View**, **Save…**, **Open in browser**,
   **Delete…** (see [Deleting attachments](tickets.md#deleting-attachments):
   the same for pages and technotes).
+- Ctrl+C copies the file name.
 
 **Attach…** (next to Save) adds files to the page or technote shown,
 with `fossil attachment add`; you can choose several files at once.

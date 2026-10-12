@@ -38,13 +38,16 @@ proc menuFor {item} {
     return $labels
 }
 set labels [menuFor $old]
-check "menu: [join $labels /]" {$labels eq [list "Diff against the previous version" "Show the check-in in Timeline" "Content of this version" "Blame of this version" "Save this version\u2026" "Open in browser" "Copy check-in" "Copy file hash"]}
+check "menu: [join $labels /]" {$labels eq [list "Diff against the previous version" "Show the check-in in Timeline" "Content of this version" "Blame of this version" "Save this version\u2026" "Open in browser" "Copy file hash"]}
 set ::diffs {}
 proc diffview::run {title args} { lappend ::diffs [list $title $args] }
 $::menu invoke 0
 check "diff under the old name: [lindex $::diffs end]" {[string match "README in *" [lindex $::diffs end 0]] && [lindex $::diffs end 1 end] eq "README"}
-$::menu invoke [$::menu index "Copy check-in"]
-check "copied: [clipboard get]" {[clipboard get] eq $old}
+clipboard clear
+set h .files.main.right.nb.history.t
+$h selection set [list $old]; focus -force $h; update
+event generate $h <Control-c>; update
+check "Ctrl+C: [clipboard get]" {[clipboard get] eq $old}
 
 # Save an old version (the file dialog stubbed).
 proc tk_getSaveFile {args} { set ::saveArgs $args; return $::T(tmp)/saved-README }

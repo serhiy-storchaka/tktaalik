@@ -147,6 +147,8 @@ proc tktags::build {} {
     bind $t <Double-1> {
         if {[%W identify region %x %y] eq "cell"} { tktags::showTimeline }
     }
+    # (Ctrl+C: the name; the check-in has its button in the details.)
+    popup::copyKey $t {string trim}
     tktaalik::shortcut tags <F5> tktags::reload
     tktaalik::shortcut tags <Control-f> {focus .tags.top.filter; .tags.top.filter selection range 0 end}
     tktaalik::shortcut tags <Control-slash> {focus .tags.top.filter; .tags.top.filter selection range 0 end}
@@ -291,6 +293,7 @@ proc tktags::showDetails {name} {
     set d .tags.main.details.text
     $d configure -state normal
     $d delete 1.0 end
+    destroy $d.copyname $d.copyhash
     set ok [expr {$name ne "" && [info exists tags($name)]}]
     .tags.b.timeline state [expr {$ok && [dict get $tags($name) kind] ne "Branch" ? "!disabled" : "disabled"}]
     .tags.b.branch state [expr {$ok && [dict get $tags($name) kind] eq "Branch" ? "!disabled" : "disabled"}]
@@ -301,7 +304,16 @@ proc tktags::showDetails {name} {
         return
     }
     set g $tags($name)
-    $d insert end "[string trim $name]\n" title
+    # The name and the check-in, each with its copy button.
+    $d insert end [string trim $name] title
+    $d window create end -align center -padx 4 -window [icons::copyButton $d.copyname \
+        "Copy the tag name" [list ui::copy [string trim $name]]]
+    $d insert end \n title
+    set uuid [dict get $g uuid]
+    $d insert end "Check-in " meta [string range $uuid 0 9] hash
+    $d window create end -align center -padx 4 -window [icons::copyButton $d.copyhash \
+        "Copy the check-in's hash (all of it)" [list ui::copy $uuid]]
+    $d insert end \n
     if {[dict get $g kind] eq "Branch"} {
         $d insert end "A branch name: on [dict get $g count] check-ins, the newest of\
             [dict get $g date] by [dict get $g user].\n" meta
@@ -429,7 +441,7 @@ proc tktags::browse {} {
     fossil::browse $remote/timeline?t=$q
 }
 
-# The context menu of a tag: the buttons below the list, and copying.
+# The context menu of a tag: the buttons below the list.
 proc tktags::popupMenu {m item} {
     variable tags
     foreach b {timeline branch browse} { popup::button $m .tags.b.$b }
@@ -441,9 +453,6 @@ proc tktags::popupMenu {m item} {
     popup::separator $m
     popup::button $m .tags.b.add "Add tag\u2026"
     popup::button $m .tags.b.cancel "Cancel tag\u2026"
-    popup::separator $m
-    popup::copy $m "Copy name" [string trim $item]
-    popup::copy $m "Copy check-in" [expr {[info exists tags($item)] ? [dict get $tags($item) uuid] : ""}]
     popup::default $m [.tags.b.timeline cget -text]
 }
 

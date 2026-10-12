@@ -64,7 +64,11 @@ rename tk_popup realPopup
 proc tk_popup {m args} { set ::menu $m }
 set bbox [$att bbox 0]
 tkwiki::attachmentMenu $att [expr {[lindex $bbox 0] + 5}] [expr {[lindex $bbox 1] + 5}] 0 0
-check "menu: [lmap i {0 1 3 4} {$::menu entrycget $i -label}]" {[$::menu entrycget 0 -label] eq "View" && [$::menu entrycget 3 -label] eq "Open in browser"}
+check "menu: [lmap i {0 1 3 5} {$::menu entrycget $i -label}]" {[$::menu entrycget 0 -label] eq "View" && [$::menu entrycget 3 -label] eq "Open in browser" && [$::menu entrycget 5 -label] eq "Delete\u2026"}
+clipboard clear
+$att selection set [lrange [$att children {}] 0 0]; focus -force $att; update
+event generate $att <Control-c>; update
+check "Ctrl+C: the file name: [clipboard get]" {[clipboard get] eq [dict get $tkwiki::attached([lindex [$att children {}] 0]) name]}
 
 # The same name again: replaces it (asked).
 set f [open $T(tmp)/in/notes.txt w]; puts -nonewline $f "second notes\n"; close $f

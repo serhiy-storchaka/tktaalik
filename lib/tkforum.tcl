@@ -137,6 +137,7 @@ proc tkforum::build {} {
     tktaalik::shortcut forum <Control-f> {focus .forum.top.filter; .forum.top.filter selection range 0 end}
     tktaalik::shortcut forum <Control-slash> {focus .forum.top.filter; .forum.top.filter selection range 0 end}
     popup::attach .forum.main.list.t tkforum::popupMenu
+    popup::copyKey .forum.main.list.t tkforum::rowTitle
 }
 
 proc tkforum::setRepository {path newRoot} {
@@ -281,6 +282,7 @@ proc tkforum::showThread {froot} {
     set d .forum.main.thread.text
     $d configure -state normal
     $d delete 1.0 end
+    destroy $d.copytitle $d.copylink
     htmltext::reset $d
     set marks {}
     set shown {}
@@ -331,7 +333,17 @@ proc tkforum::showThread {froot} {
     }
     set texts [lmap post $order { lindex $row($current($post)) 6 }]
     set hashes [fossil::hashLinks $repo $texts]
-    $d insert end "[dict get $threads($froot) title]\n" title
+    # The title, with buttons that copy it and the thread's address.
+    set title [dict get $threads($froot) title]
+    $d insert end $title title
+    $d window create end -align center -padx 2 -window [icons::copyButton $d.copytitle \
+        "Copy the title" [list ui::copy $title]]
+    set link [threadLink $froot]
+    $d window create end -align center -window [icons::copyButton $d.copylink \
+        "Copy the link (its address on the server)" [list ui::copy $link]]
+    $d.copylink configure -image [icons::get link row]
+    if {$link eq ""} { $d.copylink state disabled }
+    $d insert end \n title
     set indent [font measure TkTextFont 0000]
     # Depth first: each post, then its replies.
     set stack [lreverse [lmap p $top { list $p 0 }]]
@@ -909,8 +921,6 @@ proc tkforum::forumMenu {m} {
 
 proc tkforum::popupMenu {m item} {
     variable threads
-    variable remote
-    variable repo
     if {![info exists threads($item)]} return
     set user [dict get $threads($item) user]
     if {![popup::inBar]} {
@@ -919,8 +929,19 @@ proc tkforum::popupMenu {m item} {
         popup::separator $m
     }
     popup::button $m .forum.b.browse
-    popup::separator $m
-    popup::copy $m "Copy title" [dict get $threads($item) title]
-    set uuid [lindex [fossil::sql $repo "SELECT uuid FROM blob WHERE rid=$item"] 0 0]
-    popup::copy $m "Copy link" [expr {$remote eq "" ? "" : "$remote/forumpost/[string range $uuid 0 15]"}]
+}
+
+# The address of the thread FROOT on the server, or "" without one.
+proc tkforum::threadLink {froot} {
+    variable remote
+    variable repo
+    if {$remote eq ""} { return "" }
+    set uuid [lindex [fossil::sql $repo "SELECT uuid FROM blob WHERE rid=$froot"] 0 0]
+    return $remote/forumpost/[string range $uuid 0 15]
+}
+
+# The title of a row of the list (Ctrl+C).
+proc tkforum::rowTitle {item} {
+    variable threads
+    expr {[info exists threads($item)] ? [dict get $threads($item) title] : ""}
 }

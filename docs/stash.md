@@ -29,15 +29,15 @@ The Stash and Comment columns are always shown;
 the others can be hidden and moved like the columns of the other tabs.
 
 Select a stash to see its details below: its number,
-date and check-in (with "the check-in of the checkout" if the checkout is on it
-now), its comment, and its files, each marked `added`, `deleted`,
+date and check-in (with a button that copies its whole hash,
+and "the check-in of the checkout" if the checkout is on it now), its comment, and its files, each marked `added`, `deleted`,
 `renamed` (with its old name) or `changed`.
 Only the files the stash really changes are counted and listed:
 Fossil sometimes records every file of the checkout in a stash (after a rename),
 most of them unchanged.
 
-The context menu of a stash has the entries of the **Stash** menu,
-which also has **Copy comment**.
+The context menu of a stash has the entries of the **Stash** menu.
+Ctrl+C in the list copies the comment of the stash selected.
 To stash only some files, or some changes of a file,
 use Commit ▸ Stash the checked changes… in the
 [Commit](commit.md#stashing-part-of-the-changes) tab.

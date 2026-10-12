@@ -42,6 +42,7 @@ proc tktsearch::buildAttachments {f} {
         }
     }
     bind $tv <Return> {tktsearch::openAttachment [lindex [%W selection] 0]}
+    popup::copyKey $tv tktsearch::attachmentName
     if {[tk windowingsystem] eq "aqua"} {
         bind $tv <2> {tktsearch::attachmentMenu %W %x %y %X %Y}
         bind $tv <Control-1> {tktsearch::attachmentMenu %W %x %y %X %Y}
@@ -68,6 +69,12 @@ proc tktsearch::fillAttachments {attachments} {
                 [fossil::oneLine $comment]]
         incr i
     }
+}
+
+# The file name of the attachment I (Ctrl+C).
+proc tktsearch::attachmentName {i} {
+    variable attached
+    expr {[info exists attached($i)] ? [dict get $attached($i) name] : ""}
 }
 
 # View an attachment, or open it on the server if it is not here.
@@ -106,7 +113,6 @@ proc tktsearch::attachmentMenu {tv x y X Y} {
     $m add separator
     $m add command -label "Open in browser" \
         -command [list tktsearch::openUrl attachview?tkt=$shownTicket&file=[fossil::urlquery $name]]
-    $m add command -label "Copy file name" -command [list ui::copy $name]
     $m add separator
     $m add command -label "Delete\u2026" -state [expr {[canWrite] ? "normal" : "disabled"}] \
         -command [list tktsearch::deleteAttachment $shownTicket $name]
@@ -254,6 +260,7 @@ proc tktsearch::buildCheckins {f} {
         }
     }
     bind $tv <Return> {goto::checkin [lindex [%W selection] 0]}
+    popup::copyKey $tv
     bind $tv <3> {tktsearch::checkinMenu %W %x %y %X %Y}
     if {[tk windowingsystem] eq "aqua"} { bind $tv <2> {tktsearch::checkinMenu %W %x %y %X %Y} }
     return $f
@@ -270,8 +277,6 @@ proc tktsearch::checkinMenu {tv x y X Y} {
     $m add command -label "Diff of this check-in" -command [list diffview::run \
         "Check-in [string range $uuid 0 9]" -- -R $::tickets::repo --checkin $uuid]
     $m add command -label "Open in browser" -command [list tktsearch::openUrl info/$uuid]
-    $m add separator
-    $m add command -label "Copy check-in" -command [list ui::copy $uuid]
     popup::default $m "Show in Timeline"
     tk_popup $m $X $Y
 }

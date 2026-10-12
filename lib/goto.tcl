@@ -385,6 +385,7 @@ proc goto::build {} {
     bind $t <Double-1> {goto::choose [.goto.list.t identify item %x %y]}
     bind $t <Return> {goto::choose [lindex [.goto.list.t selection] 0]}
     popup::attach $t goto::popupMenu
+    popup::copyKey $t goto::foundName
 }
 
 # Find the text: one thing, go there; several, list them.
@@ -442,6 +443,12 @@ proc goto::choose {id} {
     uplevel #0 $script
 }
 
+# The name of a match (Ctrl+C).
+proc goto::foundName {item} {
+    variable found
+    expr {[dict exists $found $item] ? [lindex [dict get $found $item] 1] : ""}
+}
+
 # The context menu of a match.
 proc goto::popupMenu {m item} {
     variable found
@@ -449,7 +456,5 @@ proc goto::popupMenu {m item} {
     lassign [dict get $found $item] kind name about script
     $m add command -label "Go to it" -command [list goto::choose $item] \
         -state [expr {$script eq "" ? "disabled" : "normal"}]
-    popup::separator $m
-    popup::copy $m "Copy name" $name
     popup::default $m "Go to it"
 }

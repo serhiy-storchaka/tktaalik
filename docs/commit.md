@@ -82,11 +82,10 @@ Right-click it for:
 | Revert… | see [File operations](#file-operations) |
 | Update files to a version… | see [Updating](#updating) |
 | Undo for these files…, Redo for these files… | see [Undo and redo](#undo-and-redo) |
-| Copy names | the selected files' paths, to the clipboard |
 
 The **Commit** menu has them too
-(Undo for the selected files…, Redo for the selected files…,
-Copy names of the selected files).
+(Undo for the selected files…, Redo for the selected files…).
+Ctrl+C copies the paths of the selected files.
 
 The list is read again when you come back to the tab, after every operation,
 and with **Refresh** (F5).

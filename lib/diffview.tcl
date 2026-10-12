@@ -155,6 +155,7 @@ proc diffview::newWindow {title mode} {
 
     bind $w.p.files.t <<TreeviewSelect>> [list diffview::fileSelected $w]
     popup::attach $w.p.files.t [list diffview::filesMenu $w]
+    popup::copyKey $w.p.files.t [list diffview::listedName $w]
     bind $w <Escape> [list destroy $w]
     bind $w <Destroy> [list diffview::forget $w %W]
     layout $w
@@ -577,11 +578,16 @@ proc diffview::sideBySide {l r i f} {
     }
 }
 
+# The name of a file in the list of the diff W (Ctrl+C).
+proc diffview::listedName {w item} {
+    variable data
+    lindex [dict get $data($w) files] $item 0
+}
+
 # The context menu of a file of the diff.
 proc diffview::filesMenu {w m item} {
     variable data
     set file [lindex [dict get $data($w) files] $item]
     lassign $file name header body
-    popup::copy $m "Copy file name" $name
     popup::copy $m "Copy its diff" [join [concat $header $body] \n]
 }

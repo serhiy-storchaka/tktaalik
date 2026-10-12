@@ -681,7 +681,6 @@ proc tkcommit::build {} {
         "Reset adds\u2026"                  {tkcommit::resetAdds add} ""
         "Reset removes\u2026"               {tkcommit::resetAdds rm} ""
         "Delete unmanaged files\u2026"      tkcommit::cleanFiles    ""
-        "Copy names of the selected files" {ui::copy [join [tkcommit::selectedFiles] \n]} ""
         --                              {}                      ""
         "Update\u2026"                      tkcommit::updateCheckout ""
         "Update files to a version\u2026"   tkcommit::updateFiles   ""
@@ -725,7 +724,6 @@ proc tkcommit::build {} {
         "Update files to a version\u2026" tkcommit::updateFiles
         "Undo for these files\u2026" tkcommit::undoFile
         "Redo for these files\u2026" {tkcommit::undoFile redo}
-        "Copy names"            {ui::copy [join [tkcommit::selectedFiles] \n]}
     } {
         .commit.ctx add command -label $label -command $command
     }
@@ -754,6 +752,8 @@ proc tkcommit::build {} {
         .commit.main.files.t tag configure $tag -foreground $colour
     }
     grid .commit.main.files.t .commit.main.files.y -sticky news
+    # (Ctrl+C: the paths of the files selected.)
+    popup::copyKey .commit.main.files.t
     grid columnconfigure .commit.main.files 0 -weight 1
     grid rowconfigure .commit.main.files 0 -weight 1
 

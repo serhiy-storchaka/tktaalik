@@ -68,6 +68,7 @@ proc tkremotes::build {} {
     bind $t <Double-1> tkremotes::browse
     bind .remotes <F5> tkremotes::reload
     popup::attach .remotes.list.t tkremotes::popupMenu
+    popup::copyKey .remotes.list.t tkremotes::url
 }
 
 proc tkremotes::setRepository {path newRoot} {
@@ -305,11 +306,14 @@ proc tkremotes::browse {} {
 
 # The context menu of a remote: the buttons of the window.
 proc tkremotes::popupMenu {m item} {
-    variable remotes
     foreach b {default saveas delete} { popup::button $m .remotes.b.$b }
     popup::separator $m
     foreach b {browse link} { popup::button $m .remotes.b.$b }
-    popup::separator $m
-    popup::copy $m "Copy URL" [expr {[dict exists $remotes $item] ? [dict get $remotes $item] : ""}]
     popup::default $m [.remotes.b.browse cget -text]
+}
+
+# The URL of the remote NAME (Ctrl+C).
+proc tkremotes::url {name} {
+    variable remotes
+    expr {[dict exists $remotes $name] ? [dict get $remotes $name] : ""}
 }
