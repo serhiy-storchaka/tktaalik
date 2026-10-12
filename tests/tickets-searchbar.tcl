@@ -46,6 +46,12 @@ $m.remove invoke "Text widget"; update
 check "removed: [labels $m]" {"Text widget" ni [labels $m] && "Remove saved search" ni [labels $m]}
 # kept over a restart
 set tktsearch::saved {Mine {involves:@me}}; tktsearch::saveConfig
+# id: with several prefixes: any of them.
+set two [lmap r [sql "SELECT substr(tkt_uuid,1,10) FROM ticket ORDER BY tkt_mtime DESC LIMIT 2"] { lindex $r 0 }]
+tktsearch::setQuery id:[join $two ,]; update
+check "id:A,B: the two tickets" {[llength [.tickets.main.list.t children {}]] == 2}
+tktsearch::setQuery "id:[lindex $two 0],"; update
+check "id:A, (an empty one): the one" {[llength [.tickets.main.list.t children {}]] == 1}
 set tktsearch::saved {}
 set c [tktsearch::loadConfig]
 puts "  conf: $c"

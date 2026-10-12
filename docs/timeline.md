@@ -511,6 +511,12 @@ A ticket that is not closed yet says so: "(still open)".
 Merges are left out unless **Merges too** is checked;
 **Check-ins that name no ticket** leaves out the last section when unchecked.
 
+**Show tickets** shows the tickets the check-ins name
+in the [Tickets](tickets.md) tab, as a search by their ids (`id:A,B,…`):
+a table to sort and look through,
+each with its comments and its check-ins in the details;
+the changelog window stays open.
+
 The changelog is Markdown, in the editor of the comments,
 with its Preview and markup buttons:
 edit it, then **Copy** it or **Save…** it to a file.

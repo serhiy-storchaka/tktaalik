@@ -91,6 +91,15 @@ check "edited: kept when not confirmed" {[string match "My intro*" [formattext::
 set ::answer ok
 tktimeline::changelogAgain; update
 check "confirmed: made again" {![string match "My intro*" [formattext::get $e]]}
+# Show tickets: the three named, in the Tickets tab, by their ids.
+check "Show tickets: enabled" {![.timeline.changelog.f.b.tickets instate disabled]}
+.timeline.changelog.f.b.tickets invoke; update
+waitUntil {$tktaalik::active eq "tickets" && [winfo exists .tickets.main.list.t]}
+check "the Tickets tab: id:bug,rfe,other [list $tktsearch::query]" {$tktsearch::query eq "id:$b10,$r10,$o10"}
+waitUntil {[llength [.tickets.main.list.t children {}]] == 3}
+check "the three tickets listed" {[lsort [.tickets.main.list.t children {}]] eq [lsort [list $bug $rfe $other]]}
+check "the changelog window stays" {[winfo exists .timeline.changelog]}
+tktaalik::show timeline; update
 # Saved to a file.
 set ::saveFile $D/changes.md
 proc tk_getSaveFile {args} { return $::saveFile }

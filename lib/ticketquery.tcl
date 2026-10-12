@@ -588,8 +588,14 @@ proc tickets::buildQuery {query canSeePrivate} {
             if {![llength $people]} { queryError "these tickets have no people fields" }
             set cond ([join [lmap col $people {match $col $value}] { OR }])
         } elseif {$key eq "id"} {
-            set prefix [string trim $lvalue {[]}]
-            set cond "substr(tkt_uuid,1,length([fossil::sqlstr $prefix])) = [fossil::sqlstr $prefix]"
+            # (id:a,b,c: any of these, as from a changelog.)
+            set conds [lmap a $alts {
+                set prefix [string trim $a {[]}]
+                if {$prefix eq ""} continue
+                string cat "substr(tkt_uuid,1,length([fossil::sqlstr $prefix])) = [fossil::sqlstr $prefix]"
+            }]
+            if {![llength $conds]} { queryError "empty value for id:" }
+            set cond ([join $conds { OR }])
         } elseif {$key eq "in"} {
             if {$lvalue ne "title"} { queryError "only in:title is supported" }
             set titleOnly 1

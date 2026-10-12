@@ -18,6 +18,7 @@
 #   tktimeline::releaseTagOf RID    the release-like tag of the check-in RID
 #                                   (one given to it alone), or ""
 #   tktimeline::changelog           the changelog of the search shown
+#   tktimeline::changelogTickets    its tickets in the Tickets tab
 #   tktimeline::changelogData QUERY {checkins tickets}: the check-ins the
 #                                   search finds, oldest first (dicts:
 #                                   uuid date user comment merge tickets),
@@ -246,6 +247,10 @@ proc tktimeline::changelog {} {
     pack $f.opts.base $f.opts.lbase -side right
     formattext::create $f.editor -formats {Markdown text/x-markdown} -fixed Markdown -repo $repo -height 20
     ttk::frame $f.b
+    ttk::button $f.b.tickets -text "Show tickets" -command tktimeline::changelogTickets
+    icons::tooltip $f.b.tickets "The tickets the check-ins name, in the Tickets tab (a search by their ids)"
+    if {![dict size $tickets]} { $f.b.tickets state disabled }
+    pack $f.b.tickets -side left
     ttk::button $f.b.save -text "Save\u2026" -command tktimeline::changelogSave
     ttk::button $f.b.copy -text Copy -command {ui::copy [formattext::get .timeline.changelog.f.editor]}
     ttk::button $f.b.close -text Close -command [list destroy $w]
@@ -276,6 +281,22 @@ proc tktimeline::changelogFill {} {
     $t edit reset
     $t edit modified 0
     $t mark set insert 1.0
+}
+
+# The tickets the check-ins name, in the Tickets tab: id:A,B,... in the
+# order of the changelog; this window stays open.
+proc tktimeline::changelogTickets {} {
+    variable cl
+    lassign $cl(data) checkins tickets
+    set ids {}
+    foreach c $checkins {
+        foreach t [dict get $c tickets] {
+            if {[dict exists $tickets $t] && [string range $t 0 9] ni $ids} { lappend ids [string range $t 0 9] }
+        }
+    }
+    if {![llength $ids]} return
+    tktaalik::show tickets
+    tktsearch::setQuery id:[join $ids ,]
 }
 
 proc tktimeline::changelogSave {} {

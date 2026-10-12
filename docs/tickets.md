@@ -79,7 +79,7 @@ A list below the box completes the keys and their values as you type
 | `created:2025`, `updated:<2020`, `closed:2025-01..2025-06` | dates |
 | `comments:>5`, `checkins:0`, `attachments:>0`, `comments:1..3` | counts |
 | `has:checkins`, `no:comments`, `has:attachments` | counts other than 0, or 0 |
-| `id:1a2b3c` | a ticket id prefix |
+| `id:1a2b3c`, `id:1a2b3c,4d5e6f` | a ticket id prefix, or any of several |
 | `tip:512`, `tip:>=700` | the TIP number (in the TIPs repository) |
 | `in:title` | words match the title only |
 | `is:private` | private tickets (when the repository has them) |
