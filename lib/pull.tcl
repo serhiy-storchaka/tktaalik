@@ -112,7 +112,7 @@ proc tktimeline::startPull {} {
     variable pullCmd $cmd
     set pullBefore [lindex [fossil::sql $repo "SELECT coalesce(max(rcvid),0) FROM rcvfrom"] 0 0]
     try {
-        set pullChan [open |[list {*}$cmd 2>@1] r+]
+        set pullChan [fossil::lenient [open |[list {*}$cmd 2>@1] r+]]
     } on error msg {
         set pullChan ""
         tk_messageBox -icon error -parent $w -title Pull -message $msg

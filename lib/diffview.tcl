@@ -269,7 +269,7 @@ proc diffview::start {w} {
         # (The options before the arguments: those can end with file names.)
         set cmd [list {*}[fossil::command [dict get $data($w) command]] {*}$versions {*}[optionArgs $w] \
             {*}[dict get $data($w) args] << "" 2>@1]
-        set chan [open |$cmd r]
+        set chan [fossil::lenient [open |$cmd r]]
     }
     dict set data($w) chan $chan
     fconfigure $chan -blocking 0 -encoding utf-8 -translation auto

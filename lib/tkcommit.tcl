@@ -404,7 +404,7 @@ proc tkcommit::showDiff {path} {
         if {$what eq "EXTRA"} {
             # Not in Fossil yet: the start of the file.
             if {[catch {
-                set f [open [file join $root $path]]
+                set f [fossil::lenient [open [file join $root $path]]]
                 fconfigure $f -encoding utf-8
                 set text [read $f 100000]
                 close $f

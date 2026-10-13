@@ -157,7 +157,7 @@ proc web::Request {dir url form referer {body ""}} {
         append config "data-binary = \"[Quote @$body]\"\n"
     }
     append config "silent\nshow-error\n"
-    set chan [open |[list {*}$curl -K - 2>@1] r+]
+    set chan [fossil::lenient [open |[list {*}$curl -K - 2>@1] r+]]
     fconfigure $chan -encoding utf-8 -translation lf
     puts -nonewline $chan $config
     close $chan write

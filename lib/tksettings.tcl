@@ -185,7 +185,7 @@ proc tksettings::showDetails {name} {
             other values; edit and commit the file to change it.\n" ""
         if {$root ne ""} {
             catch {
-                set f [open [file join $root [dict get $s file]]]
+                set f [fossil::lenient [open [file join $root [dict get $s file]]]]
                 set content [read $f]
                 close $f
                 $d insert end [string trimright $content] value \n

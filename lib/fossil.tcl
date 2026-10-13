@@ -128,7 +128,15 @@ proc fossil::ArgsFile {command} {
 
 # A pipe to fossil ARGV (redirections allowed), opened with ACCESS.
 proc fossil::pipe {argv {access r}} {
-    open |[command [list fossil {*}$argv]] $access
+    lenient [open |[command [list fossil {*}$argv]] $access]
+}
+
+# Files, diffs, comments can be in any encoding (an old file in Latin-1):
+# Tcl 9 reads such bytes as an error by default, Tcl 8.6 as characters.
+# (The profile stays when the encoding is set after.)
+proc fossil::lenient {chan} {
+    if {[package vsatisfies [package provide Tcl] 9]} { fconfigure $chan -profile tcl8 }
+    return $chan
 }
 
 # Whether this Fossil takes --NAME=VALUE (2.22 and newer): found once,
@@ -185,6 +193,9 @@ proc fossil::arg {text} {
 #                               {exit-code output}
 #   fossil::runTo PATH ARG...  its output, as bytes, into the file PATH
 #   fossil::pipe ARGV ?ACCESS?  a pipe to fossil ARGV (with redirections)
+#   fossil::lenient CHAN        CHAN reads bytes that are not in its encoding
+#                               as Tcl 8.6 does, not as an error (Tcl 9);
+#                               for anything from a repository or checkout
 #   fossil::runIn ROOT REPO ARG...
 #                               in the checkout ROOT, else with -R REPO
 #   fossil::inDir DIR BODY      BODY evaluated in the caller with DIR as the
@@ -312,6 +323,7 @@ proc fossil::start {args} {
         cd $here
     }
     fconfigure $chan -blocking 0 -translation auto
+    lenient $chan
     if {[dict exists $opts -encoding]} { fconfigure $chan -encoding [dict get $opts -encoding] }
     dict set jobs $chan [dict create \
         onOutput [expr {[dict exists $opts -onOutput] ? [dict get $opts -onOutput] : ""}] \
@@ -606,7 +618,7 @@ proc fossil::checkoutSql {dir statement} {
 # running a slow query beside others.
 proc fossil::sqlStart {repo statement} {
     set script "[sqlMode]\n[string map {\n { } \r { }} $statement];\n"
-    set chan [open |[list [exe] sql -R $repo --readonly 2>@1] r+]
+    set chan [lenient [open |[list [exe] sql -R $repo --readonly 2>@1] r+]]
     fconfigure $chan -encoding utf-8 -translation lf
     puts -nonewline $chan $script
     chan close $chan write
@@ -793,7 +805,7 @@ proc fossil::render {repo mimetype text} {
         fconfigure $f -encoding utf-8
         puts -nonewline $f $text
         close $f
-        set p [open |[list [exe] {*}$command -R $repo $name 2>@1] r]
+        set p [lenient [open |[list [exe] {*}$command -R $repo $name 2>@1] r]]
         fconfigure $p -encoding utf-8
         set html [read $p]
         close $p
