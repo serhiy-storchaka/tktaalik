@@ -229,7 +229,7 @@ Then three tabs:
 |---|---|
 | Check-ins | The check-ins of the branch, newest first (the newest 1000 of a big branch): date, hash, user, the branches each was merged into, and the comment; leaves in bold |
 | Files | The diff of the branch (`fossil diff --branch`), made when the tab is opened: the files it changed with lines added and removed, and the diff, as in the [diff window](diffs.md#the-diff-window), with its **Options**. **Compared with** above it chooses what with: *where it started* (the diff of the branch), or the tip of another branch: the one it was made from (*BASE (its base)*), a merge target of the columns, or any branch, tag or check-in typed in the box (and Return). Its tip is then compared with the branch's (`fossil diff --from OTHER --to BRANCH`): what merging it there would bring, and also what the other has changed since, reverted. The choice is kept for the other branches (*its base* is the base of each), and after a restart |
-| Tickets | The tickets mentioned in its comments: id, status, type, title; double-click opens the ticket in the [Tickets](tickets.md) tab |
+| Tickets | The tickets mentioned in its comments: id, status (with its icon and resolution, as in [Tickets](tickets.md)), type, title, in grey when not open; double-click opens the ticket in the [Tickets](tickets.md) tab |
 
 Ctrl+C in a tab copies what its selected rows are:
 the check-ins' hashes, the files' paths, the tickets' ids.

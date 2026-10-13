@@ -113,4 +113,17 @@ check "$root: no base among [$c cget -values]" {$root ne "" && ![string match "*
 tkbranches::fillBranchMenu .branches.ctx $small
 check "no diff entries in the branch menu" {[lsearch -glob -nocase [commands .branches.ctx] *diff*] < 0}
 check "no double-click on a branch" {[bind $t <Double-1>] eq ""}
+# The Tickets tab: the status with its icon and resolution.
+$t selection set [list core-8-6-branch]; $t focus core-8-6-branch; update
+set k $nb.tickets.t
+set first [lindex [$k children {}] 0]
+set status [string trim [$k set $first status]]
+if {[package vsatisfies [package provide Tk] 9]} {
+    check "Tickets: an icon in the status cell ($status)" {[llength [lsearch -all -glob [$k tag names] icon:st-*]] && [lsearch -glob [lmap tag [lsearch -all -inline -glob [$k tag names] icon:*] { $k tag cell has $tag }] "*$first status*"] >= 0 && [string match "*\u00b7*" $status]}
+} else {
+    check "Tickets: a sign before the status ($status)" {[regexp {^[^\x00-\x7f]+ \w} $status] && [string match "*\u00b7*" $status]}
+}
+set open [lmap i [$k children {}] { if {[string match "*Open*" [$k set $i status]]} { set i } else continue }]
+set closed [lmap i [$k children {}] { if {[string match "*Closed*" [$k set $i status]]} { set i } else continue }]
+check "Tickets: not open in grey, open not ([llength $open] open)" {[llength $closed] && [lsort -unique [lmap i $closed { $k tag has inactive $i }]] eq 1 && [lsort -unique [lmap i $open { $k tag has inactive $i }]] in {0 {}}}
 done

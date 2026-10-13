@@ -41,6 +41,8 @@ namespace eval tkbranches {
     variable status ""          ;# the status line
     variable statusTail ""      ;# its part after the number of branches
     variable filesShown ""      ;# the branch whose diff is in the Files tab
+    variable resolutionOf       ;# array: repository -> whether its tickets
+                                ;# have a resolution
     variable compared own       ;# Files: the diff from where the branch
                                 ;# started (own), from its base's tip
                                 ;# (base), or {name NAME}
@@ -89,6 +91,18 @@ proc tkbranches::saveConfig {} {
 proc tkbranches::sql {statement} {
     variable repo
     fossil::sql $repo $statement
+}
+
+# Whether the tickets of the repository have a resolution (asked once).
+proc tkbranches::hasResolution {} {
+    variable repo
+    variable resolutionOf
+    if {![info exists resolutionOf($repo)]} {
+        set resolutionOf($repo) [expr {![catch {
+            sql "SELECT 1 FROM pragma_table_info('ticket') WHERE name='resolution'"
+        } rows] && [llength $rows]}]
+    }
+    return $resolutionOf($repo)
 }
 
 # Use the repository ($root: its checkout, or "").  Returns 1 on success.
@@ -1030,14 +1044,35 @@ proc tkbranches::showDetails {name} {
     set k .branches.main.details.nb.tickets.t
     set ids [dict get $b tickets]
     if {[llength $ids]} {
+        # (Not every ticket setup has a resolution.)
+        set resolution [expr {[hasResolution] ? "coalesce(resolution,'')" : "''"}]
         set rows [sql "SELECT tkt_uuid, [fossil::outcol coalesce(status,'')],
+            [fossil::outcol $resolution], [fossil::outcol [::tickets::stateExpr]],
             [fossil::outcol coalesce(type,'')], [fossil::outcol coalesce(title,'')]
             FROM ticket WHERE [join [lmap id $ids {
                 string cat "tkt_uuid GLOB " [fossil::sqlstr $id*]
             }] { OR }] ORDER BY tkt_mtime DESC"]
+        # The status with its icon, as in the Tickets tab: a cell image
+        # (Tk 9) or an emoji (Tk 8.6); and its resolution.  The tickets
+        # not open in grey, as there.
+        set cellImages [expr {![catch {$k tag cell has {}}]}]
+        set iconCells {}
         foreach row $rows {
-            lassign $row uuid tstatus type title
-            $k insert {} end -id $uuid -values [list [string range $uuid 0 9] $tstatus $type $title]
+            lassign $row uuid tstatus res state type title
+            set text [expr {$res in {"" None} || $tstatus eq "" ? $tstatus : "$tstatus \u00b7 $res"}]
+            set icon [tktsearch::iconName state $tstatus $res]
+            if {$icon ne "" && $cellImages} {
+                dict lappend iconCells $icon [list $uuid status]
+                set text " $text"
+            } elseif {$icon ne ""} {
+                set text "[tktsearch::sign state $tstatus $res] $text"
+            }
+            $k insert {} end -id $uuid -tags [expr {$state eq "open" ? "" : "inactive"}] \
+                -values [list [string range $uuid 0 9] $text $type $title]
+        }
+        dict for {icon cells} $iconCells {
+            $k tag configure icon:$icon -image [icons::get $icon row]
+            $k tag cell add icon:$icon $cells
         }
     }
     .branches.main.details.nb tab 2 -text "Tickets ([llength $ids])"
@@ -1383,7 +1418,8 @@ proc tkbranches::build {} {
     bind $b.compared <Return> tkbranches::compareWith
     bind $b.compared <KP_Enter> tkbranches::compareWith
     icons::tooltip $b.compared "Where it started: what the branch changed (fossil diff --branch).\nAnother branch (its base, a merge target), or any branch, tag or\ncheck-in typed and Return: its tip against the branch's tip\n(fossil diff --from OTHER --to BRANCH), with what the other\nchanged since as well, reverted."
-    tree .branches.main.details.nb.tickets {id {Ticket 11} status {Status 10} type {Type 10} title {Title 60 1}}
+    tree .branches.main.details.nb.tickets {id {Ticket 11} status {Status 18} type {Type 10} title {Title 60 1}}
+    .branches.main.details.nb.tickets.t tag configure inactive -foreground gray45
     .branches.main.details.nb add .branches.main.details.nb.checkins -text Check-ins
     .branches.main.details.nb add .branches.main.details.nb.files -text Files
     .branches.main.details.nb add .branches.main.details.nb.tickets -text Tickets
