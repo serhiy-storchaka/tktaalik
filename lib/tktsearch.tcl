@@ -278,8 +278,7 @@ proc tktsearch::setupColumns {} {
                 severity sv-severe} $key] row]
             dict set spec tip [dict get {state "Status and resolution"
                 priority Priority severity Severity} $key]
-            dict set spec pixels [expr {[icons::rowSize]
-                + [font measure TkDefaultFont " \u25bc"] + 12}]
+            dict set spec pixels [expr {[icons::rowSize] + 12}]
         }
         if {[dict exists $::tickets::extra $key]} {
             set x [dict get $::tickets::extra $key]

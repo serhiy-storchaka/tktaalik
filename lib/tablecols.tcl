@@ -16,7 +16,8 @@
 #       icon column shows IMAGE as its heading instead of the text, and the
 #       heading has a tooltip (TEXT, or the heading text) instead; other
 #       columns have the tooltip TEXT if given.  pixels is a width in
-#       pixels.  "extra" is a second sort key for what
+#       pixels (of an icon column: without the sort arrow, which widens
+#       it while the table is sorted by it).  "extra" is a second sort key for what
 #       the column also shows (Status: the resolution); while the table is
 #       sorted by it, the heading says "Status / Resolution \u25b2".
 #       Options: -fixed KEYS (always shown, but movable), -defaults KEYS
@@ -252,6 +253,12 @@ proc tablecols::headings {t} {
             append text $arrow
         }
         $t heading $key -text [string trimleft $text] -image $icon
+        # (An icon column as narrow as its icon: wider for the arrow.)
+        set pixels [option $t $key pixels ""]
+        if {$icon ne "" && $pixels ne ""} {
+            if {$text ne ""} { incr pixels [font measure TkHeadingFont $text] }
+            $t column $key -width $pixels -minwidth $pixels
+        }
     }
 }
 
