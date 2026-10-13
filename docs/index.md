@@ -116,7 +116,11 @@ Hover over icons and headings for tooltips.
   (see [Repository operations](repository.md#repository-operations)).
 
 All tabs switch to the new repository,
-and so do the open windows of the Repository menu.
+and so do the open windows of the Repository menu:
+the tab shown reads it at once, the others when they are shown.
+Meanwhile the window is busy, and a message in its middle says what is being read
+(Tktaalik runs Fossil for each step, which can take a while where starting a program is slow);
+clicks and keys are ignored until it is done.
 Back and Forward start afresh: they go to places of the repository shown.
 Tktaalik remembers the repository (or checkout),
 the tab and the window size for the next start.

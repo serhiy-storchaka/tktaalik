@@ -131,6 +131,9 @@ proc ui::buttons {frame ok okScript cancelScript} {
 #   ui::busyHold ?WINDOWS?  WINDOWS (default: the main window and the other
 #                           toplevels shown) busy: those held, for
 #   ui::busyRelease HELD    after (for what goes on in the background)
+#   ui::progress TEXT       TEXT over the middle of the main window, drawn
+#                           at once, for a wait that blocks it (with
+#                           ui::busy); "" removes it
 proc ui::busy {script} {
     set held [busyHold]
     # The keys too: SCRIPT may handle events while it waits (web::), and a
@@ -162,7 +165,10 @@ proc ui::busyHold {{windows ""}} {
     if {$windows eq ""} { set windows [linsert [wm stackorder .] 0 .] }
     set held {}
     foreach w [lsort -unique $windows] {
-        if {[winfo exists $w] && ![catch {tk busy hold $w -cursor watch}]} { lappend held $w }
+        # (Not one held already, by a busy that this one is within: it
+        # releases it.)
+        if {![winfo exists $w] || [tk busy status $w]} continue
+        if {![catch {tk busy hold $w -cursor watch}]} { lappend held $w }
     }
     update idletasks
     return $held
@@ -170,6 +176,25 @@ proc ui::busyHold {{windows ""}} {
 
 proc ui::busyRelease {held} {
     foreach w $held { catch {tk busy forget $w} }
+}
+
+# (Only idle tasks handled: the events wait, and a click on a busy window
+# goes nowhere.)
+proc ui::progress {text} {
+    set w .uiProgress
+    if {$text eq ""} {
+        destroy $w
+        return
+    }
+    if {![winfo exists $w]} {
+        ttk::frame $w -relief solid -borderwidth 1 -padding {16 10}
+        ttk::label $w.l
+        pack $w.l
+    }
+    $w.l configure -text $text
+    place $w -in . -relx 0.5 -rely 0.5 -anchor center
+    raise $w
+    update idletasks
 }
 
 # Focus W if it is still there (for "after idle": a dialog can be gone by

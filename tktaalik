@@ -53,6 +53,8 @@ namespace eval tktaalik {
         uv       {tkuv "Unversioned files"}
     }
     variable built {}           ;# the tabs built
+    variable stale {}           ;# those that have not read the repository
+                                ;# opened since they were last shown
     variable active ""          ;# the tab shown
     variable titles {}          ;# tab -> the window title for it
     variable keys {}            ;# shortcut -> tab -> script
@@ -124,10 +126,26 @@ proc tktaalik::getdef {dict key default} {
 
 # Open a checkout directory or a repository file for all tabs.  Returns 1
 # on success.
+# Fossil runs for each step, a new process every time: where starting one
+# is slow (Windows, an antivirus), opening takes seconds.  The windows are
+# busy meanwhile (clicks are not kept for later), with what is going on
+# shown; the tabs not shown read the repository when they are shown.
 proc tktaalik::openPath {path} {
+    ui::progress "Opening [file tail [file normalize $path]]\u2026"
+    try {
+        ui::busy { set ok [OpenPath $path] }
+    } finally {
+        ui::progress ""
+    }
+    return $ok
+}
+
+proc tktaalik::OpenPath {path} {
     variable repo
     variable root
     variable built
+    variable active
+    variable stale
     variable tabs
     set path [file normalize $path]
     set newRoot ""
@@ -160,7 +178,10 @@ proc tktaalik::openPath {path} {
     catch repoops::repositoryChanged
     # Relative paths in the checkout, as in a shell there.
     if {$root ne ""} { cd $root }
-    foreach tab $built { useRepository $tab }
+    set stale {}
+    foreach tab $built {
+        if {$tab eq $active} { useRepository $tab } else { lappend stale $tab }
+    }
     checkoutTabs
     # The open windows follow.
     variable dialogs
@@ -180,6 +201,9 @@ proc tktaalik::useRepository {tab} {
     variable repo
     variable root
     variable tabs
+    variable stale
+    ui::progress "Reading [file tail $repo] for the [lindex [dict get $tabs $tab] 1] tab\u2026"
+    set stale [lsearch -all -inline -not -exact $stale $tab]
     ::[lindex [dict get $tabs $tab] 0]::setRepository $repo $root
     changed $tab
 }
@@ -283,10 +307,20 @@ proc tktaalik::tabChanged {} {
     if {$active ne ""} { navigate }
     set ns ::[lindex [dict get $tabs $tab] 0]
     set fresh [expr {$tab ni $built}]
-    if {$fresh} {
-        ${ns}::build
-        lappend built $tab
-        if {$repo ne ""} { useRepository $tab }
+    variable stale
+    if {$fresh || $tab in $stale} {
+        # (Busy, as when a repository is opened: see openPath.)
+        try {
+            ui::busy {
+                if {$fresh} {
+                    ${ns}::build
+                    lappend built $tab
+                }
+                if {$repo ne ""} { useRepository $tab }
+            }
+        } finally {
+            ui::progress ""
+        }
     }
     set active $tab
     variable viewTab $tab
