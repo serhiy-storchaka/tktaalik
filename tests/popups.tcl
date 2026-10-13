@@ -50,7 +50,8 @@ if {[llength [.forum.main.list.t children {}]]} {
 }
 tktaalik::show stash; update
 if {[llength [.stash.main.list.t children {}]]} {
-    menuCheck Stash .stash.main.list.t {"Show diff"}
+    menuCheck Stash .stash.main.list.t {"Apply…" "Drop…"}
+    check "Stash: no diff entries (the diff is in the details)" {[lsearch -glob -nocase [labels [rclick .stash.main.list.t]] "*diff*"] < 0}
 }
 tktaalik::show branches; update
 .branches.main.list.t selection set [list core-8-6-branch]; update

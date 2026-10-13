@@ -61,20 +61,27 @@ set m [menu .tm -tearoff 0]
 tkbranches::ticketMenu $m $id
 check "ticket menu: no Copy ticket id: [commands $m]" {![string match *Copy* [commands $m]]}
 
-# The files, of a small branch (diff --numstat is slow on a big one).
+# The files, of a small branch: its diff, in the tab.
 set small [lindex [lmap n [$t children {}] {
     if {[dict get $tkbranches::branches($n) checkins] in {2 3}} { set n } else continue
 }] 0]
 $t selection set [list $small]; $t focus $small; update
 $nb select $nb.files; update
-set f $nb.files.t
-waitUntil {[llength [$f children {}]] > 1}
-set rows [lmap i [$f children {}] { if {[$f tag has total $i]} continue; set i }]
+set p $nb.files
+set f $p.p.files.t
+waitUntil {![dict exists $diffview::data($p) chan] && [llength [$f children {}]]}
+set n [llength [$f children {}]]
+check "Files of $small: its diff, $n files: [$p.status cget -text]" {[string match "*@@*" [$p.p.diff.u get 1.0 end]] && [$nb tab $nb.files -text] eq "Files ($n)"}
+check "the diff's Options menu" {[winfo exists $p.bar.options]}
 $f selection set [$f children {}]; update
-set want [join [lmap i $rows { $f set $i file }] \n]
-check "Ctrl+C in Files of $small: the paths, without the total: [list [copied $f]]" {[copied $f] eq $want && $want ne ""}
-destroy .tm
-set m [menu .tm -tearoff 0]
-tkbranches::fileMenu $m [lindex $rows 0]
-check "file menu: no Copy path: [commands $m]" {[llength [commands $m]] && ![string match *Copy* [commands $m]]}
+set want [join [lmap i [$f children {}] { $f set $i file }] \n]
+check "Ctrl+C in Files of $small: the paths: [list [copied $f]]" {[copied $f] eq $want && $want ne ""}
+# Another branch: emptied, then its own diff when the tab is shown again.
+$nb select $nb.checkins; update
+set other [lindex [lmap b [$t children {}] { if {$b ne $small && [dict get $tkbranches::branches($b) checkins] in {2 3 4}} { set b } else continue }] 0]
+$t selection set [list $other]; $t focus $other; update
+check "another branch: emptied" {[llength [$f children {}]] == 0 && [$nb tab $nb.files -text] eq "Files"}
+$nb select $nb.files; update
+waitUntil {![dict exists $diffview::data($p) chan] && [llength [$f children {}]]}
+check "its diff: [$p.status cget -text]" {[dict get $diffview::data($p) args] eq [list -R $tkbranches::repo --branch [fossil::arg $other]]}
 done

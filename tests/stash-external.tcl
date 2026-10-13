@@ -15,9 +15,9 @@ start stash $co 1100x800
 tktaalik::show stash; update
 set t .stash.main.list.t
 $t selection set [lindex [$t children {}] 0]; update
-tkstash::showDiff; update
-set w [lindex [lsearch -all -inline -glob [winfo children .] .diffview*] end]
-check "a diff window" {$w ne ""}
+set w .stash.main.details.diff
+waitUntil {![dict exists $diffview::data($w) chan]}
+check "the diff in the details" {[llength [$w.p.files.t children {}]] == 1}
 diffview::external $w
 for {set i 0} {$i < 50 && ![file exists $co/MARK]} {incr i} { after 100; update }
 check "External diff ran the gdiff-command" {[file exists $co/MARK]}

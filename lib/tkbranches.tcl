@@ -40,7 +40,7 @@ namespace eval tkbranches {
     variable tipHash ""         ;# its last check-in, short
     variable status ""          ;# the status line
     variable statusTail ""      ;# its part after the number of branches
-    variable filesPipe ""       ;# the running "fossil diff --numstat" (fossil::start)
+    variable filesShown ""      ;# the branch whose diff is in the Files tab
     variable config {}
     variable configFile [config::path branches]
 
@@ -1039,51 +1039,25 @@ proc tkbranches::showDetails {name} {
     if {[.branches.main.details.nb select] eq ".branches.main.details.nb.files"} { loadFiles }
 }
 
-# The changed files: "fossil diff --numstat" in the background, as it
-# takes long for a big branch.
+# The changed files: the diff of the branch, made when the tab is shown
+# (it takes long for a big branch).
 proc tkbranches::clearFiles {} {
-    variable filesPipe
-    if {$filesPipe ne ""} {
-        fossil::stop $filesPipe
-        set filesPipe ""
-    }
-    set f .branches.main.details.nb.files.t
-    $f delete [$f children {}]
+    variable filesShown ""
+    diffview::clear .branches.main.details.nb.files
     .branches.main.details.nb tab 1 -text Files
 }
 
 proc tkbranches::loadFiles {} {
-    variable filesPipe
+    variable filesShown
     variable selected
     variable repo
-    set f .branches.main.details.nb.files.t
-    if {$selected eq "" || $filesPipe ne "" || [llength [$f children {}]]} return
-    $f insert {} end -values [list "" "" "Comparing\u2026"]
-    set filesPipe [fossil::start -encoding utf-8 -onDone tkbranches::readFiles \
-        diff -R $repo --numstat --branch [fossil::arg $selected]]
+    if {$selected eq "" || $filesShown eq $selected} return
+    set filesShown $selected
+    diffview::runIn .branches.main.details.nb.files -done tkbranches::filesCounted \
+        -- -R $repo --branch [fossil::arg $selected]
 }
 
-# (A stopped one: for a branch no longer selected.)
-proc tkbranches::readFiles {code text stopped msg} {
-    variable filesPipe
-    if {$stopped} return
-    set lines [split $text \n]
-    set filesPipe ""
-    set f .branches.main.details.nb.files.t
-    $f delete [$f children {}]
-    set n 0
-    set total {}
-    foreach line $lines {
-        if {[regexp {^\s*([0-9]+)\s+([0-9]+)\s+TOTAL over ([0-9]+) changed files?} $line -> a d n]} {
-            set total [list $a $d "Total: $n files"]
-        } elseif {[regexp {^\s*([0-9]+)\s+([0-9]+)\s+(.+)$} $line -> a d path]} {
-            $f insert {} end -values [list $a $d $path]
-        } elseif {[string trim $line] ni {"" "INSERTED DELETED"}
-                && ![regexp {^\s*INSERTED\s+DELETED\s*$} $line]} {
-            $f insert {} end -tags error -values [list "" "" [string trim $line]]
-        }
-    }
-    if {[llength $total]} { $f insert {} end -tags total -values $total }
+proc tkbranches::filesCounted {n} {
     .branches.main.details.nb tab 1 -text "Files ($n)"
 }
 
@@ -1347,9 +1321,7 @@ proc tkbranches::build {} {
         comment {Comment 50 1}
     }]
     $c tag configure leaf -font TkHeadingFont
-    set f [tree .branches.main.details.nb.files {added {Added 7 0 e} deleted {Deleted 7 0 e} file {File 50 1}}]
-    $f tag configure total -font TkHeadingFont
-    $f tag configure error -foreground red3
+    diffview::panel .branches.main.details.nb.files
     tree .branches.main.details.nb.tickets {id {Ticket 11} status {Status 10} type {Type 10} title {Title 60 1}}
     .branches.main.details.nb add .branches.main.details.nb.checkins -text Check-ins
     .branches.main.details.nb add .branches.main.details.nb.files -text Files
@@ -1384,14 +1356,13 @@ proc tkbranches::build {} {
     bind $c <ButtonPress-3> {tkbranches::checkinMenu %x %y %X %Y}
     bind $c <Double-1> {tkbranches::diffCheckin [.branches.main.details.nb.checkins.t identify item %x %y]}
     popup::attach .branches.main.details.nb.tickets.t tkbranches::ticketMenu
-    popup::attach .branches.main.details.nb.files.t tkbranches::fileMenu
     bind .branches.main.details.nb.tickets.t <Double-1> {
         tkbranches::showTicket [.branches.main.details.nb.tickets.t identify item %x %y]
     }
-    # Ctrl+C: the branch names, the check-ins, the paths, the ticket ids.
+    # Ctrl+C: the branch names, the check-ins, the ticket ids (the paths:
+    # the diff's own).
     popup::copyKey $t
     popup::copyKey $c
-    popup::copyKey .branches.main.details.nb.files.t tkbranches::filePath
     popup::copyKey .branches.main.details.nb.tickets.t
     bind .branches.main.details.nb <<NotebookTabChanged>> {
         if {[.branches.main.details.nb select] eq ".branches.main.details.nb.files"} tkbranches::loadFiles
@@ -1425,29 +1396,11 @@ proc tkbranches::activate {} {
     focus .branches.main.list.t
 }
 
-# The context menus of the details: a ticket, a file changed.
+# The context menu of a ticket of the details.
 proc tkbranches::ticketMenu {m item} {
     $m add command -label "Show the ticket" -command [list tkbranches::showTicket $item]
     $m add command -label "Open in browser" -command [list tkbranches::openUrl tktview/$item]
     popup::default $m "Show the ticket"
-}
-
-proc tkbranches::fileMenu {m item} {
-    variable repo
-    set t .branches.main.details.nb.files.t
-    set path [$t set $item file]
-    if {$path eq "" || [$t tag has error $item] || [$t tag has total $item]} return
-    set name [lindex [$t selection] 0]
-    set branch [lindex [.branches.main.list.t selection] 0]
-    $m add command -label "Diff of this file in the branch" \
-        -command [list diffview::run "$path in $branch" -- -R $repo --branch [fossil::arg $branch] [fossil::arg $path]]
-}
-
-# The path of a row of the files (Ctrl+C), none of the total or an error.
-proc tkbranches::filePath {item} {
-    set t .branches.main.details.nb.files.t
-    if {[$t tag has total $item] || [$t tag has error $item]} { return "" }
-    $t set $item file
 }
 
 source [file join [file dirname [file normalize [info script]]] branchops.tcl]

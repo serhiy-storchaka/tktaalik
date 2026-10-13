@@ -169,13 +169,23 @@ it can only be committed whole, and Commit says so.
 
 ### Stashing part of the changes
 
-**Commit ▸ Stash the checked changes…** stashes the checked files
+**Stash…** (the button, or **Commit ▸ Stash the checked changes…**)
+stashes the checked files
 (`fossil stash save` with their names),
 of the files in part only the hunks ticked, and takes them out of the checkout;
 the rest stays.
-It asks for the stash's comment first.
+Check all the files to stash all the changes.
+It asks first for:
+
+- **Comment**: what the stash is about (empty: `(no comment)`);
+- **Keep them in the checkout too**:
+  make a snapshot instead (`fossil stash snapshot`): the stash is made,
+  but nothing is taken out of the checkout.
+
 The same stash of all the changes is kept meanwhile,
 and dropped once the files are written.
+Stashing itself cannot be undone with Fossil's undo, but nothing is lost:
+the changes are in the stash.
 Apply the stash later in the [Stash](stash.md) tab.
 
 A commit goes to the branch of the check-in the checkout is on.

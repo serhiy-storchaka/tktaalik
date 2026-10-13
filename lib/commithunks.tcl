@@ -395,23 +395,33 @@ proc tkcommit::stashChecked {} {
         expr {$p eq "" ? $path : "$path: [dict get $p ticked] of [dict get $p total] changes"}
     }]
     set ::ui::f(comment) ""
+    set ::ui::f(snapshot) 0
     if {![ui::form .commit.stashpart "Stash the checked changes" \
             "These changes are stashed (fossil stash save) and taken out of the checkout;\
             the rest stays:\n\n[join $what \n][expr {[llength $parts] ? "\n\nMeanwhile all\
             changes are kept in another stash, dropped when the files are back." : ""}]" \
-            {{comment Comment: entry}} Stash -help commit#stashing-part-of-the-changes]} return
-    set args [list stash save]
-    if {[string trim $::ui::f(comment)] ne ""} { lappend args -m [string trim $::ui::f(comment)] }
+            {{comment Comment: entry}
+             {snapshot "Keep them in the checkout too (fossil stash snapshot: nothing is taken out)" check}} \
+            Stash -help commit#stashing-part-of-the-changes]} return
+    set snapshot $::ui::f(snapshot)
+    set comment [string trim $::ui::f(comment)]
+    if {$comment eq ""} { set comment "(no comment)" }
+    # (--comment=: a comment may start with "<", "|" or "-", which exec or
+    # fossil would take for something else as a word of its own.)
+    set args [list stash [expr {$snapshot ? "snapshot" : "save"}] --comment=$comment]
     foreach path $paths { lappend args [filearg $path] }
     if {[llength $parts]} {
-        if {![withPartial Stash $parts part rest {
+        if {![withPartial Stash $parts part [expr {$snapshot ? "work" : "rest"}] {
             lassign [fossil {*}$args] code out
         }]} return
     } else {
         lassign [fossil {*}$args] code out
     }
-    if {$code} { ui::errorBox -title Stash "fossil stash save failed:" $out }
-    foreach p $parts { unset -nocomplain ::tkcommit::hunksOff([dict get $p path]) ::tkcommit::hunksSplit([dict get $p path]) }
+    if {$code} { ui::errorBox -title Stash "fossil stash [lindex $args 1] failed:" $out }
+    # (The hunks chosen were stashed; kept for a snapshot, still there.)
+    if {!$snapshot} {
+        foreach p $parts { unset -nocomplain ::tkcommit::hunksOff([dict get $p path]) ::tkcommit::hunksSplit([dict get $p path]) }
+    }
     refresh
     set ::tkcommit::status [expr {$code ? "Not stashed" : "Stashed"}]
 }

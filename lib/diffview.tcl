@@ -9,6 +9,15 @@
 #   diffview::show TITLE TEXT ?-mode MODE? ?-transient W?
 #       Shows a unified diff (from Fossil, or a patch in git or diff -u
 #       format); with -transient, kept above the window W.
+#   diffview::panel W ?-mode MODE? ?-title TITLE?
+#       The same view in the new frame W, in a tab (no title, no Close);
+#   diffview::runIn W ?-dir DIR? ?-command CMD? ?-select FILE?
+#           ?-mark FILES? ?-only FILES? ?-options 0|1? ?-done CMD? -- ARGS...
+#       runs a command into it as diffview::run does, again for each one
+#       (-mark: the files in bold; -only: only these files; -options 0:
+#       no Options menu, ARGS carry the options; -done: CMD N run with
+#       the number of files when shown); diffview::mark W FILES ?TAG?
+#       (TAG hit: bold, conflict: red, warn: orange), diffview::clear W.
 #
 # The windows of diffview::run have Fossil's diff options in their Options
 # menu (-w, -Z, --strip-trailing-cr, --invert, -c N): changing one runs the
@@ -45,7 +54,7 @@ proc diffview::parse {text} {
             # A new file: the header lines before it go with it.
             # (fossil stash show: "CHANGED name" before each file)
             set start {}
-            while {[llength $lines] && [regexp {^(?:Index: |=====|diff |index |new file|deleted file|similarity |rename |old mode|new mode|(?:ADDED|DELETED|CHANGED|EDITED|RENAMED|REMOVED) )} [lindex $lines end]]} {
+            while {[llength $lines] && [regexp {^(?:Index: |=====|diff |index |new file|deleted file|similarity |rename |old mode|new mode|(?:ADDED|DELETED?|CHANGED|EDITED|RENAMED|REMOVED) )} [lindex $lines end]]} {
                 set start [linsert $start 0 [lindex $lines end]]
                 set lines [lrange $lines 0 end-1]
             }
@@ -88,12 +97,25 @@ proc diffview::fileName {text} {
 
 proc diffview::newWindow {title mode} {
     variable count
-    variable data
     set w .diffview[incr count]
     toplevel $w
     wm title $w $title
     wm geometry $w 1200x800
-    set data($w) [dict create files {} mode $mode title $title]
+    panel $w -title $title -mode $mode
+    ttk::button $w.bar.close -text Close -command [list destroy $w]
+    pack $w.bar.close -side right -padx {4 0} -before $w.bar.sidebyside
+    bind $w <Escape> [list destroy $w]
+    return $w
+}
+
+# The bar, the files, the diff and the status line, in W (a toplevel, or
+# a frame made here).
+proc diffview::panel {w args} {
+    variable data
+    set opts [dict merge {-title "" -mode unified} $args]
+    set title [dict get $opts -title]
+    if {![winfo exists $w]} { ttk::frame $w }
+    set data($w) [dict create files {} mode [dict get $opts -mode] title $title marks {} whole 1]
 
     ttk::frame $w.bar -padding 4
     ttk::label $w.bar.title -text $title -font TkHeadingFont
@@ -101,10 +123,9 @@ proc diffview::newWindow {title mode} {
         ttk::radiobutton $w.bar.$m -text $label -value $m -style Toolbutton \
             -variable diffview::mode($w) -command [list diffview::render $w]
     }
-    set ::diffview::mode($w) $mode
-    ttk::button $w.bar.close -text Close -command [list destroy $w]
+    set ::diffview::mode($w) [dict get $opts -mode]
     pack $w.bar.title -side left
-    pack $w.bar.close $w.bar.sidebyside $w.bar.unified -side right -padx {4 0}
+    pack $w.bar.sidebyside $w.bar.unified -side right -padx {4 0}
     # Which versions are compared (fossil diff -h), when known.
     ttk::label $w.versions -foreground gray35 -padding {8 0}
 
@@ -114,6 +135,9 @@ proc diffview::newWindow {title mode} {
     ttk::frame $w.p.files
     ttk::treeview $w.p.files.t -columns {added deleted file} -show headings \
         -selectmode browse -yscrollcommand [list $w.p.files.y set]
+    $w.p.files.t tag configure hit -font TkHeadingFont
+    $w.p.files.t tag configure conflict -foreground red3
+    $w.p.files.t tag configure warn -foreground darkorange3
     ttk::scrollbar $w.p.files.y -command [list $w.p.files.t yview]
     set char [font measure TkDefaultFont 0]
     foreach {col heading width anchor} {added + 6 e deleted \u2212 6 e file File 30 w} {
@@ -156,7 +180,6 @@ proc diffview::newWindow {title mode} {
     bind $w.p.files.t <<TreeviewSelect>> [list diffview::fileSelected $w]
     popup::attach $w.p.files.t [list diffview::filesMenu $w]
     popup::copyKey $w.p.files.t [list diffview::listedName $w]
-    bind $w <Escape> [list destroy $w]
     bind $w <Destroy> [list diffview::forget $w %W]
     layout $w
     return $w
@@ -185,7 +208,8 @@ proc diffview::externalButton {w} {
     variable data
     if {[gdiffCommand $w] ne ""} {
         ttk::button $w.bar.external -text "External diff" -command [list diffview::external $w]
-        pack $w.bar.external -side right -padx {4 0} -before $w.bar.options
+        pack $w.bar.external -side right -padx {4 0} \
+            -before [expr {[winfo exists $w.bar.options] ? "$w.bar.options" : "$w.bar.sidebyside"}]
         set dir [dict get $data($w) dir]
         set setting [externalSetting $dir [dict get $data($w) args]]
         icons::tooltip $w.bar.external [expr {$setting eq ""
@@ -226,6 +250,7 @@ proc diffview::optionsMenu {w} {
 proc diffview::optionArgs {w} {
     variable flags
     set args {}
+    if {![info exists ::diffview::opt($w,context)]} { return {} }
     foreach {var flag} $flags {
         if {$::diffview::opt($w,$var)} { lappend args $flag }
     }
@@ -343,18 +368,33 @@ proc diffview::show {title text args} {
 }
 
 proc diffview::run {title args} {
-    set opts [dict create -dir "" -mode unified -command {fossil diff -i} -select ""]
+    set mode unified
+    set i [lsearch -exact $args -mode]
+    if {$i >= 0 && $i < [lsearch -exact $args --]} {
+        set mode [lindex $args $i+1]
+        set args [lreplace $args $i $i+1]
+    }
+    set w [newWindow $title $mode]
+    runIn $w {*}$args
+    return $w
+}
+
+proc diffview::runIn {w args} {
+    variable data
+    set opts [dict create -dir "" -command {fossil diff -i} -select "" -mark {} -options 1 -done ""]
+    dict unset data($w) only
     while {[llength $args] && [lindex $args 0] ne "--"} {
         set args [lassign $args opt value]
         dict set opts $opt $value
     }
     set args [lrange $args 1 end]
-    set w [newWindow $title [dict get $opts -mode]]
-    variable data
     dict set data($w) select [dict get $opts -select]
+    dict set data($w) marks [dict create hit [dict get $opts -mark]]
+    if {[dict exists $opts -only]} { dict set data($w) only [dict get $opts -only] }
     dict set data($w) dir [dict get $opts -dir]
     dict set data($w) command [dict get $opts -command]
-    optionsMenu $w
+    dict set data($w) done [dict get $opts -done]
+    if {[dict get $opts -options] && ![winfo exists $w.bar.options]} { optionsMenu $w }
     # The diff options among the arguments (the Commit tab's): ticked in
     # the menu instead, so that they can be changed here.
     variable flags
@@ -364,7 +404,9 @@ proc diffview::run {title args} {
         # (Not lsearch -stride: Tcl 8.6 has none.)
         set var ""
         foreach {v flag} $flags { if {$flag eq $a} { set var $v } }
-        if {$var ne ""} {
+        if {![winfo exists $w.bar.options]} {
+            lappend rest $a
+        } elseif {$var ne ""} {
             set ::diffview::opt($w,$var) 1
         } elseif {$a in {-c --context} && $i + 1 < [llength $args]} {
             set ::diffview::opt($w,context) [lindex $args [incr i]]
@@ -373,9 +415,38 @@ proc diffview::run {title args} {
         }
     }
     dict set data($w) args $rest
-    externalButton $w
+    if {![winfo exists $w.bar.external]} { externalButton $w }
     start $w
     return $w
+}
+
+# Nothing shown (and the command running stopped).
+proc diffview::clear {w} {
+    variable data
+    if {[dict exists $data($w) chan]} {
+        catch {close [dict get $data($w) chan]}
+        dict unset data($w) chan
+    }
+    dict set data($w) files {}
+    $w.p.files.t delete [$w.p.files.t children {}]
+    pack forget $w.versions
+    render $w
+    $w.status configure -text ""
+}
+
+# The files FILES marked in the list with TAG (instead of the ones marked
+# with it before).
+proc diffview::mark {w files {tag hit}} {
+    variable data
+    dict set data($w) marks $tag $files
+    set t $w.p.files.t
+    foreach item [$t children {}] {
+        set name [listedName $w $item]
+        $t item $item -tags [lmap {tag files} [dict get $data($w) marks] {
+            if {$name ni $files} continue
+            set tag
+        }]
+    }
 }
 
 proc diffview::readDiff {w chan text} {
@@ -404,6 +475,7 @@ proc diffview::setText {w text} {
     # The versions compared (diff -h): above the diff, not in it.
     set from ""
     set to ""
+    pack forget $w.versions
     if {[regexp -line {^Fossil-Diff-From:\s+(.*)$} $text -> from]
             && [regexp -line {^Fossil-Diff-To:\s+(.*)$} $text -> to]} {
         regsub -line {^Fossil-Diff-From:.*\n^Fossil-Diff-To:.*\n(?:^-+\n)?} $text "" text
@@ -412,6 +484,10 @@ proc diffview::setText {w text} {
         pack $w.versions -after $w.bar -fill x
     }
     set files [parse $text]
+    if {[dict exists $data($w) only]} {
+        set only [dict get $data($w) only]
+        set files [lmap f $files { if {[lindex $f 0] ni $only} continue; set f }]
+    }
     dict set data($w) files $files
     set t $w.p.files.t
     $t delete [$t children {}]
@@ -432,7 +508,12 @@ proc diffview::setText {w text} {
     dict set data($w) whole [expr {$lines <= $maxLines}]
     # Not a diff (a text file shown here): the text alone, no file list.
     set plain [expr {[llength $files] == 1 && [lindex $files 0 0] eq ""}]
-    if {$plain && "$w.p.files" in [$w.p panes]} { $w.p forget $w.p.files }
+    if {$plain && "$w.p.files" in [$w.p panes]} {
+        $w.p forget $w.p.files
+    } elseif {!$plain && "$w.p.files" ni [$w.p panes]} {
+        $w.p insert 0 $w.p.files -weight 1
+    }
+    mark $w [expr {[dict exists $data($w) marks hit] ? [dict get $data($w) marks hit] : {}}]
     if {![llength $files]} {
         set msg [string trim $text]
         $w.status configure -text [expr {$msg eq "" ? "No differences." : $msg}]
@@ -455,6 +536,9 @@ proc diffview::setText {w text} {
         $t focus $first
         $t see $first
         fileSelected $w
+    }
+    if {[dict exists $data($w) done] && [dict get $data($w) done] ne ""} {
+        uplevel #0 [list {*}[dict get $data($w) done] [llength [lsearch -all -inline -not -exact -index 0 $files ""]]]
     }
 }
 

@@ -2,9 +2,8 @@
 #
 # Lists them with the check-in they were made on, searches them, shows
 # their files and diffs, and applies, pops, drops them or goes to them
-# ("fossil stash"), after a confirmation.  "Stash changes" saves the
-# checkout's changes and reverts them.  All of this is local to the
-# checkout: stashes are never synced.  Settings are kept in
+# ("fossil stash"), after a confirmation (stashes are made in the Commit
+# tab).  All of this is local to the checkout: stashes are never synced.  Settings are kept in
 # ~/.config/tktaalik/stash.conf.
 
 source [file join [file dirname [file normalize [info script]]] config.tcl]
@@ -20,13 +19,13 @@ namespace eval tkstash {
     variable current ""         ;# the check-in the checkout is on
     variable stashes            ;# array: id -> dict of the stash
     variable diffs              ;# array: id -> dict file -> changed lines (lower case)
+    variable diffShown ""       ;# the arguments of the diff in the details
+    variable against 0          ;# the details: the diff against the checkout
+    variable conflictsOf        ;# array: id -> what applying it would do (conflicts)
     variable query ""
     variable history {}
     variable terms {}           ;# the parsed search: {neg key alternatives}...
     variable status ""
-    variable message ""         ;# of a new stash
-    variable snapshot 0         ;# a new stash keeps the changes in the checkout
-    variable saveSkip           ;# array: file -> 1 if not to be stashed
     variable config {}
     variable configFile [config::path stash]
 
@@ -38,6 +37,7 @@ proc tkstash::loadConfig {} {
     variable configFile
     variable config
     set config [config::get $configFile stash tkstash.conf]
+    set ::tkstash::against [getdef $config against 0]
 }
 
 proc tkstash::saveConfig {} {
@@ -48,6 +48,7 @@ proc tkstash::saveConfig {} {
     dict set config table [tablecols::state .stash.main.list.t]
     dict set config query $query
     dict set config history $history
+    dict set config against $::tkstash::against
     config::put $configFile $config {table return}
 }
 
@@ -103,6 +104,9 @@ proc tkstash::reload {} {
     }
     array unset stashes
     array unset diffs
+    set ::tkstash::diffShown ""
+    # (The checkout may have changed: checked again when shown.)
+    array unset ::tkstash::conflictsOf
     foreach row $rows {
         lassign $row id date hash comment
         set branch [expr {[dict exists $branchOf $hash] ? [dict get $branchOf $hash] : ""}]
@@ -354,8 +358,13 @@ proc tkstash::showDetails {id} {
     $d configure -state normal
     $d delete 1.0 end
     destroy $d.copyhash
-    if {$id eq "" || ![info exists stashes($id)]} {
+    set none [expr {$id eq "" || ![info exists stashes($id)]}]
+    foreach b {apply pop goto drop} {
+        .stash.main.details.diff.bar.$b state [expr {$none ? "disabled" : "!disabled"}]
+    }
+    if {$none} {
         $d configure -state disabled
+        showStashDiff ""
         return
     }
     set s $stashes($id)
@@ -364,38 +373,204 @@ proc tkstash::showDetails {id} {
         "Copy the check-in's hash (all of it)" [list ui::copy [dict get $s hash]]]
     if {[dict get $s branch] ne ""} { $d insert end " ([dict get $s branch])" meta }
     if {[dict get $s hash] eq $current} { $d insert end "  \u00b7  the check-in of the checkout" meta }
-    $d insert end \n\n "" [dict get $s comment] comment \n\n ""
-    set hits [expr {[info exists matchedFiles($id)] ? $matchedFiles($id) : {}}]
+    if {[dict get $s comment] ne ""} { $d insert end \n "" [dict get $s comment] comment }
+    # (Not in the diff: a renamed file is only "CHANGED" there.)
     foreach f [dict get $s files] {
-        set how [dict get $f how]
-        set new [dict get $f new]
-        set tags [list $how]
-        set nameTags [expr {$new in $hits ? "hit" : ""}]
-        $d insert end [format "%-8s " $how] $tags $new $nameTags
-        if {$how eq "renamed"} { $d insert end " (was [dict get $f old])" meta }
-        $d insert end \n
+        if {[dict get $f how] eq "renamed"} {
+            $d insert end "\nrenamed " renamed [dict get $f old] "" " \u2192 " meta [dict get $f new]
+        }
+    }
+    # Whether it applies to the checkout as it is now.
+    set result [checkedConflicts $id]
+    if {[dict exists $result ""]} {
+        $d insert end "\nWhether it conflicts with the checkout is not known: [dict get $result ""]" meta
+    } elseif {![dict size $result]} {
+        $d insert end "\nApplies to the checkout without conflicts." clean
+    } else {
+        # (Each: one file, several files.)
+        foreach {how one several tag} {
+            conflict
+            "1 file conflicts with the changes in the checkout (in red below)"
+            "%d files conflict with the changes in the checkout (in red below)" conflict
+            overwrite
+            "1 added file would overwrite the checkout's own file of its name (in orange)"
+            "%d added files would overwrite the checkout's own files of their names (in orange)" warn
+            discard
+            "1 deleted file would be deleted with the changes the checkout made to it (in orange)"
+            "%d deleted files would be deleted with the changes the checkout made to them (in orange)" warn
+        } {
+            set n [llength [filesThat $result $how]]
+            if {$n} { $d insert end \n[format [expr {$n == 1 ? $one : $several}] $n] $tag }
+        }
     }
     $d configure -state disabled
+    fitHeader
+    showStashDiff $id
+}
+
+# The header as high as its lines (a long comment: at most 8, scrolled).
+proc tkstash::fitHeader {} {
+    set d .stash.main.details.text
+    # (In pixels, not in lines: the title and the copy button are higher
+    # than a line of the text.)
+    set pixels [$d count -update -ypixels 1.0 end]
+    set max [expr {8 * [font metrics [$d cget -font] -linespace]}]
+    set frame [expr {2 * ([$d cget -pady] + [$d cget -borderwidth] + [$d cget -highlightthickness])}]
+    grid rowconfigure .stash.main.details 0 -minsize [expr {min($pixels, $max) + $frame}]
+}
+
+# The diff of stash ID in the details, at the first file the search
+# matched, those in bold: its changes, or with "against" each of its files
+# against the checkout's.  Run again only for another stash or other
+# options: a search typed only marks other files.
+proc tkstash::showStashDiff {id} {
+    variable root
+    variable matchedFiles
+    variable diffShown
+    variable against
+    set w .stash.main.details.diff
+    if {$id eq ""} {
+        set diffShown ""
+        diffview::clear $w
+        return
+    }
+    variable stashes
+    set hits [expr {[info exists matchedFiles($id)] ? $matchedFiles($id) : {}}]
+    set args [list $id -i {*}[diffopts::args]]
+    if {[list $against $args] eq $diffShown} {
+        diffview::mark $w $hits
+        markConflicts $id
+        return
+    }
+    set diffShown [list $against $args]
+    set command [expr {$against ? {fossil stash diff} : {fossil stash show}}]
+    # Only the files it changes (Fossil can record every file of the
+    # checkout in a stash, see reload).
+    diffview::runIn $w -dir $root -command $command -options 0 \
+        -select [lindex $hits 0] -mark $hits \
+        -only [lmap f [dict get $stashes($id) files] { dict get $f new }] -- {*}$args
+    # (After runIn: it forgets every mark but the search's.)
+    markConflicts $id
+}
+
+# The files of stash ID that would conflict, in the diff of the details.
+proc tkstash::markConflicts {id} {
+    set w .stash.main.details.diff
+    set result [checkedConflicts $id]
+    diffview::mark $w [filesThat $result conflict] conflict
+    diffview::mark $w [concat [filesThat $result overwrite] [filesThat $result discard]] warn
 }
 
 proc tkstash::selected {} {
     lindex [.stash.main.list.t selection] 0
 }
 
-# The diff, at the first file the search matched.
-proc tkstash::showDiff {{against ""}} {
+# ---------------------------------------------------------------- conflicts
+
+# What applying stash ID would do to the files of the checkout, decided as
+# "fossil stash apply" does (its stash_apply), without applying it: a dict
+# file -> how, of the files that do not simply get the stash's version:
+#   conflict   the checkout changed it too and the merge of both has
+#              conflicts, or cannot be made (a binary file, a symbolic
+#              link, the file missing);
+#   overwrite  an added file: the checkout has another file of its name;
+#   discard    a deleted file: the checkout changed it.
+# A file the checkout did not change is not looked at; the others are
+# merged by Fossil (3-way-merge), on copies of the stash's versions
+# (delta_apply in fossil sql).  Throws FOSSIL DB.
+proc tkstash::conflicts {id} {
     variable root
-    variable matchedFiles
-    set id [selected]
-    if {$id eq ""} return
-    set first [expr {[info exists matchedFiles($id)] ? [lindex $matchedFiles($id) 0] : ""}]
-    if {$against eq ""} {
-        diffview::run "Stash $id" -dir $root -command {fossil stash show} -select $first \
-            -- $id -i {*}[diffopts::args]
-    } else {
-        diffview::run "Stash $id against the checkout" -dir $root \
-            -command {fossil stash diff} -select $first -- $id -i {*}[diffopts::args]
+    # (fossil changes first: then vfile knows which files are changed.)
+    changes
+    set rows [fossil::checkoutSql $root "SELECT [fossil::outcol newname],
+        [fossil::outcol coalesce(origname,newname)], isAdded, isRemoved, isLink,
+        coalesce((SELECT b.uuid=s.hash AND NOT v.chnged AND NOT v.deleted
+            FROM vfile v JOIN blob b ON b.rid=v.rid
+            WHERE v.pathname=coalesce(s.origname,s.newname)
+            AND v.vid=(SELECT value FROM vvar WHERE name='checkout')), 0)
+        FROM stashfile s WHERE stashid=[expr {int($id)}]"]
+    set result {}
+    set merge {}
+    foreach row $rows {
+        lassign $row new old added removed link same
+        set path [file join $root $old]
+        if {$removed} {
+            if {!$same && [file exists $path]} { dict set result $new discard }
+        } elseif {$added} {
+            if {[file exists $path]} { lappend merge $row }
+        } elseif {!$same} {
+            if {$link || [file type $path] eq "link" || ![file isfile $path]} {
+                dict set result $new conflict
+            } else {
+                lappend merge $row
+            }
+        }
     }
+    if {![llength $merge]} { return $result }
+    set dir [fossil::tempDir]
+    try {
+        # Both versions of each file at once: N.base and N.stash.
+        set i 0
+        set selects [lmap row $merge {
+            lassign $row new
+            set base [fossil::sqlstr [file join $dir [incr i].base]]
+            set stashed [fossil::sqlstr [file join $dir $i.stash]]
+            string cat "SELECT CASE WHEN isAdded THEN 0 ELSE writefile($base, content(hash)) END,
+                writefile($stashed, CASE WHEN isAdded THEN delta
+                    ELSE delta_apply(content(hash), delta) END)
+                FROM stashfile WHERE stashid=[expr {int($id)}] AND newname=[fossil::sqlstr $new]"
+        }]
+        fossil::checkoutSql $root [join $selects " UNION ALL "]
+        set i 0
+        foreach row $merge {
+            lassign $row new old added
+            incr i
+            set path [file join $root $old]
+            if {$added} {
+                if {[ReadBytes $path] ne [ReadBytes [file join $dir $i.stash]]} {
+                    dict set result $new overwrite
+                }
+                continue
+            }
+            # (No warning and nothing written: a binary file, not merged.)
+            lassign [fossil::run 3-way-merge [file join $dir $i.base] $path \
+                [file join $dir $i.stash] [file join $dir $i.out]] code out
+            if {$code || [string match "*merge conflict*" $out]
+                    || ![file exists [file join $dir $i.out]]
+                    || ([file size [file join $dir $i.out]] == 0
+                        && [file size [file join $dir $i.stash]] > 0)} {
+                dict set result $new conflict
+            }
+        }
+    } finally {
+        file delete -force $dir
+    }
+    return $result
+}
+
+proc tkstash::ReadBytes {path} {
+    set f [open $path rb]
+    try { ::read $f } finally { close $f }
+}
+
+# The conflicts of stash ID, checked once after each reload: a dict as
+# conflicts gives, or one with the key "" (no file's name) and the error.
+proc tkstash::checkedConflicts {id} {
+    variable conflictsOf
+    if {![info exists conflictsOf($id)]} {
+        try {
+            set conflictsOf($id) [conflicts $id]
+        } trap {FOSSIL DB} msg {
+            set conflictsOf($id) [list "" $msg]
+        }
+    }
+    return $conflictsOf($id)
+}
+
+# The files of a result of conflicts that HOW.
+proc tkstash::filesThat {result how} {
+    if {[dict exists $result ""]} { return {} }
+    lsort [dict keys [dict filter $result value $how]]
 }
 
 # ---------------------------------------------------------------- actions
@@ -425,9 +600,34 @@ proc tkstash::applyStash {{drop 0}} {
     if {$id eq ""} return
     set what [expr {$drop ? "Apply and drop" : "Apply"}]
     set detail "Its changes are merged into the files of the checkout."
-    if {[changes] ne ""} {
-        append detail "  The checkout has uncommitted changes: they can conflict."
+    # (Checked again: the checkout may have changed since it was shown.)
+    variable conflictsOf
+    unset -nocomplain conflictsOf($id)
+    set result [checkedConflicts $id]
+    if {[dict exists $result ""]} {
+        if {[changes] ne ""} {
+            append detail "  The checkout has uncommitted changes: they can conflict.\
+                (Whether they do is not known: [dict get $result ""])"
+        }
+    } elseif {![dict size $result]} {
+        if {[changes] ne ""} {
+            append detail "  The checkout has uncommitted changes; they do not conflict with it."
+        }
+    } else {
+        foreach {how text} {
+            conflict  "Conflicts with the changes in the checkout: Fossil leaves conflict marks\
+                in these files, to resolve before committing:"
+            overwrite "Overwritten: the checkout has its own file of the same name, which is lost:"
+            discard   "Deleted, with the changes the checkout made to them:"
+        } {
+            set files [filesThat $result $how]
+            if {[llength $files]} {
+                append detail "\n\n$text\n[join [lrange $files 0 11] \n][expr {
+                    [llength $files] > 12 ? "\n\u2026" : ""}]"
+            }
+        }
     }
+    showDetails $id
     if {$drop} {
         append detail "  The stash is then deleted.  (Undo afterwards brings back the\
             stash, not the files as they were: to be able to undo the apply, apply first and\
@@ -459,7 +659,7 @@ proc tkstash::goto {} {
     if {[changes] ne ""} {
         tk_messageBox -icon info -title Stash -message "The checkout has uncommitted changes." \
             -detail "Go to needs a checkout without them, so that Go back can return to it\
-                exactly: stash them (Stash changes) or commit them first."
+                exactly: stash them (Stash in the Commit tab) or commit them first."
         return
     }
     if {$hash eq $current} {
@@ -498,14 +698,14 @@ proc tkstash::setReturn {where} {
 }
 
 proc tkstash::updateGoBack {} {
-    if {![winfo exists .stash.bar.back]} return
+    if {![winfo exists .stash.main.details.diff.bar.back]} return
     lassign [returnTo] hash branch
     if {$hash eq ""} {
-        .stash.bar.back state disabled
-        icons::tooltip .stash.bar.back "After Go to: return to where the checkout was"
+        .stash.main.details.diff.bar.back state disabled
+        icons::tooltip .stash.main.details.diff.bar.back "After Go to: return to where the checkout was"
     } else {
-        .stash.bar.back state !disabled
-        icons::tooltip .stash.bar.back "Return to [string range $hash 0 9][expr {$branch ne "" ? " on $branch" : ""}]"
+        .stash.main.details.diff.bar.back state !disabled
+        icons::tooltip .stash.main.details.diff.bar.back "Return to [string range $hash 0 9][expr {$branch ne "" ? " on $branch" : ""}]"
     }
 }
 
@@ -561,110 +761,6 @@ proc tkstash::dropAll {} {
     if {$code} { tk_messageBox -icon error -title Stash -message "fossil stash drop failed:" -detail $out }
 }
 
-proc tkstash::saveToggle {path} {
-    variable saveSkip
-    if {$path eq ""} return
-    if {[info exists saveSkip($path)]} { unset saveSkip($path) } else { set saveSkip($path) 1 }
-    .stash.save.f.files.t set $path check [expr {[info exists saveSkip($path)] ? "\u2610" : "\u2611"}]
-}
-
-# Save the checkout's changes as a stash, and revert them.
-proc tkstash::save {} {
-    variable message
-    variable answer
-    variable snapshot
-    variable saveSkip
-    variable root
-    if {[changes] eq ""} {
-        tk_messageBox -icon info -title Stash -message "The checkout has no changes."
-        return
-    }
-    lassign [fossil changes --classify] code out
-    set changed {}
-    foreach line [split $out \n] {
-        if {![regexp {^(\S+)\s+(.*\S)} $line -> what path]} continue
-        if {$what in {MERGED_WITH CHERRYPICK BACKOUT INTEGRATE}} continue
-        regexp {^.*  ->  (.*)$} $path -> path
-        lappend changed [list $path $what]
-    }
-    array unset saveSkip
-    set snapshot 0
-    set w .stash.save
-    destroy $w
-    toplevel $w
-    wm title $w "Stash changes"
-    wm transient $w .
-    ttk::frame $w.f -padding 10
-    pack $w.f -fill both -expand 1
-    ttk::label $w.f.l -text "Stash the changes of the checkout and revert them.  Comment:"
-    ttk::entry $w.f.e -textvariable tkstash::message -width 60
-    ttk::label $w.f.fl -text "The files (uncheck the ones not to stash):"
-    ttk::frame $w.f.files
-    ttk::treeview $w.f.files.t -columns {check status path} -show headings -height \
-        [expr {min(10, max(3, [llength $changed]))}] -selectmode browse \
-        -yscrollcommand [list $w.f.files.y set]
-    popup::attach $w.f.files.t tkstash::saveMenu
-    popup::copyKey $w.f.files.t
-    ttk::scrollbar $w.f.files.y -command [list $w.f.files.t yview]
-    set char [font measure TkDefaultFont 0]
-    $w.f.files.t heading status -text Status -anchor w
-    $w.f.files.t heading path -text File -anchor w
-    $w.f.files.t column check -width [expr {$char * 3}] -stretch 0 -anchor center
-    $w.f.files.t column status -width [expr {$char * 10}] -stretch 0
-    $w.f.files.t column path -width [expr {$char * 40}] -stretch 1
-    foreach item $changed {
-        lassign $item path what
-        $w.f.files.t insert {} end -id $path -values [list \u2611 $what $path]
-    }
-    grid $w.f.files.t $w.f.files.y -sticky news
-    grid columnconfigure $w.f.files 0 -weight 1
-    grid rowconfigure $w.f.files 0 -weight 1
-    bind $w.f.files.t <ButtonPress-1> {
-        if {[%W identify column %x %y] eq "#1" && [%W identify region %x %y] eq "cell"} {
-            tkstash::saveToggle [%W identify item %x %y]
-        }
-    }
-    bind $w.f.files.t <space> {tkstash::saveToggle [lindex [%W selection] 0]}
-    ttk::checkbutton $w.f.snap -variable tkstash::snapshot \
-        -text "Keep the changes in the checkout too (a snapshot: nothing is reverted)"
-    ttk::frame $w.f.b
-    ttk::button $w.f.b.ok -text Stash -default active -command {set tkstash::answer 1}
-    ttk::button $w.f.b.cancel -text Cancel -command {set tkstash::answer 0}
-    pack $w.f.b.cancel $w.f.b.ok -side right -padx {4 0}
-    pack $w.f.l -anchor w
-    pack $w.f.e -fill x -pady 4
-    pack $w.f.fl -anchor w -pady {4 0}
-    pack $w.f.files -fill both -expand 1 -pady 2
-    pack $w.f.snap -anchor w -pady 4
-    pack $w.f.b -fill x
-    bind $w.f.e <Return> {set tkstash::answer 1}
-    bind $w <Escape> {set tkstash::answer 0}
-    wm protocol $w WM_DELETE_WINDOW {set tkstash::answer 0}
-    focus $w.f.e
-    set answer ""
-    vwait ::tkstash::answer
-    destroy $w
-    if {!$answer} return
-    set paths [lmap item $changed {
-        if {[info exists saveSkip([lindex $item 0])]} continue
-        lindex $item 0
-    }]
-    if {![llength $paths]} return
-    # All files: none named (also what Fossil would not list as a change).
-    set args [expr {[llength $paths] == [llength $changed] ? {} : [lmap p $paths { string cat ./ $p }]}]
-    set comment [string trim $message]
-    if {$comment eq ""} { set comment "(no comment)" }
-    # (--comment=: a comment may start with "<", "|" or "-", which exec or
-    # fossil would take for something else as a word of its own.)
-    lassign [fossil stash [expr {$snapshot ? "snapshot" : "save"}] --comment=$comment {*}$args] code out
-    reload
-    if {$code} {
-        tk_messageBox -icon error -title Stash -message "fossil stash save failed:" -detail $out
-    } else {
-        set message ""
-    }
-}
-
 # ----------------------------------------------------------------- window
 
 proc tkstash::build {} {
@@ -678,9 +774,6 @@ proc tkstash::build {} {
     tktaalik::quitEntry .stash.menu.file
     .stash.menu add cascade -label Stash -underline 0 -menu [menu .stash.menu.stash]
     foreach {label command} {
-        "Show diff"                     tkstash::showDiff
-        "Diff against checkout"         {tkstash::showDiff checkout}
-        --                              {}
         "Apply\u2026"                        tkstash::applyStash
         "Apply and drop\u2026"               {tkstash::applyStash 1}
         "Go to its check-in and apply\u2026" tkstash::goto
@@ -689,13 +782,12 @@ proc tkstash::build {} {
         "Drop all\u2026"                     tkstash::dropAll
         --                              {}
         "Diff options"                  >diffopts
-        "Stash changes\u2026"                tkstash::save
     } {
         if {$label eq "--"} {
             .stash.menu.stash add separator
         } elseif {[string index $command 0] eq ">"} {
             menu .stash.menu.stash.diffopts
-            diffopts::menu .stash.menu.stash.diffopts {}
+            diffopts::menu .stash.menu.stash.diffopts {tkstash::showStashDiff [tkstash::selected]}
             .stash.menu.stash add cascade -label $label -menu .stash.menu.stash.diffopts
         } else {
             .stash.menu.stash add command -label $label -command $command
@@ -724,21 +816,6 @@ proc tkstash::build {} {
     bind .stash.top.q <Escape> {tktaalik::navigate; set tkstash::query ""; tkstash::search}
     complete::attach .stash.top.q tkstash::completion
 
-    ttk::frame .stash.bar -padding {6 4 6 2}
-    foreach {name label command} {
-        diff  "Show diff"       tkstash::showDiff
-        apply "Apply\u2026"          tkstash::applyStash
-        pop   "Apply and drop\u2026" {tkstash::applyStash 1}
-        goto  "Go to\u2026"          tkstash::goto
-        back  "Go back\u2026"        tkstash::goBack
-        drop  "Drop\u2026"           tkstash::drop
-        save  "Stash changes\u2026"  tkstash::save
-    } {
-        ttk::button .stash.bar.$name -text $label -command $command
-        pack .stash.bar.$name -side left -padx {0 4}
-    }
-    pack .stash.bar.save -side right
-    icons::tooltip .stash.bar.goto "Update to the check-in of the stash and apply it there"
 
     ttk::panedwindow .stash.main -orient vertical
     ui::splitByWeights .stash.main
@@ -750,26 +827,51 @@ proc tkstash::build {} {
     grid columnconfigure .stash.main.list 0 -weight 1
     grid rowconfigure .stash.main.list 0 -weight 1
     ttk::frame .stash.main.details
-    text .stash.main.details.text -wrap word -height 10 -padx 8 -pady 6 -font TkTextFont \
+    # The stash above its diff (the files the search matched in bold).
+    text .stash.main.details.text -wrap word -height 1 -padx 8 -pady 6 -font TkTextFont \
         -state disabled -yscrollcommand {.stash.main.details.y set}
     ttk::scrollbar .stash.main.details.y -command {.stash.main.details.text yview}
+    diffview::panel .stash.main.details.diff
+    # The actions on the stash: in the bar of its diff, instead of a title.
+    # (Go back with Go to, whose return it is: enabled by updateGoBack,
+    # whichever stash is selected.)
+    set b .stash.main.details.diff.bar
+    pack forget $b.title
+    foreach {name label command} {
+        apply "Apply\u2026"          tkstash::applyStash
+        pop   "Apply and drop\u2026" {tkstash::applyStash 1}
+        goto  "Go to\u2026"          tkstash::goto
+        back  "Go back\u2026"        tkstash::goBack
+        drop  "Drop\u2026"           tkstash::drop
+    } {
+        ttk::button $b.$name -text $label -command $command -state disabled
+        pack $b.$name -side left -padx {0 4}
+    }
+    icons::tooltip $b.goto "Update to the check-in of the stash and apply it there"
+    ttk::checkbutton $b.against -text "Against the checkout" -variable tkstash::against \
+        -command {tkstash::showStashDiff [tkstash::selected]}
+    pack $b.against -side left -padx {8 0}
+    icons::tooltip $b.against "Each file of the stash compared with the checkout's file\n(fossil stash diff), not with the stash's base.\nThe checkout's own changes show as lines removed:\nApplying merges, it does not replace."
     grid .stash.main.details.text .stash.main.details.y -sticky news
+    grid .stash.main.details.diff - -sticky news
     grid columnconfigure .stash.main.details 0 -weight 1
-    grid rowconfigure .stash.main.details 0 -weight 1
+    grid rowconfigure .stash.main.details 1 -weight 1
+    bind .stash.main.details.text <Configure> tkstash::fitHeader
     set d .stash.main.details.text
     $d tag configure title -font TkHeadingFont
     $d tag configure meta -foreground gray40
     $d tag configure comment -font TkFixedFont
-    $d tag configure added -foreground darkgreen
-    $d tag configure deleted -foreground darkred
     $d tag configure renamed -foreground #6a3d9a
-    $d tag configure changed -foreground gray40
-    $d tag configure hit -font TkHeadingFont
-    .stash.main add .stash.main.list -weight 2
-    .stash.main add .stash.main.details -weight 2
+    $d tag configure conflict -foreground red3
+    $d tag configure warn -foreground darkorange3
+    $d tag configure clean -foreground darkgreen
+    .stash.main add .stash.main.list -weight 1
+    .stash.main add .stash.main.details -weight 3
     ttk::label .stash.status -textvariable tkstash::status -padding {6 2} -anchor w
 
     loadConfig
+    # (The return point of Go to is in the settings.)
+    updateGoBack
     set table [getdef $config table {}]
     tablecols::setup $t {
         id      {heading Stash width 7 type integer dir desc anchor e}
@@ -782,9 +884,6 @@ proc tkstash::build {} {
     $t tag configure hit -font TkHeadingFont
 
     bind $t <<TreeviewSelect>> {tkstash::showDetails [tkstash::selected]}
-    bind $t <Double-1> {
-        if {[.stash.main.list.t identify region %x %y] in {cell tree}} tkstash::showDiff
-    }
     tktaalik::shortcut stash <F5> tkstash::reload
     tktaalik::shortcut stash <Control-f> {focus .stash.top.q; .stash.top.q selection range 0 end}
     tktaalik::shortcut stash <Control-slash> {focus .stash.top.q; .stash.top.q selection range 0 end}
@@ -804,10 +903,9 @@ proc tkstash::build {} {
 }
 
 proc tkstash::showWidgets {on} {
-    pack forget .stash.none .stash.top .stash.bar .stash.main .stash.status
+    pack forget .stash.none .stash.top .stash.main .stash.status
     if {$on} {
         pack .stash.top -fill x
-        pack .stash.bar -fill x
         pack .stash.status -side bottom -fill x
         pack .stash.main -fill both -expand 1
     } else {
@@ -857,23 +955,6 @@ proc tkstash::activate {} {
 # The context menu of a stash: the Stash menu (the stash selected).
 proc tkstash::popupMenu {m item} {
     popup::menuEntries $m .stash.menu.stash
-    popup::default $m "Show diff"
-}
-
-# The context menu of the files to stash: check or uncheck them all.
-proc tkstash::saveMenu {m item} {
-    variable saveSkip
-    $m add command -label [expr {[info exists saveSkip($item)] ? "Check" : "Uncheck"}] \
-        -command [list tkstash::saveToggle $item]
-    $m add command -label "Check all" -command [list tkstash::saveAll 0]
-    $m add command -label "Uncheck all" -command [list tkstash::saveAll 1]
-}
-
-proc tkstash::saveAll {skip} {
-    variable saveSkip
-    foreach path [.stash.save.f.files.t children {}] {
-        if {[info exists saveSkip($path)] != $skip} { saveToggle $path }
-    }
 }
 
 # The keys of the search, with their values, for the completion of the

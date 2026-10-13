@@ -5,7 +5,8 @@ so that you can work on something else and bring them back later
 (`fossil stash`).
 The Stash tab lists the stashes of the checkout, searches them,
 shows their files and diffs, applies them, drops them,
-goes to the check-in they were made on, and stashes the current changes.
+and goes to the check-in they were made on.
+The current changes are stashed in the [Commit](commit.md#stashing-part-of-the-changes) tab.
 
 Stashes belong to a checkout:
 the tab is disabled when only a repository file is open.
@@ -30,24 +31,58 @@ the others can be hidden and moved like the columns of the other tabs.
 
 Select a stash to see its details below: its number,
 date and check-in (with a button that copies its whole hash,
-and "the check-in of the checkout" if the checkout is on it now), its comment, and its files, each marked `added`, `deleted`,
-`renamed` (with its old name) or `changed`.
-Only the files the stash really changes are counted and listed:
+and "the check-in of the checkout" if the checkout is on it now),
+its comment, and the files it renamed, with their old names.
+Under them is its diff (`fossil stash show`),
+as in the [diff window](diffs.md#the-diff-window):
+the files on the left, with lines added and removed,
+the diff on the right, unified or side by side.
+Only the files the stash really changes are counted and shown:
 Fossil sometimes records every file of the checkout in a stash (after a rename),
 most of them unchanged.
 
+**Against the checkout**, above the diff, shows instead
+each file of the stash compared with the checkout's file (`fossil stash diff`):
+the lines removed are the checkout's, the lines added the stash's.
+This is not what applying would do:
+applying merges the stash's changes into the checkout's,
+while this diff shows the checkout's own changes to the file as lines removed,
+and an added file whole, whatever the checkout has of that name.
+It is kept for the next stashes, and after a restart.
+
+The last line of the details says whether the stash applies
+to the checkout as it is now:
+"Applies to the checkout without conflicts", or which of its files
+
+- **conflict** with the changes in the checkout (in red, also in the list of files):
+  the checkout changed them too, and merging both leaves conflict marks,
+  or cannot be done (a binary file, a symbolic link, a missing file);
+- **would overwrite** a file of the checkout (in orange):
+  the stash adds a file, and the checkout has another one of that name;
+- **would be deleted with the changes** the checkout made to them (in orange):
+  the stash deletes a file the checkout has changed.
+
+It is found as `fossil stash apply` would do it, without applying:
+the files the checkout has not changed simply take the stash's version;
+the others are merged by Fossil (`fossil 3-way-merge`)
+on copies of the stash's versions.
+It is checked when a stash is selected, and again after the list is read again
+(F5, or coming back to the tab).
+
 The context menu of a stash has the entries of the **Stash** menu.
 Ctrl+C in the list copies the comment of the stash selected.
-To stash only some files, or some changes of a file,
-use Commit ▸ Stash the checked changes… in the
+To stash the checkout's changes, all of them, some files,
+or some changes of a file, use **Stash…** in the
 [Commit](commit.md#stashing-part-of-the-changes) tab.
 
-Double-click a stash, or press **Show diff**,
-for its diff in the diff window ([Diffs](diffs.md)).
-**Stash ▸ Diff against checkout** shows instead how the files of the checkout
-would change if the stash were applied now (`fossil stash diff`).
+Above the diff are the buttons of the stash selected:
+**Apply…**, **Apply and drop…**, **Go to…** and **Drop…**
+(see [Applying stashes](#applying-stashes)),
+and **Go back…** after **Go to…**, enabled while there is somewhere to go back to;
+then **Against the checkout** (see above).
+
 The **Stash ▸ Diff options** submenu
-(the same as in the [Commit](commit.md#diffs) tab) applies to both: white space,
+(the same as in the [Commit](commit.md#diffs) tab) applies to the diff: white space,
 carriage returns, inverted, lines of context.
 
 ## Search syntax
@@ -88,8 +123,8 @@ file:tkFont date:>=2026-10
 ```
 
 Stashes whose files matched are shown in bold in the list,
-and the matching files in bold in the details;
-**Show diff** opens at the first of them.
+and the matching files in bold in the diff below;
+it shows the first of them.
 A mistake in the search is shown in red in the status line.
 
 The status line counts the stashes shown,
@@ -103,8 +138,9 @@ Every action asks first; the confirmation says what it does.
 
 **Apply…** merges the stash's changes into the files of the checkout as they are
 now (`fossil stash apply`).
-If the checkout has uncommitted changes,
-the confirmation warns that they can conflict.
+The confirmation checks the conflicts again and names the files
+that would conflict, be overwritten, or be deleted with their changes
+(see [The list](#the-list)).
 The stash is kept.
 
 **Apply and drop…** applies the stash,
@@ -138,7 +174,7 @@ The stash is kept.
 Commits made afterwards go to that check-in.
 
 - Go to needs a checkout without uncommitted changes:
-  stash them (Stash changes) or commit them first.
+  stash them (**Stash…** in the Commit tab) or commit them first.
   Otherwise it says so and does nothing.
 - If the checkout is already on that check-in, Go to is the same as Apply.
 - The confirmation names the check-in
@@ -157,21 +193,3 @@ its tooltip says where it goes.
 Fossil's own undo does not do this reliably:
 after `stash goto` it restores the check-in but not its files.
 Use **Go back**.
-
-## Stashing changes
-
-**Stash changes…** saves the checkout's changes as a new stash,
-then reverts them, so that the checkout is clean (`fossil stash save`).
-The dialog asks for:
-
-- **Comment**: what the stash is about (empty: `(no comment)`);
-- **the files**: every changed file, checked;
-  uncheck the ones not to stash (click the box, or select it and press Space).
-  The unchecked ones stay changed in the checkout;
-- **Keep the changes in the checkout too**:
-  make a snapshot instead (`fossil stash snapshot`): the stash is made,
-  but nothing is reverted.
-
-If the checkout has no changes, it says so.
-Stashing itself cannot be undone with Fossil's undo, but nothing is lost:
-the changes are in the stash, and **Apply** brings them back.

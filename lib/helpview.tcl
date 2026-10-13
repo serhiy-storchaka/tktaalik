@@ -92,7 +92,6 @@ namespace eval help {
         .commit.from                commit#diffs
         .commit.log                 commit#committing
         .stash.top                  stash#search-syntax
-        .stash.save                 stash#stashing-changes
         .wiki.edit                  wiki#editing
         .search.top                 search#search-syntax
         .search.fts                 search#the-search-index

@@ -11,7 +11,7 @@ set required {
     tags {the-list history adding-and-cancelling-tags}
     files {versions content blame file-history}
     commit {changed-files committing commit-options diffs file-operations delete-unmanaged-files undo-and-redo merges patches}
-    stash {search-syntax applying-stashes go-to-and-go-back stashing-changes}
+    stash {search-syntax applying-stashes go-to-and-go-back}
     wiki {pages-and-technotes versions-and-changes editing attachments}
     forum {threads posts}
     search {search-syntax results}

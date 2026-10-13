@@ -7,13 +7,18 @@ Diffs open in Tktaalik's own diff window, from every tab that has them:
 - [Branches](branches.md): the diff of a branch,
   of a branch against a merge target, of a check-in,
   the changes between two releases;
+  the diff of the branch selected is also in its Files tab;
 - [Files](files.md): a version of a file against the one before it;
 - [Commit](commit.md):
   the changes of a file (double-click it) or of the whole checkout,
   the changes since the last undoable command, a patch file;
-- [Stash](stash.md): a stash, and a stash against the checkout;
 - [Wiki](wiki.md): what a version of a page changed (**Changes**, **Since**);
 - [Tickets](tickets.md): a patch attached to a ticket.
+
+The [Stash](stash.md) tab (a stash, or a stash against the checkout)
+and the Files tab of a branch show the same view in the tab,
+without the title and **Close**
+(and in the Stash tab without **Options**: its **Diff options** submenu applies).
 
 The same window also shows plain texts that are not diffs:
 text attachments of tickets and wiki pages,

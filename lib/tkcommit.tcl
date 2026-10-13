@@ -831,6 +831,7 @@ proc tkcommit::build {} {
         add      Add                  tkcommit::addFiles
         merge    "Merge details"      tkcommit::mergeInfo
         revert   Revert\u2026              tkcommit::revertFiles
+        stash    Stash\u2026               tkcommit::stashChecked
         dry      "Dry run"            {tkcommit::commit 1}
         commit   Commit               tkcommit::commit
     } {

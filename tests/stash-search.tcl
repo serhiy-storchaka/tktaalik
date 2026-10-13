@@ -54,15 +54,34 @@ check "status N of M: $tkstash::status" {[string match "2 of 4 stashes*" $tkstas
 # matched files in bold, diff opens at the match
 q diff:quuxmarker
 $t selection set 2; update
+# The details: the stash, then its diff, at the match, in bold.
 set d .stash.main.details.text
-set hit [$d tag ranges hit]
-check "matched file in bold: [expr {[llength $hit] ? [$d get {*}[lrange $hit 0 1]] : {none}}]" {[llength $hit] == 2 && [$d get {*}$hit] eq "generic/tkFont.c"}
-tkstash::showDiff; update
-set w .diffview$diffview::count
-for {set i 0} {$i < 100 && [$w.status cget -text] eq "Comparing…"} {incr i} { after 50; update }
-set sel [lindex [$w.p.files.t selection] 0]
-check "diff at the match: [$w.p.files.t set $sel file]" {[$w.p.files.t set $sel file] eq "generic/tkFont.c"}
-destroy $w
+check "details: the stash, no file list: [$d get 1.0 end]" {[string match "Stash 2 *" [$d get 1.0 end]] && ![string match "*changed *" [$d get 1.0 end]]}
+update
+lassign [$d dlineinfo "end - 1 char"] - ly - lh
+check "header: all of it shown, no more ([expr {$ly + $lh}] of [winfo height $d])" {[$d yview] eq {0.0 1.0} && [winfo height $d] - ($ly + $lh) <= 12}
+set p .stash.main.details.diff
+waitUntil {[$p.status cget -text] ne "Comparing…" && [llength [$p.p.files.t children {}]]}
+set bold [lmap i [$p.p.files.t tag has hit] {$p.p.files.t set $i file}]
+set sel [lindex [$p.p.files.t selection] 0]
+check "details' diff: matched file in bold and selected: $bold" {$bold eq "generic/tkFont.c" && [$p.p.files.t set $sel file] eq "generic/tkFont.c"}
+check "details' diff shown: [$p.status cget -text]" {[string match -nocase "*quuxmarker*" [$p.p.diff.u get 1.0 end]] && [string match "* file*, +*" [$p.status cget -text]]}
+check "no Options menu, External diff there" {![winfo exists $p.bar.options] && [winfo exists $p.bar.external]}
+# Another search, the same stash: only the marks change, not run again.
+q diff:quuxmarker; update
+check "same diff kept" {![dict exists $diffview::data($p) chan]}
+# The diff options run it again.
+set diffopts::ignoreSpace 1; tkstash::showStashDiff 2; update
+check "options: run again with -w: [dict get $diffview::data($p) args]" {"-w" in [dict get $diffview::data($p) args]}
+waitUntil {![dict exists $diffview::data($p) chan]}
+set diffopts::ignoreSpace 0; tkstash::showStashDiff 2; update
+waitUntil {![dict exists $diffview::data($p) chan]}
+# No stash: empty.
+$t selection set {}; update
+check "nothing selected: empty diff" {[llength [$p.p.files.t children {}]] == 0 && [string trim [$p.p.diff.u get 1.0 end]] eq ""}
+check "nothing selected: the stash's buttons disabled" {[lsort -unique [lmap b {apply pop goto drop} {$p.bar.$b instate disabled}]] eq 1}
+$t selection set 2; update
+check "the stash's buttons in the details, enabled" {[lsort -unique [lmap b {apply pop goto drop} {$p.bar.$b instate disabled}]] eq 0}
 # Go to: stash 4 was made on 8.6
 q ""
 $t selection set 4; update
@@ -72,11 +91,11 @@ check "checkout moved: [co branch current]" {[co branch current] eq "core-8-6-br
 check "stash applied: [co changes]" {[string match "*README.md*" [co changes]]}
 check "kept" {4 in [$t children {}]}
 check "now is:current = 4" {[q is:current] eq {4}}
-check "Go back enabled: [.stash.bar.back state]" {![.stash.bar.back instate disabled]}
+check "Go back enabled: [.stash.main.details.diff.bar.back state]" {![.stash.main.details.diff.bar.back instate disabled]}
 tkstash::goBack; update
 check "asked to go back: [string range [lindex $::boxes end] 0 120]" {[string match "Go back to * on main?*" [lindex $::boxes end]]}
 check "back on main, clean: [co branch current] / [co changes]" {[co branch current] eq "main" && [co changes] eq ""}
-check "Go back disabled again" {[.stash.bar.back instate disabled]}
+check "Go back disabled again" {[.stash.main.details.diff.bar.back instate disabled]}
 q ""
 check "stash 4 still there" {4 in [$t children {}]}
 # Go to refuses with uncommitted changes
@@ -90,7 +109,7 @@ q ""
 $t selection set 1; update
 tkstash::goto; update
 check "same check-in: like Apply" {[string match "*already on*same as Apply*" [lindex $::boxes end-1]]}
-check "no return point for the same check-in" {[.stash.bar.back instate disabled]}
+check "no return point for the same check-in" {[.stash.main.details.diff.bar.back instate disabled]}
 co revert
 # settings
 tkstash::saveConfig

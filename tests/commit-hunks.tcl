@@ -128,6 +128,18 @@ check "hk-c.txt untouched" {[bytes $co/hk-c.txt] eq $workC}
 fossilIn $co stash apply
 check "applied: all the changes again" {[bytes $co/hk-a.txt] eq $workA}
 check "in the Commit menu" {![catch {.commit.menu.commit index "Stash the checked changes…"}]}
+# A snapshot of part: the last change stashed, the file keeps both.
+show hk-a.txt
+tkcommit::toggleHunk 0
+foreach p [array names tkcommit::checked] { if {$p ne "hk-a.txt"} { set tkcommit::checked($p) 0 } }
+whenOpen .commit.stashpart {set ::ui::f(comment) "a snapshot of the end"; set ::ui::f(snapshot) 1; set ::ui::done ok}
+tkcommit::stashChecked
+set id [fossil::checkoutSql $co "SELECT stashid FROM stash WHERE comment='a snapshot of the end'"]
+set sdiff [fossilIn $co stash show {*}$id]
+check "snapshot of part: the file keeps all its changes" {[bytes $co/hk-a.txt] eq $workA}
+check "snapshot of part: only the last change in it" {[string match "*+FORTY*" $sdiff] && ![string match "*+ONE*" $sdiff]}
+check "snapshot of part: the hunk choice kept: [boxes]" {[boxes] eq "\u2610\u2611"}
+fossilIn $co stash drop {*}$id
 
 # Splitting a hunk: two changes 4 lines apart are one hunk (their context
 # lines meet); split (the mark, or S), each part has its box.

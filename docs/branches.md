@@ -231,7 +231,7 @@ Then three tabs:
 | Tab | Shows |
 |---|---|
 | Check-ins | The check-ins of the branch, newest first (the newest 1000 of a big branch): date, hash, user, the branches each was merged into, and the comment; leaves in bold |
-| Files | The files the branch changed, with lines added and deleted and a total (`fossil diff --numstat --branch`), read when the tab is opened |
+| Files | The diff of the branch (`fossil diff --branch`), made when the tab is opened: the files it changed with lines added and removed, and the diff, as in the [diff window](diffs.md#the-diff-window), with its **Options** |
 | Tickets | The tickets mentioned in its comments: id, status, type, title; double-click opens the ticket in the [Tickets](tickets.md) tab |
 
 Ctrl+C in a tab copies what its selected rows are:
