@@ -37,6 +37,7 @@ The status line counts all four kinds, and how many are shown.
 | Tag | The name |
 | Kind | Tag, Branch, Cancelled or Property |
 | Check-in | The newest check-in the tag is on (for a branch: its newest check-in; for a cancelled tag: where it was last) |
+| Branch | The branch of that check-in (for a branch name: the branch itself) |
 | Date, User, Comment | Of that check-in (as edited, if it was) |
 | Check-ins | How many check-ins the tag is on, counting those it propagated to (hidden at first) |
 
@@ -51,11 +52,12 @@ and right-click a heading to choose the columns.
 | Add… | Add the selected tag (or another) to a check-in; see [Adding and cancelling tags](#adding-and-cancelling-tags) |
 | Cancel… | Cancel the selected tag on a check-in it is on (tags and properties) |
 | Show in Timeline | The tag's check-in in the [Timeline](timeline.md) (not for branch names); also a double-click |
-| Show in Branches | The branch in the [Branches](branches.md) tab (branch names only) |
+| Show in Branches | The branch in the [Branches](branches.md) tab: a branch name's own, else the branch of the tag's check-in |
 | Open in browser | The server's timeline of the tag (`/timeline?t=NAME`; not for properties) |
 
 The context menu of a tag, and the **Tag** menu for the tag selected,
-have these buttons (Add tag… and Cancel tag… there),
+have these buttons (Add tag… and Cancel tag… there;
+Show in Branches is **Show branch NAME** there for a tag that is not a branch name),
 **Save as archive…**
 (the tag's check-in, a release…, as a ZIP, tarball or SQL archive:
 see [Archives](timeline.md#archives)),
@@ -80,7 +82,9 @@ check **Properties** and find `bgcolor`.
 
 Below the list, the details of the selected tag:
 its name and its check-in (as in the Check-in column),
-each with a button that copies it (the check-in's whole hash);
+each with a button that copies it (the check-in's whole hash),
+and the check-in's branch ("on branch NAME", not for branch names):
+click the name to show the branch in the [Branches](branches.md) tab;
 then:
 
 - For a tag or a property: each check-in it was added to or cancelled on,

@@ -49,7 +49,25 @@ for {set i 0} {$i <= [$m index end]} {incr i} {
 }
 destroy $m
 check "menu: no Copy entries: $labels" {[llength $labels] && ![string match *Copy* $labels]}
-check "buttons: Timeline on, Branches off" {![.tags.b.timeline instate disabled] && [.tags.b.branch instate disabled]}
+check "buttons: Timeline on, Branches on (its check-in's branch)" {![.tags.b.timeline instate disabled] && ![.tags.b.branch instate disabled]}
+# The branch of its check-in: in the menu, and a link in the details.
+set branch [lindex [fossil::sql $T(repo) "SELECT value FROM tagxref WHERE tagtype>0\
+    AND tagid=(SELECT tagid FROM tag WHERE tagname='branch')\
+    AND rid=(SELECT rid FROM blob WHERE uuid='$uuid')"] 0 0]
+check "the Branch column: $branch" {[$t set core-9-0-4 branch] eq $branch}
+check "menu: Show branch $branch, instead of Show in Branches" {$branch ne "" && "Show branch $branch" in $labels && "Show in Branches" ni $labels}
+.tags.b.branch invoke; update
+check "Show in Branches: $branch" {$tktaalik::active eq "branches" && [.branches.main.list.t selection] eq [list $branch]}
+tktaalik::show tags; update
+check "details: on branch $branch" {[string match "*Check-in [string range $uuid 0 9]*on branch $branch\n*" [$dt get 1.0 end]] && [$dt get {*}[$dt tag ranges branchlink]] eq $branch}
+$dt see [lindex [$dt tag ranges branchlink] 0]; update
+lassign [$dt bbox "[lindex [$dt tag ranges branchlink] 0] + 2 chars"] x y
+event generate $dt <Motion> -x [expr {$x + 1}] -y [expr {$y + 2}]
+event generate $dt <ButtonPress-1> -x [expr {$x + 1}] -y [expr {$y + 2}]
+event generate $dt <ButtonRelease-1> -x [expr {$x + 1}] -y [expr {$y + 2}]
+update
+check "the link: $branch in Branches" {$tktaalik::active eq "branches" && [.branches.main.list.t selection] eq [list $branch]}
+tktaalik::show tags; update
 .tags.b.timeline invoke; update
 check "Show in Timeline: hash:[string range $uuid 0 9]" {$tktaalik::active eq "timeline" && $tktimeline::query eq "hash:[string range $uuid 0 9]" && [dict get $tktimeline::rows([lindex [.timeline.main.list.t selection] 0]) uuid] eq $uuid}
 set tktags::remote https://example.invalid/tk
@@ -62,4 +80,13 @@ $t selection set [list core-9-0-branch]; update
 check "branch: Branches on, Timeline off" {![.tags.b.branch instate disabled] && [.tags.b.timeline instate disabled]}
 .tags.b.branch invoke; update
 check "Show in Branches: core-9-0-branch" {$tktaalik::active eq "branches" && [lindex [.branches.main.list.t selection] 0] eq "core-9-0-branch"}
+tktaalik::show tags; update
+set m [menu .tagmenu -tearoff 0]
+tktags::popupMenu $m core-9-0-branch
+set labels {}
+for {set i 0} {$i <= [$m index end]} {incr i} {
+    if {[$m type $i] eq "command"} { lappend labels [$m entrycget $i -label] }
+}
+destroy $m
+check "a branch name's menu: Show in Branches, no Show branch: $labels" {"Show in Branches" in $labels && ![string match "*Show branch *" $labels]}
 done

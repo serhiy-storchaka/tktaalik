@@ -105,11 +105,12 @@ proc tktags::build {} {
         name     {heading Tag width 34}
         kind     {heading Kind width 10}
         hash     {heading Check-in width 11}
+        branch   {heading Branch width 18 tip "The branch of the check-in"}
         date     {heading Date width 16 dir desc}
         user     {heading User width 12}
         comment  {heading Comment width 40 stretch 1}
         count    {heading Check-ins width 9 type integer dir desc anchor e}
-    } -fixed {name} -defaults {kind hash date user comment} \
+    } -fixed {name} -defaults {kind hash branch date user comment} \
         -shown [tktaalik::getdef [tktaalik::getdef $config table {}] shown {}] \
         -order [tktaalik::getdef [tktaalik::getdef $config table {}] order {}] \
         -sort [tktaalik::getdef [tktaalik::getdef $config table {}] sort {date desc}]
@@ -122,6 +123,11 @@ proc tktags::build {} {
     $d tag configure title -font TkHeadingFont -spacing3 4
     $d tag configure meta -foreground gray40
     $d tag configure hash -font TkFixedFont
+    # The branch of the check-in: a link to it in the Branches tab.
+    $d tag configure branchlink -foreground #0b57d0
+    $d tag bind branchlink <Enter> [list $d configure -cursor hand2]
+    $d tag bind branchlink <Leave> [list $d configure -cursor ""]
+    $d tag bind branchlink <ButtonRelease-1> tktags::showBranch
     grid $d .tags.main.details.y -sticky news
     grid columnconfigure .tags.main.details 0 -weight 1
     grid rowconfigure .tags.main.details 0 -weight 1
@@ -198,7 +204,7 @@ proc tktags::goTo {place} {
 # All symbolic tags and properties: for each, its kind (a tag on
 # check-ins, a branch name that propagates, one cancelled everywhere, or a
 # property: a raw tag), the newest check-in it is on (of a branch: its
-# newest check-in), how many.  (A property's id in the list: its name after
+# newest check-in) and that check-in's branch, how many.  (A property's id in the list: its name after
 # a space, which a symbolic name cannot have.)
 proc tktags::reload {} {
     variable repo
@@ -216,7 +222,9 @@ proc tktags::reload {} {
             SELECT [fossil::outcol "CASE WHEN t.tagname GLOB 'sym-*' THEN substr(t.tagname,5)\
                 ELSE ' '||t.tagname END"], r.kind, r.n, b.uuid,\
                 strftime('%Y-%m-%d %H:%M', e.mtime), [fossil::outcol "coalesce(e.euser,e.user,'')"],\
-                [fossil::outcol "coalesce(e.ecomment,e.comment,'')"]\
+                [fossil::outcol "coalesce(e.ecomment,e.comment,'')"],\
+                [fossil::outcol "coalesce((SELECT bx.value FROM tagxref bx WHERE bx.rid=r.rid\
+                    AND bx.tagtype>0 AND bx.tagid=(SELECT tagid FROM tag WHERE tagname='branch')),'')"]\
             FROM r JOIN tag t ON t.tagid=r.tagid JOIN blob b ON b.rid=r.rid\
             JOIN event e ON e.objid=r.rid WHERE r.k=1"]
     } trap {FOSSIL DB} msg {
@@ -233,11 +241,11 @@ proc tktags::reload {} {
         }
     }
     foreach row $rows {
-        lassign $row name kind count uuid date user comment
+        lassign $row name kind count uuid date user comment branch
         set kind [expr {[string match " *" $name] ? "Property" : [lindex {Cancelled Tag Branch} $kind]}]
         if {$kind eq "Branch" && ![dict exists $branches $name]} { set kind Tag }
         set tags($name) [dict create kind $kind count $count \
-            uuid $uuid date $date user $user \
+            uuid $uuid date $date user $user branch $branch \
             comment [fossil::oneLine $comment]]
     }
     showList
@@ -265,7 +273,7 @@ proc tktags::showList {} {
         if {$kind eq "Property" && !$showProperties} continue
         if {$f ne "" && [string first $f [string tolower [string trim $name]]] < 0} continue
         lappend items [list $name [dict create name [string trim $name] kind $kind \
-            hash [string range [dict get $g uuid] 0 9] date [dict get $g date] \
+            hash [string range [dict get $g uuid] 0 9] branch [branchOf $name] date [dict get $g date] \
             user [dict get $g user] comment [dict get $g comment] count [dict get $g count]] \
             {} [dict get {Tag {} Branch branch Cancelled cancelled Property property} $kind]]
     }
@@ -296,7 +304,9 @@ proc tktags::showDetails {name} {
     destroy $d.copyname $d.copyhash
     set ok [expr {$name ne "" && [info exists tags($name)]}]
     .tags.b.timeline state [expr {$ok && [dict get $tags($name) kind] ne "Branch" ? "!disabled" : "disabled"}]
-    .tags.b.branch state [expr {$ok && [dict get $tags($name) kind] eq "Branch" ? "!disabled" : "disabled"}]
+    .tags.b.branch state [expr {$ok && [branchOf $name] ne "" ? "!disabled" : "disabled"}]
+    icons::tooltip .tags.b.branch [expr {!$ok || [dict get $tags($name) kind] eq "Branch"
+        ? "The branch in the Branches tab" : "The branch of its check-in, [branchOf $name], in the Branches tab"}]
     .tags.b.browse state [expr {$ok && [dict get $tags($name) kind] ne "Property" ? "!disabled" : "disabled"}]
     .tags.b.cancel state [expr {$ok && [dict get $tags($name) kind] in {Tag Property} ? "!disabled" : "disabled"}]
     if {!$ok} {
@@ -313,6 +323,10 @@ proc tktags::showDetails {name} {
     $d insert end "Check-in " meta [string range $uuid 0 9] hash
     $d window create end -align center -padx 4 -window [icons::copyButton $d.copyhash \
         "Copy the check-in's hash (all of it)" [list ui::copy $uuid]]
+    # (A branch name is its own branch.)
+    if {[dict get $g kind] ne "Branch" && [dict get $g branch] ne ""} {
+        $d insert end "on branch " meta [dict get $g branch] branchlink
+    }
     $d insert end \n
     if {[dict get $g kind] eq "Branch"} {
         $d insert end "A branch name: on [dict get $g count] check-ins, the newest of\
@@ -422,12 +436,21 @@ proc tktags::showTimeline {} {
     tktimeline::setQuery hash:[string range [dict get $tags($selected) uuid] 0 9]
 }
 
-# A branch name in the Branches tab.
+# The branch of tag NAME: a branch name's own, else its check-in's.
+proc tktags::branchOf {name} {
+    variable tags
+    if {$name eq "" || ![info exists tags($name)]} { return "" }
+    if {[dict get $tags($name) kind] eq "Branch"} { return $name }
+    dict get $tags($name) branch
+}
+
+# The branch of the tag shown in the Branches tab.
 proc tktags::showBranch {} {
     variable selected
-    if {$selected eq ""} return
+    set branch [branchOf $selected]
+    if {$branch eq ""} return
     tktaalik::show branches
-    tkbranches::showBranch $selected
+    tkbranches::showBranch $branch
 }
 
 proc tktags::browse {} {
@@ -444,7 +467,11 @@ proc tktags::browse {} {
 # The context menu of a tag: the buttons below the list.
 proc tktags::popupMenu {m item} {
     variable tags
-    foreach b {timeline branch browse} { popup::button $m .tags.b.$b }
+    popup::button $m .tags.b.timeline
+    # (Of another tag: the branch of its check-in, named.)
+    popup::button $m .tags.b.branch [expr {[info exists tags($item)] && [dict get $tags($item) kind] ne "Branch"
+        && [branchOf $item] ne "" ? "Show branch [branchOf $item]" : ""}]
+    popup::button $m .tags.b.browse
     $m add command -label "Save as archive\u2026" -command tktags::archive \
         -state [expr {[info exists tags($item)] && [dict get $tags($item) kind] eq "Tag" ? "normal" : "disabled"}]
     $m add command -label "Compare with the previous release\u2026" \
