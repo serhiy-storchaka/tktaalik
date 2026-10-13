@@ -40,11 +40,38 @@ set wk [ticketWith {c.mimetype='text/x-fossil-wiki' AND c.icomment LIKE '%<b>%'}
 show $wk
 puts "  wiki ticket $wk"
 check "wiki: <b> rendered, not shown" {![string match "*<b>*" [$d get 1.0 end]] && [hasTagged ht-font-*-1*]}
-# [hash] links
-set hl [ticketWith {c.mimetype='text/x-fossil-wiki' AND c.icomment GLOB '*[[][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*[]]*'}]
-set us [show $hl]
-puts "  hash ticket $hl ([expr {$us/1000}] ms) hashes: $tktsearch::hashes"
-check "hash links found" {[dict size $tktsearch::hashes] > 0 && [hasTagged ht-href-*]}
+# [hash] and [hash|label] links: a wiki comment with each, whose artifact
+# is in the repository (the newest: comments are added all the time).
+proc commentWith {form} {
+    foreach row [::tickets::sql "SELECT t.tkt_uuid, c.icomment FROM ticketchng c\
+            JOIN ticket t ON t.tkt_id=c.tkt_id WHERE c.mimetype='text/x-fossil-wiki'\
+            AND c.icomment GLOB '*\[\[\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]*\[\]\]*'\
+            ORDER BY c.tkt_mtime DESC LIMIT 1000"] {
+        lassign $row uuid comment
+        foreach {m hash label} [regexp -all -inline $::fossil::hashLinkRE $comment] {
+            if {($form eq "label") != ([string trim $label] ne "")} continue
+            set links [fossil::hashLinks $::tickets::repo [list $m]]
+            if {[dict size $links]} { return [list $uuid $m [dict get $links [string tolower $hash]] [string trim $label]] }
+        }
+    }
+}
+# The links shown: {text href}...
+proc linksShown {} {
+    lmap tag [tagsWith ht-href-*] {
+        if {![llength [ranges $tag]]} continue
+        list [$::d get {*}[lrange [ranges $tag] 0 1]] $htmltext::links($::d,[string range $tag 8 end])
+    }
+}
+foreach form {plain label} {
+    lassign [commentWith $form] hl m href label
+    set us [show $hl]
+    set want [expr {$form eq "label" ? $label : $m}]
+    puts "  $form: ticket [string range $hl 0 9] ([expr {$us/1000}] ms): $m"
+    check "$form: $m, a link shown as [list $want] to $href" {$hl ne "" && [list $want $href] in [linksShown]}
+    if {$form eq "label"} {
+        check "label: not as written" {[string first $m [$d get 1.0 end]] < 0}
+    }
+}
 # Click the first link.
 set tag [lindex [lsort -dictionary [lmap t [tagsWith ht-href-*] {if {[llength [ranges $t]]} {set t} else continue}]] 0]
 set href $htmltext::links($d,[string range $tag 8 end])

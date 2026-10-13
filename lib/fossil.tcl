@@ -32,6 +32,9 @@
 
 namespace eval fossil {
     variable rendered {}        ;# format, text -> HTML (fossil::render)
+    # A link to an artifact in Fossil wiki, [hash] or [hash|label], which
+    # Fossil renders without a server as it is written (hashLink).
+    variable hashLinkRE {\[([0-9a-fA-F]{4,40})(?:\|([^]|]*))?\]}
 }
 
 # Run fossil (in the current directory, or -dir DIR) with stdin empty (or
@@ -818,13 +821,14 @@ proc fossil::render {repo mimetype text} {
     return $html
 }
 
-# The links of [hash] in the texts: hash -> tkt:TICKET for a ticket,
-# info:ARTIFACT for another artifact (a check-in); what is not in the
-# repository is left out.
+# The links of [hash] (and [hash|label]) in the texts: hash -> tkt:TICKET
+# for a ticket, info:ARTIFACT for another artifact (a check-in); what is
+# not in the repository is left out.
 proc fossil::hashLinks {repo texts} {
+    variable hashLinkRE
     set found {}
     foreach text $texts {
-        foreach {- hash} [regexp -all -inline {\[([0-9a-fA-F]{4,40})\]} $text] {
+        foreach {- hash -} [regexp -all -inline $hashLinkRE $text] {
             set hash [string tolower $hash]
             if {$hash ni $found} { lappend found $hash }
         }
@@ -850,6 +854,16 @@ proc fossil::hashLinks {repo texts} {
         }
     }
     return $links
+}
+
+# For htmltext's -autolink {$hashLinkRE CMD}: the link of a match of
+# hashLinkRE by LINKS (from hashLinks), shown as its label if it has one,
+# as Fossil's pages do; "" if it is no link.
+proc fossil::hashLink {links match hash {label ""}} {
+    set hash [string tolower $hash]
+    if {![dict exists $links $hash]} { return "" }
+    set label [string trim $label]
+    expr {$label eq "" ? [dict get $links $hash] : [list [dict get $links $hash] $label]}
 }
 
 # The server of the repository (its remote URL without the user name), for

@@ -35,8 +35,12 @@ tablecols::sortBy $t severity desc; update
 set first [dict get $tktsearch::rows([lindex [$t children {}] 0]) tip:severity]
 check "severity sorted, critical first: $first" {[string match "*Critical" $first]}
 check "sort state: $::tickets::sortkey $::tickets::sortdir" {$::tickets::sortkey eq "severity"}
-# details header
-q {id:4eef1fa86e}
+# details header: an open ticket of priority 5 and a severity in M (any:
+# tickets are closed all the time)
+set open [lindex [::tickets::sql "SELECT tkt_uuid FROM ticket WHERE lower(status)='open'\
+    AND priority GLOB '5*' AND severity GLOB 'M*' ORDER BY tkt_mtime DESC LIMIT 1"] 0 0]
+check "an open ticket of priority 5: $open" {$open ne ""}
+q id:[string range $open 0 9]
 set head [.tickets.main.details.head get 2.0 3.0]
 check "details: $head" {[string match "*Status: *Open*Priority: *5 Medium*Severity: *M*" $head]}
 # the context menu offers priority and severity separately

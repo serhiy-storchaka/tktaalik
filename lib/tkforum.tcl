@@ -385,7 +385,7 @@ proc tkforum::showThread {froot} {
             if {$html eq ""} { set html "<pre>[string map {& &amp; < &lt; > &gt;} $text]</pre>" }
             htmltext::insert $d $html -margin $margin -command tkforum::followLink \
                 -external tkforum::isExternal \
-                -autolink [list {\[([0-9a-fA-F]{4,40})\]} tkforum::hashLink]
+                -autolink [list $::fossil::hashLinkRE tkforum::hashLink]
         }
         if {[info exists children($post)]} {
             foreach c [lreverse $children($post)] { lappend stack [list $c [expr {$depth + 1}]] }
@@ -791,10 +791,9 @@ proc tkforum::Cards {mode hash title mimetype user text} {
     append cards "W [string length [encoding convertto utf-8 $text]]\n$text\n"
 }
 
-proc tkforum::hashLink {match hash} {
+proc tkforum::hashLink {args} {
     variable hashes
-    set hash [string tolower $hash]
-    expr {[dict exists $hashes $hash] ? [dict get $hashes $hash] : ""}
+    fossil::hashLink $hashes {*}$args
 }
 
 # A link to a post: its thread, here, at the post.

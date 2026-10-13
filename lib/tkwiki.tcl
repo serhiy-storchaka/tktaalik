@@ -556,17 +556,16 @@ proc tkwiki::fill {tag mimetype text} {
         }
         htmltext::insert $d $html -tags body -margin 4 -command tkwiki::followLink \
             -external tkwiki::isExternal \
-            -autolink [list {\[([0-9a-fA-F]{4,40})\]} tkwiki::hashLink]
+            -autolink [list $::fossil::hashLinkRE tkwiki::hashLink]
         $d tag raise sel
     }
     $d configure -state disabled
     $d yview moveto 0
 }
 
-proc tkwiki::hashLink {match hash} {
+proc tkwiki::hashLink {args} {
     variable hashes
-    set hash [string tolower $hash]
-    expr {[dict exists $hashes $hash] ? [dict get $hashes $hash] : ""}
+    fossil::hashLink $hashes {*}$args
 }
 
 # The page a link names, if it is one of the wiki: "/wiki?name=NAME",

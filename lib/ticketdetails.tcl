@@ -14,7 +14,7 @@ proc tktsearch::card {d who what body {mimetype ""}} {
     }
     htmltext::insert $d $html -tags cardbody -margin [font measure TkDefaultFont 0] \
         -command tktsearch::followLink -external tktsearch::isExternal \
-        -autolink [list {\[([0-9a-fA-F]{4,40})\]} tktsearch::hashLink]
+        -autolink [list $::fossil::hashLinkRE tktsearch::hashLink]
     # The selection above the rendered text's tags.
     $d tag raise sel
     # Some room above the first and below the last line of the body.
@@ -37,10 +37,9 @@ proc tktsearch::findHashes {texts} {
     set hashes [fossil::hashLinks $::tickets::repo $texts]
 }
 
-proc tktsearch::hashLink {match hash} {
+proc tktsearch::hashLink {args} {
     variable hashes
-    set hash [string tolower $hash]
-    expr {[dict exists $hashes $hash] ? [dict get $hashes $hash] : ""}
+    fossil::hashLink $hashes {*}$args
 }
 
 # A link that followLink opens in the browser: a URL; a page of the server

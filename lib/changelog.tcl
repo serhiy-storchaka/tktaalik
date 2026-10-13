@@ -147,7 +147,7 @@ proc tktimeline::changelogData {query} {
     foreach row $rows {
         lassign $row uuid date user comment merge
         set named {}
-        foreach {- hash} [regexp -all -inline {\[([0-9a-fA-F]{4,40})\]} $comment] {
+        foreach {- hash -} [regexp -all -inline $::fossil::hashLinkRE $comment] {
             set hash [string tolower $hash]
             if {[dict exists $links $hash] && [string match tkt:* [dict get $links $hash]]} {
                 set t [string range [dict get $links $hash] 4 end]

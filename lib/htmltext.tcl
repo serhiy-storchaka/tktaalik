@@ -19,6 +19,7 @@
 #                       text matching the regular expression RE (outside
 #                       code and links) becomes a link if CMD, called with
 #                       the match and its subexpressions, returns an href
+#                       (or {HREF TEXT}: shown as TEXT instead)
 #   htmltext::reset W
 #       Forgets the links of W (call it when the text is deleted).
 #
@@ -333,9 +334,11 @@ proc htmltext::chars {stVar text} {
         textLines st [string range $text 0 [expr {$from - 1}]]
         set m [string range $text $from $to]
         set href [uplevel #0 [list {*}$cmd {*}[regexp -inline -- $re $m]]]
+        set shown $m
+        if {![catch {llength $href} n] && $n == 2} { lassign $href href shown }
         if {$href ne ""} {
             dict set st link [linkTag st $href]
-            emit st $m
+            emit st $shown
             endLink st
         } else {
             emit st $m
