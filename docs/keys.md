@@ -30,7 +30,7 @@ The Commit and Stash tabs need a checkout: without one, their keys only beep.
 | Up, Down, Return | Search results | choose a result, open it |
 | Return, double-click | Timeline | the check-in's diff; the ticket of a ticket change; a wiki page, technote or forum post in its tab |
 | Return, double-click | Tickets list | edit the ticket |
-| double-click | Branches | the branch's diff; in its details, a check-in's diff or a ticket |
+| double-click | Branches | in the details, a check-in's diff or a ticket |
 | double-click | Commit | the file's diff, side by side |
 | Return, double-click | Files history | that version's diff against the one before |
 | Return, double-click | Files: Find in history | a version: its content; a line: the content at that line |

@@ -8,19 +8,6 @@ proc tkbranches::openUrl {path} {
     ui::openServer $remote $path -title Branches
 }
 
-proc tkbranches::diffBranch {name} {
-    variable repo
-    if {$name eq ""} return
-    diffview::run "Branch $name" -- -R $repo --branch [fossil::arg $name]
-}
-
-proc tkbranches::diffAgainst {name target} {
-    variable repo
-    if {$name eq "" || $target eq "" || $name eq $target} return
-    diffview::run "$name against $target" -- \
-        -R $repo --from [fossil::arg $target] --to [fossil::arg $name]
-}
-
 proc tkbranches::diffCheckin {uuid} {
     variable repo
     if {$uuid ne ""} {

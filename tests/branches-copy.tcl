@@ -84,4 +84,33 @@ check "another branch: emptied" {[llength [$f children {}]] == 0 && [$nb tab $nb
 $nb select $nb.files; update
 waitUntil {![dict exists $diffview::data($p) chan] && [llength [$f children {}]]}
 check "its diff: [$p.status cget -text]" {[dict get $diffview::data($p) args] eq [list -R $tkbranches::repo --branch [fossil::arg $other]]}
+# Compared with: its base, a target, a name typed; kept for the others.
+set c $p.bar.compared
+proc choose {text} {
+    $::c set $text
+    tkbranches::compareWith
+    waitUntil {![dict exists $diffview::data($::p) chan]}
+    update
+}
+set base [dict get $tkbranches::branches($other) base]
+check "the choices name the base: [$c cget -values]" {$base ne "" && [lindex [$c cget -values] 0] eq "where it started" && "$base (its base)" in [$c cget -values]}
+choose "$base (its base)"
+check "against $base: [dict get $diffview::data($p) args]" {[dict get $diffview::data($p) args] eq [list -R $tkbranches::repo --from [fossil::arg $base] --to [fossil::arg $other]] && [string match "Files (*)" [$nb tab $nb.files -text]]}
+tkbranches::saveConfig
+check "kept in the settings" {[dict get [config::get $tkbranches::configFile branches tkbranches.conf] compared] eq "base"}
+choose core-8-6-2
+check "a tag typed: [dict get $diffview::data($p) args]" {[dict get $diffview::data($p) args] eq [list -R $tkbranches::repo --from core-8-6-2 --to [fossil::arg $other]] && [$c get] eq "core-8-6-2"}
+$t selection set [list $small]; $t focus $small; update
+waitUntil {![dict exists $diffview::data($p) chan] && [llength [$f children {}]]}
+check "kept for $small: [dict get $diffview::data($p) args]" {[lrange [dict get $diffview::data($p) args] 2 3] eq {--from core-8-6-2}}
+choose "where it started"
+check "where it started: the branch's diff" {"--branch" in [dict get $diffview::data($p) args]}
+# A branch made from no other (the first): no base to choose.
+set root [lindex [lmap b [$t children {}] { if {[tkbranches::baseOf $b] eq ""} { set b } else continue }] 0]
+$t selection set [list $root]; $t focus $root; update
+check "$root: no base among [$c cget -values]" {$root ne "" && ![string match "*its base*" [$c cget -values]]}
+# The branch menu: no diff entries; a double-click does nothing.
+tkbranches::fillBranchMenu .branches.ctx $small
+check "no diff entries in the branch menu" {[lsearch -glob -nocase [commands .branches.ctx] *diff*] < 0}
+check "no double-click on a branch" {[bind $t <Double-1>] eq ""}
 done

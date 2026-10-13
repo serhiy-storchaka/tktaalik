@@ -50,7 +50,6 @@ The Branch column is always shown.
 | Action | Does |
 |---|---|
 | Click, Shift+click, Ctrl+click | Select one or several branches (closing and hiding work on all of them) |
-| Double-click | The diff of the branch in the [diff viewer](diffs.md) |
 | Right-click | The branch menu (also the **Branch** menu in the menu bar, but for the Search entries) |
 | Ctrl+C | Copy the names of the branches selected |
 | Ctrl+F, Ctrl+/ | Go to the search box |
@@ -63,8 +62,6 @@ The Branch column is always shown.
 |---|---|
 | Update checkout to NAME | See [Update and merge](#update-and-merge) (needs a checkout) |
 | Merge into checkout… | See [Update and merge](#update-and-merge) (needs a checkout) |
-| Diff of the branch | Everything the branch changed, from where it started |
-| Diff against main | The branch's last check-in against the first target's (named after it) |
 | Timeline in browser | The server's timeline of the branch |
 | Close, Reopen, Hide, Unhide | See [Managing branches](#managing-branches) |
 | New branch from here… | A new branch from its last check-in |
@@ -231,7 +228,7 @@ Then three tabs:
 | Tab | Shows |
 |---|---|
 | Check-ins | The check-ins of the branch, newest first (the newest 1000 of a big branch): date, hash, user, the branches each was merged into, and the comment; leaves in bold |
-| Files | The diff of the branch (`fossil diff --branch`), made when the tab is opened: the files it changed with lines added and removed, and the diff, as in the [diff window](diffs.md#the-diff-window), with its **Options** |
+| Files | The diff of the branch (`fossil diff --branch`), made when the tab is opened: the files it changed with lines added and removed, and the diff, as in the [diff window](diffs.md#the-diff-window), with its **Options**. **Compared with** above it chooses what with: *where it started* (the diff of the branch), or the tip of another branch: the one it was made from (*BASE (its base)*), a merge target of the columns, or any branch, tag or check-in typed in the box (and Return). Its tip is then compared with the branch's (`fossil diff --from OTHER --to BRANCH`): what merging it there would bring, and also what the other has changed since, reverted. The choice is kept for the other branches (*its base* is the base of each), and after a restart |
 | Tickets | The tickets mentioned in its comments: id, status, type, title; double-click opens the ticket in the [Tickets](tickets.md) tab |
 
 Ctrl+C in a tab copies what its selected rows are:

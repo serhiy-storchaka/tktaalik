@@ -41,6 +41,9 @@ namespace eval tkbranches {
     variable status ""          ;# the status line
     variable statusTail ""      ;# its part after the number of branches
     variable filesShown ""      ;# the branch whose diff is in the Files tab
+    variable compared own       ;# Files: the diff from where the branch
+                                ;# started (own), from its base's tip
+                                ;# (base), or {name NAME}
     variable config {}
     variable configFile [config::path branches]
 
@@ -56,6 +59,7 @@ proc tkbranches::loadConfig {} {
     variable configFile
     variable config
     set config [config::get $configFile branches tkbranches.conf]
+    set ::tkbranches::compared [getdef $config compared own]
 }
 
 proc tkbranches::getdef {dict key default} {
@@ -76,6 +80,7 @@ proc tkbranches::saveConfig {} {
     dict set config showHidden $showHidden
     dict set config query $query
     dict set config history $history
+    dict set config compared $::tkbranches::compared
     config::put $configFile $config {table targets}
 }
 
@@ -1040,21 +1045,77 @@ proc tkbranches::showDetails {name} {
 }
 
 # The changed files: the diff of the branch, made when the tab is shown
-# (it takes long for a big branch).
+# (it takes long for a big branch); or its tip compared with the tip of
+# another branch (the one it was made from, a merge target, any name).
 proc tkbranches::clearFiles {} {
     variable filesShown ""
+    variable targets
     diffview::clear .branches.main.details.nb.files
     .branches.main.details.nb tab 1 -text Files
+    set name $::tkbranches::selected
+    set base [baseOf $name]
+    set values [list "where it started"]
+    if {$base ne ""} { lappend values "$base (its base)" }
+    foreach t $targets { if {$t ne $name && $t ne $base} { lappend values $t } }
+    set c .branches.main.details.nb.files.bar.compared
+    $c configure -values $values
+    $c set [comparedText]
+}
+
+# What the diff of the Files tab compares the branch with, as said in its
+# box: what "compared" means for the branch selected.
+proc tkbranches::comparedText {} {
+    variable compared
+    set base [baseOf $::tkbranches::selected]
+    if {$compared eq "base" && $base ne ""} { return "$base (its base)" }
+    if {[lindex $compared 0] eq "name"} { return [lindex $compared 1] }
+    return "where it started"
+}
+
+# The box of the Files tab chosen from or typed in.
+proc tkbranches::compareWith {} {
+    variable compared
+    set text [string trim [.branches.main.details.nb.files.bar.compared get]]
+    if {$text eq "" || $text eq "where it started"} {
+        set compared own
+    } elseif {[regexp {^(.*) \(its base\)$} $text]} {
+        set compared base
+    } else {
+        set compared [list name $text]
+    }
+    .branches.main.details.nb.files.bar.compared set [comparedText]
+    loadFiles
+}
+
+# The branch NAME was made from, if it is known and still there.
+proc tkbranches::baseOf {name} {
+    variable branches
+    if {$name eq "" || ![info exists branches($name)]} { return "" }
+    set base [dict get $branches($name) base]
+    expr {$base ne $name && [info exists branches($base)] ? $base : ""}
 }
 
 proc tkbranches::loadFiles {} {
     variable filesShown
     variable selected
     variable repo
-    if {$selected eq "" || $filesShown eq $selected} return
-    set filesShown $selected
+    variable compared
+    if {$selected eq ""} return
+    switch [lindex $compared 0] {
+        base { set from [baseOf $selected] }
+        name { set from [lindex $compared 1] }
+        default { set from "" }
+    }
+    if {$from eq $selected} { set from "" }
+    if {$filesShown eq [list $selected $from]} return
+    set filesShown [list $selected $from]
+    if {$from eq ""} {
+        set args [list --branch [fossil::arg $selected]]
+    } else {
+        set args [list --from [fossil::arg $from] --to [fossil::arg $selected]]
+    }
     diffview::runIn .branches.main.details.nb.files -done tkbranches::filesCounted \
-        -- -R $repo --branch [fossil::arg $selected]
+        -- -R $repo {*}$args
 }
 
 proc tkbranches::filesCounted {n} {
@@ -1072,8 +1133,6 @@ proc tkbranches::branchMenu {x y X Y} {
     if {$name eq ""} return
     if {$name ni [$t selection]} { $t selection set $name }
     fillBranchMenu .branches.ctx $name
-    # (What a double-click on the branch does.)
-    popup::default .branches.ctx "Diff of the branch"
     tk_popup .branches.ctx $X $Y
 }
 
@@ -1090,14 +1149,6 @@ proc tkbranches::fillBranchMenu {m name} {
     $m add command -label "Merge into checkout\u2026" -state $co \
         -command [list tkbranches::merge branch $name]
     $m add separator
-    $m add command -label "Diff of the branch" -state $state \
-        -command [list tkbranches::diffBranch $name]
-    set first [lindex $targets 0]
-    if {$first ne ""} {
-        $m add command -label "Diff against $first" \
-            -state [expr {$ok && $name ne $first ? "normal" : "disabled"}] \
-            -command [list tkbranches::diffAgainst $name $first]
-    }
     $m add command -label "Timeline in browser" -state $state \
         -command [list tkbranches::openUrl timeline?r=[fossil::urlquery $name]]
     $m add separator
@@ -1121,7 +1172,7 @@ proc tkbranches::fillBranchMenu {m name} {
     # The common ancestor: of the two branches selected, else with the
     # first merge target.
     set sel [selectedNames]
-    set other [expr {[llength $sel] == 2 ? [lindex [lsearch -all -inline -not -exact $sel $name] 0] : $first}]
+    set other [expr {[llength $sel] == 2 ? [lindex [lsearch -all -inline -not -exact $sel $name] 0] : [lindex $targets 0]}]
     $m add command -label [expr {$other eq "" ? "Common ancestor" : "Common ancestor with $other"}] \
         -state [expr {$ok && $other ne "" && $other ne $name ? "normal" : "disabled"}] \
         -command [list histops::showMergeBase $::tkbranches::repo $::tkbranches::root $name $other]
@@ -1322,6 +1373,16 @@ proc tkbranches::build {} {
     }]
     $c tag configure leaf -font TkHeadingFont
     diffview::panel .branches.main.details.nb.files
+    set b .branches.main.details.nb.files.bar
+    pack forget $b.title
+    ttk::label $b.comparedl -text "Compared with:"
+    ttk::combobox $b.compared -width 24
+    pack $b.comparedl -side left
+    pack $b.compared -side left -padx {4 0}
+    bind $b.compared <<ComboboxSelected>> tkbranches::compareWith
+    bind $b.compared <Return> tkbranches::compareWith
+    bind $b.compared <KP_Enter> tkbranches::compareWith
+    icons::tooltip $b.compared "Where it started: what the branch changed (fossil diff --branch).\nAnother branch (its base, a merge target), or any branch, tag or\ncheck-in typed and Return: its tip against the branch's tip\n(fossil diff --from OTHER --to BRANCH), with what the other\nchanged since as well, reverted."
     tree .branches.main.details.nb.tickets {id {Ticket 11} status {Status 10} type {Type 10} title {Title 60 1}}
     .branches.main.details.nb add .branches.main.details.nb.checkins -text Check-ins
     .branches.main.details.nb add .branches.main.details.nb.files -text Files
@@ -1348,11 +1409,6 @@ proc tkbranches::build {} {
         tkbranches::showDetails $tkbranches::selected
     }
     bind $t <ButtonPress-3> {+tkbranches::branchMenu %x %y %X %Y}
-    bind $t <Double-1> {
-        if {[.branches.main.list.t identify region %x %y] in {cell tree}} {
-            tkbranches::diffBranch [.branches.main.list.t identify item %x %y]
-        }
-    }
     bind $c <ButtonPress-3> {tkbranches::checkinMenu %x %y %X %Y}
     bind $c <Double-1> {tkbranches::diffCheckin [.branches.main.details.nb.checkins.t identify item %x %y]}
     popup::attach .branches.main.details.nb.tickets.t tkbranches::ticketMenu
