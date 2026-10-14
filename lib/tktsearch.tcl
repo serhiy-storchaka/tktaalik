@@ -729,6 +729,13 @@ proc tktsearch::completion {} {
             set values [list ::apply {{repo col prefix} {
                 linsert [complete::column $repo ticket $col $prefix] 0 @me
             }} $repo $col]
+        } elseif {$col eq "severity"} {
+            # (By rank, the mildest first as priority's numbers go, not by name.)
+            set values [list ::apply {{repo prefix} {
+                complete::cached $repo ticket.severity.ranked "SELECT [fossil::outcol trim(severity)]
+                    FROM ticket WHERE trim(coalesce(severity,''))<>''
+                    GROUP BY 1 ORDER BY max($::tickets::severityRank), 1"
+            }} $repo]
         } elseif {$col eq "status"} {
             set values [list ::apply {{repo prefix} {
                 lsort -unique -nocase [concat $::tickets::states [complete::column $repo ticket status $prefix]]

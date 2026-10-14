@@ -116,6 +116,10 @@ check "tickets: version:8.6.: [lrange [items $q] 0 2]" {[lindex [items $q] 0] eq
     tickets::versionCompare [tickets::versionKey $b] [tickets::versionKey $a]}}} [items $q]] 0] && [string match 8.6.* [lindex [items $q] 0]]}
 typeIn $q "priority:"
 check "tickets: priority icons (Tk 9): [lrange [icons $q] 0 3]" {!$tk9 || [string match pr-* [lindex [icons $q] 0]]}
+typeIn $q "severity:"
+check "tickets: severities by rank, not by name: [list [items $q]]" {
+    [lsearch -nocase [items $q] minor] >= 0 && [lsearch -nocase [items $q] minor] < [lsearch -nocase [items $q] critical]
+    && [lsearch -nocase [items $q] cosmetic] < [lsearch -nocase [items $q] minor]}
 typeIn $q "is:"
 check "tickets: is: states with icons, types without (Tk 9)" {!$tk9 ||
     ([lindex [icons $q] [lsearch [items $q] pending]] eq "st-pending" && [lindex [icons $q] [lsearch [items $q] bug]] eq "")}
