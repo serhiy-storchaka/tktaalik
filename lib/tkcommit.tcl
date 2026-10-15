@@ -25,6 +25,7 @@ namespace eval tkcommit {
     variable extrasDot 0        ;#   with the dot files (extras --dotfiles)
     variable branch ""          ;# a new branch for the check-in
     variable rebased ""         ;#   or this one again (tkbranches::rebase)
+    variable squashed ""        ;#   squashed: its old tip, to close then
     variable noWarnings 0       ;# --no-warnings --no-verify-comment
     variable info ""            ;# the line at the top
     variable status ""          ;# the status line
@@ -620,8 +621,11 @@ proc tkcommit::commit {{dryRun 0}} {
         return
     }
     .commit.bottom.msg.text delete 1.0 end
+    set old $::tkcommit::squashed
+    set rebased $::tkcommit::rebased
     set branch ""
     set ::tkcommit::rebased ""
+    set ::tkcommit::squashed ""
     # (What is left of the files committed in part: all ticked again.)
     foreach p $parts { unset -nocomplain ::tkcommit::hunksOff([dict get $p path]) ::tkcommit::hunksSplit([dict get $p path]) }
     resetOpts
@@ -629,6 +633,12 @@ proc tkcommit::commit {{dryRun 0}} {
     refresh
     set ::tkcommit::status "Committed [string range $hash 0 9]"
     showLog "Committed [string range $hash 0 9]" $out
+    # A squashed rebase: the old tip is still a leaf of the branch.
+    if {$old ne ""} {
+        tagwrite::apply "Close the old tip" "Close the old last check-in of $rebased,\
+            [string range $old 0 9]?  Its changes are in the new one; left open, $rebased\
+            has two leaves." $::tktaalik::repo [list tag add --raw closed $old] tkcommit::refresh
+    }
 }
 
 proc tkcommit::showLog {title text} {

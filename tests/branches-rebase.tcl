@@ -83,7 +83,50 @@ tkbranches::rebase main $co tkcommit::refresh; update
 check "cancelled: back on zz-c: [lindex $::outputs end]" {[current] eq $before && [lindex $::outputs end] eq "Not merged: the checkout is back on zz-c."
     && [fossilIn $co changes --merge] eq ""}
 
+# Squashed: zz-d (with a side branch merged into it) onto main; its
+# check-ins cherry-picked, not merged; the old tip closed after the commit.
+exec fossil branch new zz-d main {*}[fossil::nosync branch] -R $R
+exec fossil branch new zz-s main {*}[fossil::nosync branch] -R $R
+commitOn zz-d README.md "zz on d"
+fossilIn $co update --nosync zz-s
+set f [open $co/zz-side.txt w]; puts $f side; close $f
+fossilIn $co add zz-side.txt
+fossilIn $co commit -m "zz side" --nosync --no-warnings
+fossilIn $co update --nosync zz-d
+fossilIn $co merge {*}[fossil::nosync merge] zz-s
+fossilIn $co commit -m "zz merge side" --nosync --no-warnings
+commitOn main license.terms "zz on main again"
+set oldD [tip zz-d]
+set mainTip [tip main]
+fossilIn $co update --nosync zz-d
+set nD [lindex [sql "SELECT count(*) FROM tagxref WHERE tagtype>0 AND value='zz-d'
+    AND tagid=(SELECT tagid FROM tag WHERE tagname='branch')" $R] 0 0]
+set ::outputs {}
+set ::confirms {}
+proc tagwrite::confirm {title message text args} { lappend ::confirms $message; return 1 }
+set tkbranches::squash 1
+whenOpen .branches.merge {
+    set ::dry [.branches.merge.f.t get 1.0 end]
+    set tkbranches::mergeOpt(answer) ok
+}
+tkbranches::rebase main $co tkcommit::refresh; update
+check "squash: cherry-picked, the $nD check-ins of zz-d" {[string match "fossil merge *--cherrypick*[string range $oldD 0 9]*" $::dry]
+    && [llength [regexp -all -inline -line {^    [0-9a-f]{40,}$} $::dry]] == $nD - 1}
+check "squash: \"(squashed)\" in the comment" {[string trim [.commit.bottom.msg.text get 1.0 end]] eq "Rebase to main (squashed)" && $tkcommit::squashed eq $oldD}
+tkcommit::commit; update
+destroy .commit.log
+set newD [tip zz-d]
+set parents [sql "SELECT b.uuid FROM plink p JOIN blob b ON b.rid=p.pid
+    WHERE p.cid=(SELECT rid FROM blob WHERE uuid='$newD')" $R]
+check "squashed: one parent, main's tip" {$newD ne $oldD && $parents eq [list [list $mainTip]]}
+check "squashed: the side branch's file too" {[file exists $co/zz-side.txt] && [string match "*zz on d*" [fossilIn $co cat README.md -r $newD]]}
+check "asked to close the old tip: [lindex $::confirms end]" {[string match "Close the old last check-in of zz-d, [string range $oldD 0 9]?*" [lindex $::confirms end]]}
+check "the old tip closed: one leaf" {[lindex [sql "SELECT count(*) FROM tagxref WHERE rid=(SELECT rid FROM blob WHERE uuid='$oldD')
+    AND tagtype>0 AND tagid=(SELECT tagid FROM tag WHERE tagname='closed')" $R] 0 0] == 1}
+set tkbranches::squash 0
+
 # Uncommitted changes: refused.
+set before [current]
 set f [open $co/README.md a]; puts $f "local"; close $f
 set ::boxes {}
 check "uncommitted changes: refused" {![tkbranches::rebase main $co tkcommit::refresh] && [current] eq $before

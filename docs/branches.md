@@ -327,6 +327,21 @@ only the history is drawn the other way.
 The checkout must have no uncommitted changes.
 If the merge is cancelled or fails, the checkout goes back to where it was.
 
+**Squash** (in the first window) makes the new check-in hold the branch's changes
+without merging its check-ins:
+they are cherry-picked instead, all in one `fossil merge --cherrypick`,
+oldest first
+(those since the branch started, or since its last rebase:
+that check-in has the earlier ones),
+merges into the branch too.
+The new check-in's only parent is the base's last check-in,
+and the Timeline links it to them as cherry-picks.
+The comment is then "Rebase to BASE (squashed)".
+The branch's old last check-in is not merged, so it stays a leaf:
+after the commit, Tktaalik offers to close it
+(`fossil tag add --raw closed`, after its dry run),
+or the branch would have two leaves.
+
 ## Managing branches
 
 These write into the local repository, as the default user,

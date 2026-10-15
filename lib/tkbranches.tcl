@@ -22,6 +22,7 @@ namespace eval tkbranches {
     variable repo ""            ;# the repository file
     variable root ""            ;# the checkout's top directory, or ""
     variable current ""         ;# the branch of the checkout
+    variable squash 0           ;# rebase: cherry-pick the check-ins, not merge
     variable me ""              ;# the default user
     variable remote ""          ;# the server, for the browser
     variable project ""

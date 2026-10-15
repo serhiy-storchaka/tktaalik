@@ -288,7 +288,7 @@ proc tkbranches::merge {kind what {where ""} {done tkbranches::reload}} {
     }
 }
 
-proc tkbranches::mergeIn {kind what done} {
+proc tkbranches::mergeIn {kind what done {versions {}}} {
     variable mergeOpt
     variable current
     variable root
@@ -298,9 +298,10 @@ proc tkbranches::mergeIn {kind what done} {
     lassign [inCheckout branch current] code out
     set current [expr {$code ? $current : [string trim $out]}]
     array set mergeOpt {integrate 0 keep 0 force 0 baseline "" binary "" answer ""}
-    set label [dict get {branch "Merge" base "Merge" rebase "Merge" checkin "Merge"
+    set label [dict get {branch "Merge" base "Merge" rebase "Merge" squash "Cherry-pick" checkin "Merge"
         cherrypick "Cherry-pick" backout "Back out"} $kind]
-    set message "$label [expr {$kind in {branch base rebase} ? $what : [string range $what 0 9]}]\
+    set message "$label [expr {$kind in {branch base rebase} ? $what
+        : $kind eq "squash" ? "the [llength $versions] check-ins of $what" : [string range $what 0 9]}]\
         into the checkout (on $current)?  The files change, nothing is committed."
     if {[changedFiles] ne ""} {
         append message "  The checkout already has uncommitted changes."
@@ -350,7 +351,10 @@ proc tkbranches::mergeIn {kind what done} {
     grid rowconfigure $w.f 1 -weight 1
     bind $w <Escape> {set tkbranches::mergeOpt(answer) cancel}
     wm protocol $w WM_DELETE_WINDOW {set tkbranches::mergeOpt(answer) cancel}
-    set arg [fossil::arg $what]
+    # (Squash: the check-ins VERSIONS, each cherry-picked, in one merge.)
+    set arg [expr {$kind eq "squash" ? $versions : [list [fossil::arg $what]]}]
+    set shown $what
+    if {$kind eq "squash"} { set shown [join $versions "\n    "] }
     # (The options of the dry run shown; none yet: they can be none too.)
     set dry ""
     set dryDone 0
@@ -361,10 +365,10 @@ proc tkbranches::mergeIn {kind what done} {
                 -message "The baseline and the binary files cannot start with \"-\", \"<\", \">\" or \"|\"."
         } elseif {!$dryDone || $dry ne $opts} {
             # The dry run (again, with the options changed).
-            lassign [inCheckout merge -n -v {*}$opts $arg] code out
+            lassign [inCheckout merge -n -v {*}$opts {*}$arg] code out
             $w.f.t configure -state normal
             $w.f.t delete 1.0 end
-            $w.f.t insert end "fossil merge [join $opts] $what\n\nDry run[expr {$code ? " (failed)" : ""}]:\n[string trim $out]"
+            $w.f.t insert end "fossil merge [join $opts] $shown\n\nDry run[expr {$code ? " (failed)" : ""}]:\n[string trim $out]"
             $w.f.t configure -state disabled
             $w.f.b.ok state [expr {$code ? "disabled" : "!disabled"}]
             set dry $opts
@@ -377,11 +381,11 @@ proc tkbranches::mergeIn {kind what done} {
         # (OK with options changed since the dry run: the dry run first.)
     }
     destroy $w
-    lassign [inCheckout merge {*}$dry $arg] code out
+    lassign [inCheckout merge {*}$dry {*}$arg] code out
     uplevel #0 $done
     if {$code} {
         showOutput $label "fossil merge failed:" $out
-    } elseif {$kind eq "rebase"} {
+    } elseif {$kind in {rebase squash}} {
         # (The caller goes on: the commit.)
     } elseif {$root ne $::tktaalik::root} {
         # (Another checkout: committed there, so shown first.)
@@ -495,28 +499,46 @@ proc tkbranches::RebaseIn {base done} {
         return 0
     }
     if {![fossil::argOk $base $title] || ![fossil::argOk $branch $title]} { return 0 }
-    set from [lindex [fossil::checkoutSql $root "SELECT b.uuid FROM blob b
-        WHERE b.rid=(SELECT value FROM vvar WHERE name='checkout')"] 0 0]
+    # The check-ins of the branch's line, oldest first, for a squash: from
+    # the checkout's back along the first parents while on the branch
+    # (to where it started, or was last rebased: that check-in has the
+    # rest).
+    set line [lmap row [fossil::checkoutSql $root "WITH RECURSIVE
+         tg(branch) AS (SELECT tagid FROM tag WHERE tagname='branch'),
+         line(rid) AS (SELECT value FROM vvar WHERE name='checkout'
+          UNION SELECT p.pid FROM plink p JOIN line ON p.cid=line.rid, tg
+          WHERE p.isprim AND EXISTS (SELECT 1 FROM tagxref x WHERE x.rid=p.pid
+           AND x.tagid=tg.branch AND x.tagtype>0 AND x.value=[fossil::sqlstr $branch]))
+        SELECT b.uuid FROM line JOIN blob b ON b.rid=line.rid JOIN event e ON e.objid=line.rid
+        ORDER BY e.mtime"] { lindex $row 0 }]
+    set from [lindex $line end]
     lassign [inCheckout update --nosync -n $base] code out
     if {$code} {
         showOutput $title "fossil update failed (dry run):" $out
         return 0
     }
-    if {![showOutput $title "Rebase $branch onto the last check-in of $base?\n\n\
-            1. The checkout is updated to $base (its dry run below).\n\
-            2. $branch is merged into it, closing its old tip (--integrate).\n\
-            3. You commit that in the Commit tab, to $branch again: $branch then goes on\
-            from $base, with all its changes, and its old check-ins stay as they are.\n\n\
-            Nothing is committed or pushed before you commit." "Dry run:\n$out" Update]} {
+    set n [llength $line]
+    set message [string cat "Rebase $branch onto the last check-in of $base?\n\n" \
+        "1. The checkout is updated to $base (its dry run below).\n" \
+        "2. $branch is merged into it, closing its old tip (--integrate).  Squashed:\
+            its $n [expr {$n == 1 ? "check-in is" : "check-ins are"}] cherry-picked instead\
+            (--cherrypick): the new check-in does not merge them, and its old tip\
+            is closed after the commit.\n" \
+        "3. You commit that in the Commit tab, to $branch again: $branch then goes\
+            on from $base, with all its changes; its old check-ins stay as they are.\n\n" \
+        "Nothing is committed or pushed before you commit."]
+    if {![showOutput $title $message "Dry run:\n$out" Update \
+            [list "Squash: cherry-pick its check-ins, not merge them" tkbranches::squash]]} {
         return 0
     }
+    variable squash
     lassign [inCheckout update --nosync $base] code out
     if {$code} {
         uplevel #0 $done
         showOutput $title "fossil update failed:" $out
         return 0
     }
-    if {![mergeIn rebase $branch $done]} {
+    if {![expr {$squash ? [mergeIn squash $branch $done $line] : [mergeIn rebase $branch $done]}]} {
         # (Not merged: back to the branch, as it was.)
         lassign [inCheckout update --nosync $from] code out
         uplevel #0 $done
@@ -530,8 +552,11 @@ proc tkbranches::RebaseIn {base done} {
     update idletasks
     set ::tkcommit::branch $branch
     set ::tkcommit::rebased $branch
+    set ::tkcommit::squashed [expr {$squash ? $from : ""}]
     set t .commit.bottom.msg.text
-    if {[string trim [$t get 1.0 end]] eq ""} { $t insert end "Rebase to $base" }
+    if {[string trim [$t get 1.0 end]] eq ""} {
+        $t insert end [expr {$squash ? "Rebase to $base (squashed)" : "Rebase to $base"}]
+    }
     tkcommit::refresh
     set ::tkcommit::status "Rebasing $branch onto $base: resolve any conflicts, then commit"
     return 1
@@ -541,7 +566,8 @@ proc tkbranches::RebaseIn {base done} {
 proc tkbranches::mergeOpts {kind} {
     variable mergeOpt
     set opts [list {*}[fossil::nosync merge] {*}[dict get {
-        branch {} base {} rebase --integrate checkin {} cherrypick --cherrypick backout --backout} $kind]]
+        branch {} base {} rebase --integrate squash --cherrypick checkin {}
+        cherrypick --cherrypick backout --backout} $kind]]
     if {$kind eq "branch" && $mergeOpt(integrate)} { lappend opts --integrate }
     if {$mergeOpt(keep)} { lappend opts -K }
     if {$mergeOpt(force)} { lappend opts -f }
