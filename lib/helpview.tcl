@@ -59,6 +59,7 @@ namespace eval help {
         .branches.newbranch         branches#managing-branches
         .branches.output            branches#update-and-merge
         .branches.merge             branches#update-and-merge
+        .branches.rebase            branches#rebasing
         .artifact                   timeline#details
         .graveyard                  timeline#purging
         .branches.releases          branches#changes-between-releases

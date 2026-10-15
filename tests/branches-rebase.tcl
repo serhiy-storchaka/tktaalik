@@ -37,15 +37,35 @@ proc tkbranches::showOutput {title message text {ok ""} {option {}}} {
 }
 start commit $co 1200x800
 tktaalik::show commit; update
-set m .commit.menu.commit.rebases
-uplevel #0 [$m cget -postcommand]
-check "the Commit menu: [labels $m]" {[labels $m] eq [list "main: 1 new check-in…"]}
+# The first window: what it shows, then SCRIPT, then Update.
+proc answerRebase {{script ""}} {
+    whenOpen .branches.rebase "set ::rebaseWhat \$tkbranches::rebaseOpt(what)
+        set ::rebaseMsg \[.branches.rebase.f.msg cget -text\]
+        set ::rebaseDry \[.branches.rebase.f.t get 1.0 end\]
+        $script
+        set tkbranches::rebaseOpt(answer) ok"
+}
+check "the Commit menu: Rebase onto a base branch" {"Rebase onto a base branch\u2026" in [labels .commit.menu.commit]}
+check "the bases: [tkbranches::baseChoices $co]" {[tkbranches::baseChoices $co] eq {{{main (1 new check-in)}} {main (1 new check-in)}}}
 tktaalik::show branches; update
 set tkbranches::query ""; tkbranches::search; update
 waitUntil {[.branches.main.list.t exists zz-b]}
 tkbranches::fillBranchMenu .branches.ctx zz-b
-check "the branch menu: Rebase onto a base branch" {"Rebase onto a base branch" in [labels .branches.ctx]
-    && [labels .branches.ctx.rebases] eq [labels $m]}
+check "the branch menu: Rebase onto a base branch" {"Rebase onto a base branch\u2026" in [labels .branches.ctx]}
+
+# Cancelled in the first window: nothing changes; the branch itself
+# cannot be the base.
+set before [current]
+whenOpen .branches.rebase {
+    set tkbranches::rebaseOpt(what) zz-b
+    set tkbranches::rebaseOpt(answer) again
+    after 300 {
+        set ::selfOk [.branches.rebase.f.b.ok instate !disabled]
+        set tkbranches::rebaseOpt(answer) cancel
+    }
+}
+check "cancelled in the first window" {![tkbranches::rebase "" $co tkcommit::refresh] && [current] eq $before}
+check "  onto itself: Update disabled" {!$::selfOk}
 
 # Rebase zz-b onto main: the merge with --integrate, then the Commit tab.
 whenOpen .branches.merge {
@@ -53,9 +73,11 @@ whenOpen .branches.merge {
     set ::dry [.branches.merge.f.t get 1.0 end]
     set tkbranches::mergeOpt(answer) ok
 }
-.branches.ctx.rebases invoke 0
+answerRebase
+.branches.ctx invoke [.branches.ctx index "Rebase onto a base branch\u2026"]
 update
-check "asked first: [lindex $::outputs 0]" {[string match "Rebase zz-b onto the last check-in of main?*" [lindex $::outputs 0]]}
+check "asked first, main chosen: $::rebaseWhat" {[string match "Rebase zz-b onto the last check-in of main?*" $::rebaseMsg]
+    && $::rebaseWhat eq "main (1 new check-in)" && [string match "Dry run:*" $::rebaseDry]}
 check "the merge: --integrate, no checkbox" {!$::integrate && [string match "fossil merge *--integrate* zz-b*" $::dry]}
 check "the checkout at main's tip, zz-b merged" {[current] eq $mainTip && [string match "*[string range $oldB 0 9]*" [fossilIn $co changes --merge]]}
 check "the Commit tab: zz-b again, \"Rebase to main\"" {$tktaalik::active eq "commit" && $tkcommit::branch eq "zz-b"
@@ -72,13 +94,14 @@ check "the old tip no longer a leaf" {[lindex [sql "SELECT count(*) FROM leaf WH
 check "the checkout on zz-b" {[fossilIn $co branch current] eq "zz-b"}
 check "the branch's diff: only its own file" {[string trim [fossilIn $co diff --branch zz-b --brief]] eq "CHANGED README.md"}
 check "rebased forgotten after the commit" {$tkcommit::rebased eq "" && $tkcommit::branch eq ""}
-check "now up to date with main: [labels $m]" {[uplevel #0 [$m cget -postcommand]; labels $m] eq {{main: up to date}}}
+check "now up to date with main: [tkbranches::baseChoices $co]" {[lindex [tkbranches::baseChoices $co] 0] eq {{main (up to date)}}}
 
 # Cancelled at the merge: back on zz-c.
 fossilIn $co update --nosync zz-c
 set before [current]
 set ::outputs {}
 whenOpen .branches.merge { set tkbranches::mergeOpt(answer) cancel }
+answerRebase
 tkbranches::rebase main $co tkcommit::refresh; update
 check "cancelled: back on zz-c: [lindex $::outputs end]" {[current] eq $before && [lindex $::outputs end] eq "Not merged: the checkout is back on zz-c."
     && [fossilIn $co changes --merge] eq ""}
@@ -109,6 +132,7 @@ whenOpen .branches.merge {
     set ::dry [.branches.merge.f.t get 1.0 end]
     set tkbranches::mergeOpt(answer) ok
 }
+answerRebase
 tkbranches::rebase main $co tkcommit::refresh; update
 check "squash: cherry-picked, the $nD check-ins of zz-d" {[string match "fossil merge *--cherrypick*[string range $oldD 0 9]*" $::dry]
     && [llength [regexp -all -inline -line {^    [0-9a-f]{40,}$} $::dry]] == $nD - 1}
@@ -135,8 +159,9 @@ set mainTip [tip main]
 fossilIn $co update --nosync main
 set ::outputs {}
 whenOpen .branches.merge { set tkbranches::mergeOpt(answer) ok }
+answerRebase
 tkbranches::rebase main $co tkcommit::refresh zz-e; update
-check "another branch: asked, ending on zz-e" {[string match "*The checkout, now on main, ends on zz-e.*" [lindex $::outputs 0]]}
+check "another branch: asked, ending on zz-e" {[string match "*The checkout, now on main, ends on zz-e.*" $::rebaseMsg]}
 check "another branch: at main's tip, zz-e merged, the Commit tab" {[current] eq $mainTip
     && [string match "*[string range $oldE 0 9]*" [fossilIn $co changes --merge]] && $tkcommit::branch eq "zz-e"}
 tkcommit::commit; update

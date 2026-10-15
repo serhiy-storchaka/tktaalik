@@ -482,11 +482,11 @@ see [Update and merge](branches.md#update-and-merge).
 ## Merges
 
 Merges are made in the [Branches](branches.md) tab.
-**Commit ▸ Merge a base branch ▸** merges the branch the checkout's branch was made from,
+**Commit ▸ Merge a base branch…** merges the branch the checkout's branch was made from,
 or the one that was made from (main…),
-with how many check-ins each has that the checkout does not:
+chosen with how many check-ins each has that the checkout does not:
 see [Update and merge](branches.md#update-and-merge).
-**Commit ▸ Rebase onto a base branch ▸** makes the branch go on from a base's last check-in,
+**Commit ▸ Rebase onto a base branch…** makes the branch go on from a base's last check-in,
 ending here, with the branch's own name in **New branch**:
 see [Rebasing](branches.md#rebasing).
 While a merge (or a cherry-pick,
