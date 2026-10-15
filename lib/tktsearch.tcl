@@ -760,10 +760,11 @@ proc tktsearch::completion {} {
         {tktsearch::iconName state}]
     dict set keys has [list "the field or count is not empty" [list complete::fixed [concat $counted $fieldNames]]]
     dict set keys no [list "the field or count is empty" [list complete::fixed [concat $counted $fieldNames]]]
-    if {[llength $::tickets::people]} {
-        dict set keys involves [list "the submitter, assignee or closer" [list ::apply {{repo prefix} {
+    if {[llength $::tickets::people] || $::tickets::changers} {
+        dict set keys involves [list "the submitter, assignee, closer or who changed it" [list ::apply {{repo prefix} {
             set people {}
             foreach col $::tickets::people { lappend people {*}[complete::column $repo ticket $col $prefix] }
+            if {$::tickets::changers} { lappend people {*}[complete::column $repo ticketchng login $prefix] }
             linsert [lsort -unique -nocase $people] 0 @me
         }} $repo]]
     }

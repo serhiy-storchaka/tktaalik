@@ -73,7 +73,7 @@ A list below the box completes the keys and their values as you type
 | `resolution:`, `priority:`, `severity:` | those fields |
 | `version:8.6`, `version:>=8.6.10`, `version:8.6.10..8.6.13` | the Found in version, compared as versions (see below) |
 | `author:`, `assignee:`, `closer:` | the submitter, assignee, closer |
-| `involves:user` | the submitter, assignee or closer is the user |
+| `involves:user` | the user is the submitter, assignee or closer, or changed the ticket (a comment or a field) |
 | `@me` | you: `assignee:@me`, `involves:@me` (the default user) |
 | `no:assignee`, `has:assignee` | the field is empty ("", "None", "nobody") or not |
 | `created:2025`, `updated:<2020`, `closed:2025-01..2025-06` | dates |

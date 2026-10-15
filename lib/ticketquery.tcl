@@ -221,6 +221,8 @@ proc tickets::useRepository {repository} {
     configure [lmap row [sql "SELECT name FROM pragma_table_info('ticket')"] {
         lindex $row 0
     }]
+    variable changers [expr {[lindex [sql "SELECT count(*) FROM pragma_table_info('ticketchng')
+        WHERE name='login'"] 0 0] > 0}]
 }
 
 # A ticket field for SELECT: the field, or '' if the tickets have none.
@@ -536,6 +538,7 @@ proc tickets::buildQuery {query canSeePrivate} {
     variable countKeys
     variable columns
     variable people
+    variable changers
     variable have
     set where {}
     set words {}
@@ -585,8 +588,20 @@ proc tickets::buildQuery {query canSeePrivate} {
             }
             if {$key eq "has"} { set cond "NOT ($cond)" }
         } elseif {$key eq "involves"} {
-            if {![llength $people]} { queryError "these tickets have no people fields" }
-            set cond ([join [lmap col $people {match $col $value}] { OR }])
+            if {![llength $people] && !$changers} { queryError "these tickets have no people fields" }
+            # (involves:a,b: either, in any of the fields, as for one field;
+            # or who made any change, a comment or a field set.)
+            set conds {}
+            foreach alt $alts {
+                if {$alt eq ""} continue
+                foreach col $people { lappend conds [match $col $alt] }
+                if {$changers} {
+                    lappend conds "EXISTS (SELECT 1 FROM ticketchng c
+                        WHERE c.tkt_id=ticket.tkt_id AND [match c.login $alt])"
+                }
+            }
+            if {![llength $conds]} { queryError "empty value for involves:" }
+            set cond ([join $conds { OR }])
         } elseif {$key eq "id"} {
             # (id:a,b,c: any of these, as from a changelog.)
             set conds [lmap a $alts {
@@ -681,7 +696,9 @@ proc tickets::parseSort {spec} {
     list $key [expr {$dir ne "" ? $dir : [dict get $sorts $key dir]}]
 }
 
-# Until a repository is used: the fields of the Tcl/Tk trackers.
+# Until a repository is used: the fields of the Tcl/Tk trackers, whose
+# changes (ticketchng) have the login of who made them.
+set tickets::changers 1
 tickets::configure {tkt_id tkt_uuid tkt_mtime tkt_ctime type status resolution
     subsystem priority severity foundin private_contact title comment submitter
     assignee closer closedate is_private}

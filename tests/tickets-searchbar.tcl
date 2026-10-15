@@ -52,6 +52,29 @@ tktsearch::setQuery id:[join $two ,]; update
 check "id:A,B: the two tickets" {[llength [.tickets.main.list.t children {}]] == 2}
 tktsearch::setQuery "id:[lindex $two 0],"; update
 check "id:A, (an empty one): the one" {[llength [.tickets.main.list.t children {}]] == 1}
+# involves:A,B: the tickets of either.
+set rare [lmap r [sql "SELECT submitter FROM ticket WHERE submitter GLOB '\[a-z\]*' AND submitter NOT GLOB '*\[^a-z\]*'
+    GROUP BY 1 HAVING count(*) BETWEEN 2 AND 5 ORDER BY 1 LIMIT 2"] { lindex $r 0 }]
+set found {}
+foreach who $rare {
+    tktsearch::setQuery involves:$who; update
+    lappend found {*}[.tickets.main.list.t children {}]
+}
+tktsearch::setQuery involves:[join $rare ,]; update
+check "involves:[join $rare ,]: the tickets of either" {[llength $rare] == 2 && [llength $found] > 0
+    && [lsort [.tickets.main.list.t children {}]] eq [lsort -unique $found]}
+# involves: also who changed a ticket (a comment, a field), not only the
+# people in its fields.
+lassign [lindex [sql "SELECT c.login, t.tkt_uuid FROM ticketchng c JOIN ticket t USING (tkt_id)
+    WHERE c.login GLOB '\[a-z\]*' AND c.login NOT GLOB '*\[^a-z\]*'
+    AND lower(c.login) NOT IN (lower(coalesce(t.submitter,'')), lower(coalesce(t.assignee,'')), lower(coalesce(t.closer,'')))
+    ORDER BY (SELECT count(*) FROM ticketchng d WHERE d.login=c.login), 1 LIMIT 1"] 0] who changed
+tktsearch::setQuery involves:$who; update
+check "involves:$who: a ticket $who only changed" {$changed ne "" && [.tickets.main.list.t exists $changed]}
+set tickets::changers 0
+tktsearch::setQuery involves:$who; update
+check "involves:$who: without logins in the changes, not it" {![.tickets.main.list.t exists $changed]}
+set tickets::changers 1
 set tktsearch::saved {}
 set c [tktsearch::loadConfig]
 puts "  conf: $c"
