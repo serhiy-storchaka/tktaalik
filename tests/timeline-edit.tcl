@@ -128,9 +128,10 @@ check "bad names: $::boxes" {[string match "*Fossil's own*" [lindex $::boxes 0]]
 # Reparent: the dry run, refused: nothing changed.
 set parent [lindex [sql "SELECT uuid FROM blob WHERE rid=(SELECT pid FROM plink WHERE cid=$rid AND isprim)"] 0 0]
 set ::shown {}
-steps [list {[winfo exists .tagwrite.f.p]} [list set tagwrite::f(parents) $parent] \
+steps [list {[winfo exists .tagwrite.f.p]} "[list set tagwrite::f(parents) $parent]; set ::reparentHelp \[help::context .tagwrite.f.p\]" \
     {[winfo exists .tagwrite.f.p]} {set tagwrite::answer 1} $confirm $refuse]
 tktimeline::reparent $rid
+check "reparent: F1 is $::reparentHelp" {$::reparentHelp eq "timeline#reparenting"}
 check "reparent: dry run shows the parent tag, not applied" {[string match "*T +parent*$parent*" [lindex $::shown end]] && [lindex [sql "SELECT count(*) FROM tagxref WHERE rid=$rid AND tagid=(SELECT tagid FROM tag WHERE tagname='parent')"] 0 0] == 0}
 
 # The Tags tab: properties, add a tag, cancel it where it is on two.

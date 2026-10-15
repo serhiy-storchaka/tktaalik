@@ -123,7 +123,7 @@ proc help::context {{w ""}} {
     if {[string match .tagwrite* $w] && [winfo exists .tagwrite]} {
         set title [wm title .tagwrite]
         if {[string match "Add tag*" $title]} { set best timeline#tags-on-check-ins }
-        if {[string match "Reparent*" $title]} { set best timeline#tags-on-check-ins }
+        if {[string match "Reparent*" $title]} { set best timeline#reparenting }
         if {[string match "Move tag*" $title]} { set best tags#move }
         if {[string match "Save * as an archive*" $title]} { set best timeline#archives }
         if {[string match "Export a bundle*" $title] || [string match "Import *" $title]} { set best branches#bundles }
