@@ -24,6 +24,7 @@ namespace eval tkcommit {
     variable showExtras 0       ;# also list unmanaged files
     variable extrasDot 0        ;#   with the dot files (extras --dotfiles)
     variable branch ""          ;# a new branch for the check-in
+    variable rebased ""         ;#   or this one again (tkbranches::rebase)
     variable noWarnings 0       ;# --no-warnings --no-verify-comment
     variable info ""            ;# the line at the top
     variable status ""          ;# the status line
@@ -569,6 +570,9 @@ proc tkcommit::commit {{dryRun 0}} {
     if {$dryRun} { lappend args --dry-run }
     # (As --branch=NAME: a name cannot be taken for a redirection.)
     if {$branch ne ""} { lappend args --branch=$branch }
+    # (A rebase: the branch goes on under its name, which Fossil refuses
+    # for an open branch without --force.)
+    if {$branch ne "" && $branch eq $::tkcommit::rebased} { lappend args --force }
     if {$noWarnings} {
         lappend args --no-warnings
         # (Fossil 2.21 checks no comments, and has no such option.)
@@ -617,6 +621,7 @@ proc tkcommit::commit {{dryRun 0}} {
     }
     .commit.bottom.msg.text delete 1.0 end
     set branch ""
+    set ::tkcommit::rebased ""
     # (What is left of the files committed in part: all ticked again.)
     foreach p $parts { unset -nocomplain ::tkcommit::hunksOff([dict get $p path]) ::tkcommit::hunksSplit([dict get $p path]) }
     resetOpts
@@ -665,6 +670,8 @@ proc tkcommit::build {} {
     diffopts::menu .commit.menu.commit.diffopts tkcommit::refresh
     menu .commit.menu.commit.bases -tearoff 0 \
         -postcommand {tkbranches::fillBaseMenu .commit.menu.commit.bases $tkcommit::root tkcommit::refresh}
+    menu .commit.menu.commit.rebases -tearoff 0 \
+        -postcommand {tkbranches::fillBaseMenu .commit.menu.commit.rebases $tkcommit::root tkcommit::refresh rebase}
     foreach {label command accel} {
         "Side-by-side diff"             tkcommit::sideBySide    ""
         "Diff of all changes"           tkcommit::diffAll       ""
@@ -688,6 +695,7 @@ proc tkcommit::build {} {
         "Update files to a version\u2026"   tkcommit::updateFiles   ""
         "Merge fork\u2026"                  tkcommit::mergeFork     ""
         "Merge a base branch"           >bases                  ""
+        "Rebase onto a base branch"     >rebases                ""
         "Switch the version, keep the files\u2026" tkcommit::switchKeep ""
         "Set the times of files\u2026"      tkcommit::touchFiles    ""
         --                              {}                      ""

@@ -486,6 +486,9 @@ Merges are made in the [Branches](branches.md) tab.
 or the one that was made from (main…),
 with how many check-ins each has that the checkout does not:
 see [Update and merge](branches.md#update-and-merge).
+**Commit ▸ Rebase onto a base branch ▸** makes the branch go on from a base's last check-in,
+ending here, with the branch's own name in **New branch**:
+see [Rebasing](branches.md#rebasing).
 While a merge (or a cherry-pick,
 a back-out or an integrating merge) is in progress in the checkout,
 the Commit tab:

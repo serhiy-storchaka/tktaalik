@@ -63,6 +63,7 @@ The Branch column is always shown.
 | Update checkout to NAME | See [Update and merge](#update-and-merge) (needs a checkout) |
 | Merge into checkout… | See [Update and merge](#update-and-merge) (needs a checkout) |
 | Merge a base branch ▸ | (the branch of the checkout) Its bases with how many check-ins are new; see [Update and merge](#update-and-merge) |
+| Rebase onto a base branch ▸ | (the branch of the checkout) The branch goes on from a base's last check-in; see [Rebasing](#rebasing) |
 | Timeline in browser | The server's timeline of the branch |
 | Close, Reopen, Hide, Unhide | See [Managing branches](#managing-branches) |
 | New branch from here… | A new branch from its last check-in |
@@ -298,6 +299,33 @@ Neither pulls first (`--nosync`).
 After a merge, Tktaalik offers to open the [Commit](commit.md) tab,
 where you review and commit it.
 Nothing is committed here.
+
+### Rebasing
+
+Fossil does not rewrite history, so it has no rebase;
+the Tcl/Tk developers "rebase to trunk" with a merge the other way round,
+and **Rebase onto a base branch ▸** does the same
+(in the menu of the branch the checkout is on, and in the Commit menu;
+the bases as in **Merge a base branch**):
+
+1. The checkout is updated to the base's last check-in (its dry run is shown first).
+2. The branch is merged into it, in the merge window,
+   with **Integrate** (`--integrate`): its old last check-in is no longer a leaf.
+3. The [Commit](commit.md) tab opens with the branch's name in **New branch**
+   and the comment "Rebase to BASE";
+   resolve any conflicts, then commit.
+   The new check-in is on the branch again
+   (`fossil commit --branch NAME --force`: Fossil takes an open branch's name only so).
+
+The branch then goes on from the base's last check-in:
+its diff and its Files tab show only its own changes.
+Its earlier check-ins stay as they are, merged into the new one,
+so links to them and tags on them keep working.
+The files are the same as after merging the base into the branch;
+only the history is drawn the other way.
+
+The checkout must have no uncommitted changes.
+If the merge is cancelled or fails, the checkout goes back to where it was.
 
 ## Managing branches
 

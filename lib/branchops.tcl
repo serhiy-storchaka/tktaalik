@@ -276,14 +276,13 @@ proc tkbranches::updateTo {name {label ""}} {
 proc tkbranches::merge {kind what {where ""} {done tkbranches::reload}} {
     variable root
     if {$where eq ""} {
-        mergeIn $kind $what $done
-        return
+        return [mergeIn $kind $what $done]
     }
     # (The checkout of the caller, for the time of the merge.)
     set saved $root
     set root $where
     try {
-        mergeIn $kind $what $done
+        return [mergeIn $kind $what $done]
     } finally {
         set root $saved
     }
@@ -293,14 +292,15 @@ proc tkbranches::mergeIn {kind what done} {
     variable mergeOpt
     variable current
     variable root
-    if {$what eq "" || ![needCheckout "Merging"]} return
-    if {![fossil::argOk $what $kind]} return
+    if {$what eq "" || ![needCheckout "Merging"]} { return 0 }
+    if {![fossil::argOk $what $kind]} { return 0 }
     # (The branch of the checkout merged into: its own, from any tab.)
     lassign [inCheckout branch current] code out
     set current [expr {$code ? $current : [string trim $out]}]
     array set mergeOpt {integrate 0 keep 0 force 0 baseline "" binary "" answer ""}
-    set label [dict get {branch "Merge" base "Merge" checkin "Merge" cherrypick "Cherry-pick" backout "Back out"} $kind]
-    set message "$label [expr {$kind in {branch base} ? $what : [string range $what 0 9]}]\
+    set label [dict get {branch "Merge" base "Merge" rebase "Merge" checkin "Merge"
+        cherrypick "Cherry-pick" backout "Back out"} $kind]
+    set message "$label [expr {$kind in {branch base rebase} ? $what : [string range $what 0 9]}]\
         into the checkout (on $current)?  The files change, nothing is committed."
     if {[changedFiles] ne ""} {
         append message "  The checkout already has uncommitted changes."
@@ -372,7 +372,7 @@ proc tkbranches::mergeIn {kind what done} {
         }
         set mergeOpt(answer) ""
         vwait ::tkbranches::mergeOpt(answer)
-        if {$mergeOpt(answer) eq "cancel"} { destroy $w; return }
+        if {$mergeOpt(answer) eq "cancel"} { destroy $w; return 0 }
         if {$mergeOpt(answer) eq "ok" && [mergeOpts $kind] eq $dry} break
         # (OK with options changed since the dry run: the dry run first.)
     }
@@ -381,6 +381,8 @@ proc tkbranches::mergeIn {kind what done} {
     uplevel #0 $done
     if {$code} {
         showOutput $label "fossil merge failed:" $out
+    } elseif {$kind eq "rebase"} {
+        # (The caller goes on: the commit.)
     } elseif {$root ne $::tktaalik::root} {
         # (Another checkout: committed there, so shown first.)
         if {[ui::ask -title $label "Merged into the checkout $root." \
@@ -395,6 +397,7 @@ proc tkbranches::mergeIn {kind what done} {
             "Merged into the checkout." "[string trim $out]\n\nOpen the commit window?"]} {
         commitWindow
     }
+    return [expr {!$code}]
 }
 
 # The bases of the branch of the checkout DIR, nearest first: the branch
@@ -436,8 +439,9 @@ proc tkbranches::checkoutBases {dir} {
 }
 
 # The submenu M: merge a base of the checkout's branch (checkoutBases)
-# into the checkout DIR, in the merge dialog; DONE after it.
-proc tkbranches::fillBaseMenu {m dir done} {
+# into the checkout DIR, in the merge dialog (ACTION merge), or rebase the
+# branch onto it (rebase); DONE after it.
+proc tkbranches::fillBaseMenu {m dir done {action merge}} {
     $m delete 0 end
     set bases [expr {$dir eq "" ? {} : [checkoutBases $dir]}]
     if {![llength $bases]} {
@@ -450,16 +454,94 @@ proc tkbranches::fillBaseMenu {m dir done} {
             $m add command -label "$name: up to date" -state disabled
         } else {
             $m add command -label "$name: $n new check-in[expr {$n == 1 ? "" : "s"}]\u2026" \
-                -command [list tkbranches::merge base $name $dir $done]
+                -command [expr {$action eq "merge" ? [list tkbranches::merge base $name $dir $done]
+                    : [list tkbranches::rebase $name $dir $done]}]
         }
     }
+}
+
+# Rebase the branch of the checkout DIR onto BASE as the Tcl/Tk
+# developers do ("Rebase to trunk"): nothing rewritten, the branch goes on
+# from BASE's tip.  The checkout is updated to BASE's tip, the branch is
+# merged into it with --integrate (its old tip is no longer a leaf), and
+# the Commit tab commits that to the branch again (--branch with its own
+# name, which Fossil takes only with --force).  The commit is left to the
+# user: conflicts are resolved first.  If the merge is not made, the
+# checkout goes back to where it was.  DONE after the update and merge.
+proc tkbranches::rebase {base dir done} {
+    variable root
+    set saved $root
+    set root $dir
+    try {
+        return [RebaseIn $base $done]
+    } finally {
+        set root $saved
+    }
+}
+
+proc tkbranches::RebaseIn {base done} {
+    variable root
+    set title "Rebase onto $base"
+    lassign [inCheckout branch current] code out
+    set branch [string trim $out]
+    if {$code || $branch eq ""} {
+        showOutput $title "The branch of the checkout is not known:" $out
+        return 0
+    }
+    if {$branch eq $base} { return 0 }
+    if {[changedFiles] ne ""} {
+        tk_messageBox -icon info -title $title -message "The checkout has uncommitted changes." \
+            -detail "Commit or stash them first: the rebase updates the checkout to $base."
+        return 0
+    }
+    if {![fossil::argOk $base $title] || ![fossil::argOk $branch $title]} { return 0 }
+    set from [lindex [fossil::checkoutSql $root "SELECT b.uuid FROM blob b
+        WHERE b.rid=(SELECT value FROM vvar WHERE name='checkout')"] 0 0]
+    lassign [inCheckout update --nosync -n $base] code out
+    if {$code} {
+        showOutput $title "fossil update failed (dry run):" $out
+        return 0
+    }
+    if {![showOutput $title "Rebase $branch onto the last check-in of $base?\n\n\
+            1. The checkout is updated to $base (its dry run below).\n\
+            2. $branch is merged into it, closing its old tip (--integrate).\n\
+            3. You commit that in the Commit tab, to $branch again: $branch then goes on\
+            from $base, with all its changes, and its old check-ins stay as they are.\n\n\
+            Nothing is committed or pushed before you commit." "Dry run:\n$out" Update]} {
+        return 0
+    }
+    lassign [inCheckout update --nosync $base] code out
+    if {$code} {
+        uplevel #0 $done
+        showOutput $title "fossil update failed:" $out
+        return 0
+    }
+    if {![mergeIn rebase $branch $done]} {
+        # (Not merged: back to the branch, as it was.)
+        lassign [inCheckout update --nosync $from] code out
+        uplevel #0 $done
+        showOutput $title [expr {$code ? "Not merged; the update back to $branch failed:"
+            : "Not merged: the checkout is back on $branch."}] $out
+        return 0
+    }
+    tkcommit::remember $root
+    if {$root ne $::tktaalik::root} { tktaalik::openPath $root }
+    tktaalik::show commit
+    update idletasks
+    set ::tkcommit::branch $branch
+    set ::tkcommit::rebased $branch
+    set t .commit.bottom.msg.text
+    if {[string trim [$t get 1.0 end]] eq ""} { $t insert end "Rebase to $base" }
+    tkcommit::refresh
+    set ::tkcommit::status "Rebasing $branch onto $base: resolve any conflicts, then commit"
+    return 1
 }
 
 # The options of fossil merge chosen; "-" if a field is not acceptable.
 proc tkbranches::mergeOpts {kind} {
     variable mergeOpt
     set opts [list {*}[fossil::nosync merge] {*}[dict get {
-        branch {} base {} checkin {} cherrypick --cherrypick backout --backout} $kind]]
+        branch {} base {} rebase --integrate checkin {} cherrypick --cherrypick backout --backout} $kind]]
     if {$kind eq "branch" && $mergeOpt(integrate)} { lappend opts --integrate }
     if {$mergeOpt(keep)} { lappend opts -K }
     if {$mergeOpt(force)} { lappend opts -f }

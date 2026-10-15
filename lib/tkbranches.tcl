@@ -1185,11 +1185,14 @@ proc tkbranches::fillBranchMenu {m name} {
         -command [list tkbranches::merge branch $name]
     # (The branch of the checkout: its bases into it.)
     variable current
-    destroy $m.bases
+    destroy $m.bases $m.rebases
     if {$co eq "normal" && $name eq $current} {
         menu $m.bases -tearoff 0
         fillBaseMenu $m.bases $root tkbranches::reload
         $m add cascade -label "Merge a base branch" -menu $m.bases
+        menu $m.rebases -tearoff 0
+        fillBaseMenu $m.rebases $root tkbranches::reload rebase
+        $m add cascade -label "Rebase onto a base branch" -menu $m.rebases
     }
     $m add separator
     $m add command -label "Timeline in browser" -state $state \
