@@ -65,6 +65,7 @@ The Branch column is always shown.
 | Timeline in browser | The server's timeline of the branch |
 | Close, Reopen, Hide, Unhide | See [Managing branches](#managing-branches) |
 | New branch from here… | A new branch from its last check-in |
+| Add tag… | A tag on its last check-in; see [Adding a tag](timeline.md#adding-a-tag) |
 | Make public… | (private branches) All its check-ins public: `fossil publish`; see [Private check-ins](timeline.md#private-check-ins) |
 | Common ancestor with NAME | The check-in from which both descend (the pivot of a merge, `fossil merge-base`): of the two branches selected, else with the first merge target; it can be shown in the Timeline, or diffed against either; **Ignore merges** follows only the first parents (`--ignore-merges`) |
 | Save as archive… | Its last check-in as a ZIP, tarball or SQL archive; see [Archives](timeline.md#archives) |
@@ -246,6 +247,7 @@ In the Check-ins tab, double-click a check-in for its diff; right-click it for:
 | Cherry-pick into checkout… | Only this check-in's changes |
 | Back out in checkout… | Undo this check-in's changes |
 | New branch from here… | A new branch from this check-in |
+| Add tag… | A tag on this check-in; see [Adding a tag](timeline.md#adding-a-tag) |
 | Releases with this check-in | The first release of each line that contains it, and all of them |
 | Save as archive… | The check-in as an archive; see [Archives](timeline.md#archives) |
 | Show artifact | Its manifest as Fossil stores it, in a window |

@@ -37,6 +37,11 @@ check "menu: Copy file hash" {$i >= 0}
 $m invoke $i
 check "copied: [clipboard get]" {[clipboard get] eq $fh}
 $m unpost
+# Add tag: the dialog, with the version's check-in (cancelled).
+whenOpen .tagwrite { set ::tagged $tagwrite::f(checkin); set tagwrite::answer 0 }
+set ::tagged ""
+$m invoke [$m index "Add tag\u2026"]
+check "menu: Add tag on the version's check-in" {$::tagged eq $first}
 # Find in history.
 .files.main.right.nb select .files.main.right.nb.grep; update
 set g .files.main.right.nb.grep

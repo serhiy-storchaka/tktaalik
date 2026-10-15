@@ -1200,6 +1200,9 @@ proc tkbranches::fillBranchMenu {m name} {
     $m add command -label "New branch from here\u2026" -state $state \
         -command [list tkbranches::newBranch [expr {$ok ? [dict get $branches($name) tip] : ""}] \
             "the last check-in of $name"]
+    $m add command -label "Add tag\u2026" -state $state \
+        -command [list tagwrite::addTag $::tkbranches::repo [expr {$ok ? [dict get $branches($name) tip] : ""}] \
+            "" tkbranches::reload]
     set private [expr {$ok && [dict get $branches($name) private]}]
     $m add command -label "Make public\u2026" -state [expr {$private ? "normal" : "disabled"}] \
         -command [list histops::publish $::tkbranches::repo $name "the private branch $name" tkbranches::reload]
@@ -1254,6 +1257,7 @@ proc tkbranches::checkinMenu {x y X Y} {
     $m add command -label "Back out in checkout\u2026" -state $co \
         -command [list tkbranches::merge backout $uuid]
     $m add command -label "New branch from here\u2026" -command [list tkbranches::newBranch $uuid]
+    $m add command -label "Add tag\u2026" -command [list tagwrite::addTag $::tkbranches::repo $uuid "" tkbranches::reload]
     $m add command -label "Releases with this check-in" -command [list tkbranches::showReleases $uuid]
     $m add command -label "Save as archive\u2026" -command [list histops::archive $::tkbranches::repo $uuid]
     $m add command -label "Show artifact" -command [list histops::showArtifact $::tkbranches::repo $uuid]

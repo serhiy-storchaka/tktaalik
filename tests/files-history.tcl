@@ -38,7 +38,7 @@ proc menuFor {item} {
     return $labels
 }
 set labels [menuFor $old]
-check "menu: [join $labels /]" {$labels eq [list "Diff against the previous version" "Show the check-in in Timeline" "Content of this version" "Blame of this version" "Save this version\u2026" "Open in browser" "Copy file hash"]}
+check "menu: [join $labels /]" {$labels eq [list "Diff against the previous version" "Show the check-in in Timeline" "Content of this version" "Blame of this version" "Save this version\u2026" "Open in browser" "Add tag\u2026" "Copy file hash"]}
 set ::diffs {}
 proc diffview::run {title args} { lappend ::diffs [list $title $args] }
 $::menu invoke 0

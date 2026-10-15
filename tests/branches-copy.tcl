@@ -37,6 +37,11 @@ check "its copy button: the whole hash" {[clipboard get] eq $tip && [string leng
 set m .branches.ctx
 tkbranches::fillBranchMenu $m core-8-6-branch
 check "branch menu: no Copy entries: [commands $m]" {[llength [commands $m]] && ![string match *Copy* [commands $m]] && [$m type end] ne "separator"}
+# Add tag: the dialog, with the branch's last check-in (cancelled).
+whenOpen .tagwrite { set ::tagged $tagwrite::f(checkin); set tagwrite::answer 0 }
+set ::tagged ""
+$m invoke [$m index "Add tag\u2026"]
+check "branch menu: Add tag on its last check-in" {$::tagged eq $tip}
 
 # The check-ins.
 set c $nb.checkins.t
@@ -49,6 +54,10 @@ lassign [$c bbox $ci] x y
 tkbranches::checkinMenu [expr {$x + 5}] [expr {$y + 5}] 0 0; update
 tk::MenuUnpost .branches.cictx
 check "check-in menu: no Copy check-in: [commands .branches.cictx]" {[llength [commands .branches.cictx]] && ![string match *Copy* [commands .branches.cictx]]}
+whenOpen .tagwrite { set ::tagged $tagwrite::f(checkin); set tagwrite::answer 0 }
+set ::tagged ""
+.branches.cictx invoke [.branches.cictx index "Add tag\u2026"]
+check "check-in menu: Add tag on this check-in" {$::tagged eq $ci}
 
 # The tickets.
 set tk $nb.tickets.t

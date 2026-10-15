@@ -171,6 +171,7 @@ Right-click a version for its context menu:
 | Blame of this version | the Blame tab at that version |
 | Save this version… | saves the file as it was in that check-in to a file you choose (`fossil cat -o`) |
 | Open in browser | the file at that check-in on the remote's web site |
+| Add tag… | a tag on that check-in; see [Adding a tag](timeline.md#adding-a-tag) |
 | Copy file hash | the hash of the file's content in that version |
 
 Content, Blame and Save are disabled for a version that deletes the file.

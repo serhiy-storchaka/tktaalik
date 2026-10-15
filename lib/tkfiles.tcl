@@ -802,6 +802,7 @@ proc tkfiles::historyMenu {x y X Y} {
         -command [list tkfiles::saveVersion $uuid]
     $m add command -label "Open in browser" -state [expr {$remote eq "" ? "disabled" : "normal"}] \
         -command [list fossil::browse $remote/file?name=[fossil::urlquery $name /]&ci=$uuid]
+    $m add command -label "Add tag\u2026" -command [list tagwrite::addTag $::tkfiles::repo $uuid]
     $m add separator
     variable fileHashes
     set fh [expr {[dict exists $fileHashes $uuid] ? [dict get $fileHashes $uuid] : ""}]
