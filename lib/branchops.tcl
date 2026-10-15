@@ -404,16 +404,27 @@ proc tkbranches::mergeIn {kind what done {versions {}}} {
     return [expr {!$code}]
 }
 
-# The bases of the branch of the checkout DIR, nearest first: the branch
-# it was made from, the one that was made from, ... (A made from B, B
-# from main: B, then main), each with how many of its check-ins the
-# checkout does not have yet (not among its ancestors, through merges
-# too, nor merged into it uncommitted): {{NAME COUNT} ...}.  Closed ones
-# are left out (as trunk, the old name of main: closed where main goes on).
-proc tkbranches::checkoutBases {dir} {
+# SQL for the check-in a base merge or rebase starts from: the checkout's
+# (BRANCH ""), else the last check-in of BRANCH.
+proc tkbranches::startRid {branch} {
+    if {$branch eq ""} { return "(SELECT value FROM vvar WHERE name='checkout')" }
+    return "(SELECT x.rid FROM tagxref x JOIN event e ON e.objid=x.rid
+        WHERE x.tagid=(SELECT tagid FROM tag WHERE tagname='branch') AND x.tagtype>0
+        AND x.value=[fossil::sqlstr $branch] ORDER BY e.mtime DESC LIMIT 1)"
+}
+
+# The bases of the branch of the checkout DIR (or of BRANCH), nearest
+# first: the branch it was made from, the one that was made from, ... (A
+# made from B, B from main: B, then main), each with how many of its
+# check-ins the checkout (or BRANCH's last check-in) does not have yet
+# (not among its ancestors, through merges too, nor merged into the
+# checkout uncommitted): {{NAME COUNT} ...}.  Closed ones are left out (as
+# trunk, the old name of main: closed where main goes on).
+proc tkbranches::checkoutBases {dir {branch ""}} {
+    set pending [expr {$branch eq "" ? "UNION SELECT merge FROM vmerge WHERE id IN (0,-4)" : ""}]
     if {[catch {fossil::checkoutSql $dir "WITH RECURSIVE
          tg(branch) AS (SELECT tagid FROM tag WHERE tagname='branch'),
-         co(rid) AS (SELECT value FROM vvar WHERE name='checkout'),
+         co(rid) AS (SELECT [startRid $branch]),
          chain(name, depth) AS (
           SELECT x.value, 0 FROM tagxref x, tg, co
           WHERE x.rid=co.rid AND x.tagid=tg.branch AND x.tagtype>0
@@ -425,7 +436,7 @@ proc tkbranches::checkoutBases {dir} {
              ORDER BY e.mtime LIMIT 1)), depth+1
           FROM chain, tg WHERE chain.name IS NOT NULL AND depth<20),
          anc(rid) AS (SELECT rid FROM co
-          UNION SELECT merge FROM vmerge WHERE id IN (0,-4)
+          $pending
           UNION SELECT p.pid FROM plink p JOIN anc ON p.cid=anc.rid)
         SELECT name, (SELECT count(*) FROM tagxref x, tg WHERE x.tagid=tg.branch
           AND x.tagtype>0 AND x.value=chain.name AND x.rid NOT IN anc)
@@ -444,10 +455,11 @@ proc tkbranches::checkoutBases {dir} {
 
 # The submenu M: merge a base of the checkout's branch (checkoutBases)
 # into the checkout DIR, in the merge dialog (ACTION merge), or rebase the
-# branch onto it (rebase); DONE after it.
-proc tkbranches::fillBaseMenu {m dir done {action merge}} {
+# branch onto it (rebase); DONE after it.  Of another BRANCH: the checkout
+# is updated to it first.
+proc tkbranches::fillBaseMenu {m dir done {action merge} {branch ""}} {
     $m delete 0 end
-    set bases [expr {$dir eq "" ? {} : [checkoutBases $dir]}]
+    set bases [expr {$dir eq "" ? {} : [checkoutBases $dir $branch]}]
     if {![llength $bases]} {
         $m add command -label [expr {$dir eq "" ? "No checkout" : "No base branch"}] -state disabled
         return
@@ -458,10 +470,78 @@ proc tkbranches::fillBaseMenu {m dir done {action merge}} {
             $m add command -label "$name: up to date" -state disabled
         } else {
             $m add command -label "$name: $n new check-in[expr {$n == 1 ? "" : "s"}]\u2026" \
-                -command [expr {$action eq "merge" ? [list tkbranches::merge base $name $dir $done]
-                    : [list tkbranches::rebase $name $dir $done]}]
+                -command [expr {$action eq "rebase" ? [list tkbranches::rebase $name $dir $done $branch]
+                    : $branch eq "" ? [list tkbranches::merge base $name $dir $done]
+                    : [list tkbranches::mergeInto $name $branch $dir $done]}]
         }
     }
+}
+
+# Merge BASE into BRANCH, not the checkout's: the checkout DIR is updated
+# to BRANCH's last check-in first (only without uncommitted changes), and
+# goes back if the merge is not made.
+proc tkbranches::mergeInto {base branch dir done} {
+    variable root
+    set saved $root
+    set root $dir
+    try {
+        return [MergeInto $base $branch $done]
+    } finally {
+        set root $saved
+    }
+}
+
+proc tkbranches::MergeInto {base branch done} {
+    variable root
+    set title "Merge $base into $branch"
+    if {![fossil::argOk $base $title] || ![fossil::argOk $branch $title]} { return 0 }
+    lassign [checkoutWhere] back was
+    if {[changedFiles] ne ""} {
+        tk_messageBox -icon info -title $title -message "The checkout has uncommitted changes." \
+            -detail "Commit or stash them first: the checkout is updated to $branch for the merge."
+        return 0
+    }
+    lassign [inCheckout update --nosync -n $branch] code out
+    if {$code} {
+        showOutput $title "fossil update failed (dry run):" $out
+        return 0
+    }
+    if {![showOutput $title "Merge $base into $branch?  The checkout, now on $was, is updated\
+            to the last check-in of $branch first (its dry run below); then $base is merged\
+            into it, to commit in the Commit tab.  Nothing is committed or pushed before\
+            you commit." "Dry run:\n$out" Update]} {
+        return 0
+    }
+    lassign [inCheckout update --nosync $branch] code out
+    if {$code} {
+        uplevel #0 $done
+        showOutput $title "fossil update failed:" $out
+        return 0
+    }
+    tkcommit::remember $root
+    if {![mergeIn base $base $done]} {
+        goBack $title $back $was $done
+        return 0
+    }
+    return 1
+}
+
+# The checkout's check-in and branch: {UUID BRANCH}.
+proc tkbranches::checkoutWhere {} {
+    variable root
+    set uuid [lindex [fossil::checkoutSql $root "SELECT b.uuid FROM blob b
+        WHERE b.rid=[startRid ""]"] 0 0]
+    lassign [inCheckout branch current] code out
+    list $uuid [expr {$code ? [string range $uuid 0 9] : [string trim $out]}]
+}
+
+# Not merged: the checkout back to the check-in UUID (on BRANCH), as it was.
+proc tkbranches::goBack {title uuid branch done} {
+    lassign [inCheckout update --nosync $uuid] code out
+    tkcommit::remember $::tkbranches::root
+    uplevel #0 $done
+    showOutput $title [expr {$code ? "Not merged; the update back to $branch failed:"
+        : "Not merged: the checkout is back on $branch."}] $out
 }
 
 # Rebase the branch of the checkout DIR onto BASE as the Tcl/Tk
@@ -472,25 +552,32 @@ proc tkbranches::fillBaseMenu {m dir done {action merge}} {
 # name, which Fossil takes only with --force).  The commit is left to the
 # user: conflicts are resolved first.  If the merge is not made, the
 # checkout goes back to where it was.  DONE after the update and merge.
-proc tkbranches::rebase {base dir done} {
+# Another BRANCH than the checkout's: its line from its last check-in; the
+# checkout ends on it.
+proc tkbranches::rebase {base dir done {branch ""}} {
     variable root
     set saved $root
     set root $dir
     try {
-        return [RebaseIn $base $done]
+        return [RebaseIn $base $done $branch]
     } finally {
         set root $saved
     }
 }
 
-proc tkbranches::RebaseIn {base done} {
+proc tkbranches::RebaseIn {base done branch} {
     variable root
     set title "Rebase onto $base"
-    lassign [inCheckout branch current] code out
-    set branch [string trim $out]
-    if {$code || $branch eq ""} {
-        showOutput $title "The branch of the checkout is not known:" $out
-        return 0
+    lassign [checkoutWhere] back was
+    if {$branch eq $was} { set branch "" }
+    set other [expr {$branch ne ""}]
+    if {!$other} {
+        lassign [inCheckout branch current] code out
+        set branch [string trim $out]
+        if {$code || $branch eq ""} {
+            showOutput $title "The branch of the checkout is not known:" $out
+            return 0
+        }
     }
     if {$branch eq $base} { return 0 }
     if {[changedFiles] ne ""} {
@@ -505,13 +592,17 @@ proc tkbranches::RebaseIn {base done} {
     # rest).
     set line [lmap row [fossil::checkoutSql $root "WITH RECURSIVE
          tg(branch) AS (SELECT tagid FROM tag WHERE tagname='branch'),
-         line(rid) AS (SELECT value FROM vvar WHERE name='checkout'
+         line(rid) AS (SELECT [startRid [expr {$other ? $branch : ""}]]
           UNION SELECT p.pid FROM plink p JOIN line ON p.cid=line.rid, tg
           WHERE p.isprim AND EXISTS (SELECT 1 FROM tagxref x WHERE x.rid=p.pid
            AND x.tagid=tg.branch AND x.tagtype>0 AND x.value=[fossil::sqlstr $branch]))
         SELECT b.uuid FROM line JOIN blob b ON b.rid=line.rid JOIN event e ON e.objid=line.rid
         ORDER BY e.mtime"] { lindex $row 0 }]
     set from [lindex $line end]
+    if {$from eq ""} {
+        showOutput $title "$branch has no check-ins." ""
+        return 0
+    }
     lassign [inCheckout update --nosync -n $base] code out
     if {$code} {
         showOutput $title "fossil update failed (dry run):" $out
@@ -526,6 +617,7 @@ proc tkbranches::RebaseIn {base done} {
             is closed after the commit.\n" \
         "3. You commit that in the Commit tab, to $branch again: $branch then goes\
             on from $base, with all its changes; its old check-ins stay as they are.\n\n" \
+        [expr {$other ? "The checkout, now on $was, ends on $branch.  " : ""}] \
         "Nothing is committed or pushed before you commit."]
     if {![showOutput $title $message "Dry run:\n$out" Update \
             [list "Squash: cherry-pick its check-ins, not merge them" tkbranches::squash]]} {
@@ -539,11 +631,7 @@ proc tkbranches::RebaseIn {base done} {
         return 0
     }
     if {![expr {$squash ? [mergeIn squash $branch $done $line] : [mergeIn rebase $branch $done]}]} {
-        # (Not merged: back to the branch, as it was.)
-        lassign [inCheckout update --nosync $from] code out
-        uplevel #0 $done
-        showOutput $title [expr {$code ? "Not merged; the update back to $branch failed:"
-            : "Not merged: the checkout is back on $branch."}] $out
+        goBack $title $back $was $done
         return 0
     }
     tkcommit::remember $root

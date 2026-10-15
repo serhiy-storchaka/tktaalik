@@ -41,7 +41,8 @@ tkbranches::fillBranchMenu .branches.ctx zz-a
 check "zz-a's menu: Merge a base branch" {"Merge a base branch" in [labels .branches.ctx]
     && [labels .branches.ctx.bases] eq [bases]}
 tkbranches::fillBranchMenu .branches.ctx zz-b
-check "zz-b's menu (not checked out): none" {"Merge a base branch" ni [labels .branches.ctx]}
+check "zz-b's menu (not checked out): its own bases: [labels .branches.ctx.bases]" {"Merge a base branch" in [labels .branches.ctx]
+    && [labels .branches.ctx.bases] eq [list "main: 1 new check-in\u2026"]}
 
 # Merge main, from the Commit menu: the dialog without Integrate.
 tktaalik::show commit; update
@@ -49,7 +50,7 @@ bases
 set ::answers [dict create yesno no]
 set ::outputs {}
 rename tkbranches::showOutput tkbranches::realShowOutput
-proc tkbranches::showOutput {title message text args} { lappend ::outputs $message }
+proc tkbranches::showOutput {title message text args} { lappend ::outputs $message; expr {[llength $args] > 0} }
 whenOpen .branches.merge {
     set ::integrate [winfo exists .branches.merge.f.opts.integrate]
     set ::dry [.branches.merge.f.t get 1.0 end]
@@ -70,4 +71,30 @@ check "committed: the same: [bases]" {[bases] eq [list "zz-b: 2 new check-ins…
 # main has no base.
 fossilIn $co update --nosync main
 check "main: [bases]" {[bases] eq {{No base branch}}}
+
+# Into another branch than the checkout's (on main): the checkout is
+# updated to zz-b first; back on main if the merge is cancelled.
+proc current {} { lindex [fossil::checkoutSql $::co "SELECT b.uuid FROM blob b
+    WHERE b.rid=(SELECT value FROM vvar WHERE name='checkout')"] 0 0 }
+set onMain [current]
+tktaalik::show branches; update
+tkbranches::reload; update
+set ::outputs {}
+whenOpen .branches.merge { set tkbranches::mergeOpt(answer) cancel }
+tkbranches::fillBranchMenu .branches.ctx zz-b
+.branches.ctx.bases invoke 0; update
+check "cancelled: asked first, back on main: $::outputs" {[string match "Merge main into zz-b?  The checkout, now on main,*" [lindex $::outputs 0]]
+    && [lindex $::outputs end] eq "Not merged: the checkout is back on main." && [current] eq $onMain}
+whenOpen .branches.merge { set tkbranches::mergeOpt(answer) ok }
+tkbranches::fillBranchMenu .branches.ctx zz-b
+.branches.ctx.bases invoke 0; update
+check "merged into zz-b: the checkout on it, main merged" {[fossilIn $co branch current] eq "zz-b"
+    && [string match "*[string range $mainTip 0 9]*" [fossilIn $co changes --merge]]}
+fossilIn $co revert
+fossilIn $co update --nosync main
+set f [open $co/README.md a]; puts $f "local"; close $f
+set ::boxes {}
+check "with uncommitted changes: refused" {![tkbranches::mergeInto main zz-b $co tkbranches::reload]
+    && [lindex $::boxes 0] eq "The checkout has uncommitted changes." && [current] eq $onMain}
+fossilIn $co revert
 done

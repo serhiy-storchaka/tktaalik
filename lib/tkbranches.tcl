@@ -1184,15 +1184,17 @@ proc tkbranches::fillBranchMenu {m name} {
         -command [list tkbranches::updateTo $name]
     $m add command -label "Merge into checkout\u2026" -state $co \
         -command [list tkbranches::merge branch $name]
-    # (The branch of the checkout: its bases into it.)
+    # (Its bases into it; of another branch than the checkout's, the
+    # checkout is updated to it first.)
     variable current
     destroy $m.bases $m.rebases
-    if {$co eq "normal" && $name eq $current} {
+    if {$co eq "normal"} {
+        set other [expr {$name eq $current ? "" : $name}]
         menu $m.bases -tearoff 0
-        fillBaseMenu $m.bases $root tkbranches::reload
+        fillBaseMenu $m.bases $root tkbranches::reload merge $other
         $m add cascade -label "Merge a base branch" -menu $m.bases
         menu $m.rebases -tearoff 0
-        fillBaseMenu $m.rebases $root tkbranches::reload rebase
+        fillBaseMenu $m.rebases $root tkbranches::reload rebase $other
         $m add cascade -label "Rebase onto a base branch" -menu $m.rebases
     }
     $m add separator

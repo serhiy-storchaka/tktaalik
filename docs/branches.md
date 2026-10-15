@@ -62,8 +62,8 @@ The Branch column is always shown.
 |---|---|
 | Update checkout to NAME | See [Update and merge](#update-and-merge) (needs a checkout) |
 | Merge into checkout… | See [Update and merge](#update-and-merge) (needs a checkout) |
-| Merge a base branch ▸ | (the branch of the checkout) Its bases with how many check-ins are new; see [Update and merge](#update-and-merge) |
-| Rebase onto a base branch ▸ | (the branch of the checkout) The branch goes on from a base's last check-in; see [Rebasing](#rebasing) |
+| Merge a base branch ▸ | (needs a checkout) Its bases with how many check-ins are new; see [Update and merge](#update-and-merge) |
+| Rebase onto a base branch ▸ | (needs a checkout) The branch goes on from a base's last check-in; see [Rebasing](#rebasing) |
 | Timeline in browser | The server's timeline of the branch |
 | Close, Reopen, Hide, Unhide | See [Managing branches](#managing-branches) |
 | New branch from here… | A new branch from its last check-in |
@@ -282,14 +282,19 @@ Neither pulls first (`--nosync`).
   changed; the merge button runs it with them
   (after a dry run of the same options).
 - **Merge a base branch ▸**
-  (in the menu of the branch the checkout is on, and in the [Commit](commit.md#merges) menu)
+  (in a branch's menu, and for the checkout's branch in the [Commit](commit.md#merges) menu)
   lists the branches it was made from, nearest first:
   for a branch A made from B, and B made from main, B and then main.
-  Each says how many of its check-ins the checkout does not have yet,
+  Each says how many of its check-ins the branch does not have yet
+  (the checkout, for the checkout's branch),
   through earlier merges too (an uncommitted merge counts),
   or "up to date";
   choosing one merges it into the checkout in the same window,
   without Integrate (a base is not closed).
+  For another branch than the checkout's,
+  the checkout is first updated to that branch's last check-in
+  (after its dry run; not with uncommitted changes),
+  and goes back if the merge is cancelled.
   Closed branches are left out
   (such as trunk in a repository where it was renamed main).
 - **Cherry-pick into checkout…** and **Back out in checkout…**
@@ -305,8 +310,10 @@ Nothing is committed here.
 Fossil does not rewrite history, so it has no rebase;
 the Tcl/Tk developers "rebase to trunk" with a merge the other way round,
 and **Rebase onto a base branch ▸** does the same
-(in the menu of the branch the checkout is on, and in the Commit menu;
-the bases as in **Merge a base branch**):
+(in a branch's menu, and for the checkout's branch in the Commit menu;
+the bases as in **Merge a base branch**).
+For another branch than the checkout's,
+the checkout ends on that branch.
 
 1. The checkout is updated to the base's last check-in (its dry run is shown first).
 2. The branch is merged into it, in the merge window,

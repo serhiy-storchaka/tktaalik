@@ -125,6 +125,28 @@ check "the old tip closed: one leaf" {[lindex [sql "SELECT count(*) FROM tagxref
     AND tagtype>0 AND tagid=(SELECT tagid FROM tag WHERE tagname='closed')" $R] 0 0] == 1}
 set tkbranches::squash 0
 
+# Another branch than the checkout's (on main): zz-e rebased, the
+# checkout ending on it.
+exec fossil branch new zz-e main {*}[fossil::nosync branch] -R $R
+commitOn zz-e README.md "zz on e"
+commitOn main license.terms "zz on main once more"
+set oldE [tip zz-e]
+set mainTip [tip main]
+fossilIn $co update --nosync main
+set ::outputs {}
+whenOpen .branches.merge { set tkbranches::mergeOpt(answer) ok }
+tkbranches::rebase main $co tkcommit::refresh zz-e; update
+check "another branch: asked, ending on zz-e" {[string match "*The checkout, now on main, ends on zz-e.*" [lindex $::outputs 0]]}
+check "another branch: at main's tip, zz-e merged, the Commit tab" {[current] eq $mainTip
+    && [string match "*[string range $oldE 0 9]*" [fossilIn $co changes --merge]] && $tkcommit::branch eq "zz-e"}
+tkcommit::commit; update
+destroy .commit.log
+set newE [tip zz-e]
+set parents [sql "SELECT p.isprim, b.uuid FROM plink p JOIN blob b ON b.rid=p.pid
+    WHERE p.cid=(SELECT rid FROM blob WHERE uuid='$newE') ORDER BY p.isprim DESC" $R]
+check "another branch: committed on zz-e, from main's tip" {$parents eq [list [list 1 $mainTip] [list 0 $oldE]]
+    && [fossilIn $co branch current] eq "zz-e"}
+
 # Uncommitted changes: refused.
 set before [current]
 set f [open $co/README.md a]; puts $f "local"; close $f
