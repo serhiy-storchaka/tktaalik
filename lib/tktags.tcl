@@ -4,8 +4,9 @@
 # Branch names (tags that propagate), cancelled tags and properties (the
 # raw tags Fossil keeps: bgcolor, closed, hidden, comment...) are listed on
 # request.  A tag's check-in can be shown in the Timeline, a branch in the
-# Branches tab.  Tags can be added to check-ins and cancelled on them
-# (lib/tagwrite.tcl: "fossil tag add/cancel", in the local repository).
+# Branches tab.  Tags can be added to check-ins, cancelled on them and
+# moved to the newest check-in of their branch (lib/tagwrite.tcl: "fossil
+# tag add/cancel", in the local repository).
 
 source [file join [file dirname [file normalize [info script]]] fossil.tcl]
 source [file join [file dirname [file normalize [info script]]] tablecols.tcl]
@@ -17,6 +18,7 @@ namespace eval tktags {
     variable root ""
     variable remote ""
     variable tags             ;# array: name -> dict of the tag
+    variable tips {}          ;# branch -> its newest check-in, as asked for
     variable filter ""
     variable showBranches 0
     variable showCancelled 0
@@ -141,9 +143,11 @@ proc tktags::build {} {
     ttk::button .tags.b.browse -text "Open in browser" -command tktags::browse
     ttk::button .tags.b.add -text "Add\u2026" -command tktags::addTag
     ttk::button .tags.b.cancel -text "Cancel\u2026" -command tktags::cancelTag
+    ttk::button .tags.b.move -text "Move\u2026" -command tktags::moveTag
     icons::tooltip .tags.b.add "Add the tag to a check-in"
     icons::tooltip .tags.b.cancel "Cancel the tag on a check-in it is on"
-    pack .tags.b.browse .tags.b.branch .tags.b.timeline .tags.b.cancel .tags.b.add -side right -padx {4 0}
+    pack .tags.b.browse .tags.b.branch .tags.b.timeline .tags.b.move .tags.b.cancel .tags.b.add \
+        -side right -padx {4 0}
     pack .tags.b.status -side left -fill x -expand 1
     pack .tags.top -fill x
     pack .tags.b -side bottom -fill x
@@ -210,6 +214,7 @@ proc tktags::reload {} {
     variable repo
     variable tags
     variable status
+    variable tips {}
     array unset tags
     try {
         set rows [fossil::sql $repo "WITH r AS (SELECT x.tagid, x.rid, x.tagtype,\
@@ -242,9 +247,10 @@ proc tktags::reload {} {
     }
     foreach row $rows {
         lassign $row name kind count uuid date user comment branch
+        set propagates [expr {$kind == 2}]
         set kind [expr {[string match " *" $name] ? "Property" : [lindex {Cancelled Tag Branch} $kind]}]
         if {$kind eq "Branch" && ![dict exists $branches $name]} { set kind Tag }
-        set tags($name) [dict create kind $kind count $count \
+        set tags($name) [dict create kind $kind count $count propagates $propagates \
             uuid $uuid date $date user $user branch $branch \
             comment [fossil::oneLine $comment]]
     }
@@ -309,6 +315,10 @@ proc tktags::showDetails {name} {
         ? "The branch in the Branches tab" : "The branch of its check-in, [branchOf $name], in the Branches tab"}]
     .tags.b.browse state [expr {$ok && [dict get $tags($name) kind] ne "Property" ? "!disabled" : "disabled"}]
     .tags.b.cancel state [expr {$ok && [dict get $tags($name) kind] in {Tag Property} ? "!disabled" : "disabled"}]
+    set why [unmovable $name]
+    .tags.b.move state [expr {$why eq "" ? "!disabled" : "disabled"}]
+    icons::tooltip .tags.b.move [expr {$why eq "" ? "Move the tag to the newest check-in of [branchOf $name]"
+        : "Move the tag to the newest check-in of its branch: $why"}]
     if {!$ok} {
         $d configure -state disabled
         return
@@ -400,6 +410,56 @@ proc tktags::cancelTag {} {
     tagwrite::cancelTag $repo $name $uuid $raw [list tktags::changed $selected]
 }
 
+# The newest check-in of BRANCH (as Fossil takes for its name).
+proc tktags::tipOf {branch} {
+    variable repo
+    variable tips
+    if {![dict exists $tips $branch]} {
+        dict set tips $branch [lindex [fossil::sql $repo "SELECT b.uuid FROM tagxref x\
+            JOIN event e ON e.objid=x.rid JOIN blob b ON b.rid=x.rid\
+            WHERE x.tagid=(SELECT tagid FROM tag WHERE tagname='branch') AND x.tagtype>0\
+            AND x.value=[fossil::sqlstr $branch] ORDER BY e.mtime DESC LIMIT 1"] 0 0]
+    }
+    dict get $tips $branch
+}
+
+# Why the tag NAME cannot be moved to the tip of its branch, or "": only a
+# tag on one check-in, that does not propagate (a branch name, or one that
+# goes on to the descendants, is on many), on a branch.
+proc tktags::unmovable {name} {
+    variable tags
+    if {$name eq "" || ![info exists tags($name)]} { return "no tag selected" }
+    set g $tags($name)
+    switch [dict get $g kind] {
+        Branch { return "a branch name" }
+        Cancelled { return "cancelled" }
+        Property { return "a property" }
+    }
+    if {[dict get $g propagates]} { return "it propagates to the descendants" }
+    if {[dict get $g count] != 1} { return "it is on [dict get $g count] check-ins" }
+    set branch [dict get $g branch]
+    if {$branch eq ""} { return "not on a check-in of a branch" }
+    if {[tipOf $branch] eq [dict get $g uuid]} { return "already on the newest check-in of $branch" }
+    return ""
+}
+
+# Move the tag shown to the newest check-in of its branch.
+proc tktags::moveTag {} {
+    variable repo
+    variable tags
+    variable selected
+    if {[unmovable $selected] ne ""} { bell; return }
+    set g $tags($selected)
+    set name [string trim $selected]
+    set from [dict get $g uuid]
+    set branch [dict get $g branch]
+    set value [lindex [fossil::sql $repo "SELECT [fossil::outcol "coalesce(x.value,'')"] FROM tagxref x\
+        JOIN blob b ON b.rid=x.rid WHERE b.uuid=[fossil::sqlstr $from] AND x.tagtype=1\
+        AND x.tagid=(SELECT tagid FROM tag WHERE tagname=[fossil::sqlstr [rawName $selected]])"] 0 0]
+    tagwrite::moveTag $repo $name $from [tipOf $branch] "the tip of $branch" $value \
+        [list tktags::changed $selected]
+}
+
 # Which of the check-ins ROWS ({uuid date comment} each)?
 proc tktags::chooseCheckin {name rows} {
     variable choice
@@ -480,6 +540,8 @@ proc tktags::popupMenu {m item} {
     popup::separator $m
     popup::button $m .tags.b.add "Add tag\u2026"
     popup::button $m .tags.b.cancel "Cancel tag\u2026"
+    popup::button $m .tags.b.move [expr {[info exists tags($item)] && [branchOf $item] ne ""
+        ? "Move to the tip of [branchOf $item]\u2026" : "Move to the tip of its branch\u2026"}]
     popup::default $m [.tags.b.timeline cget -text]
 }
 

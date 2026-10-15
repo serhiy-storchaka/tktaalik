@@ -1,5 +1,5 @@
 # Changing the tags of check-ins, for the Timeline and Tags tabs: add and
-# cancel a tag ("fossil tag add/cancel"), edit a check-in ("fossil amend":
+# cancel a tag ("fossil tag add/cancel"), move one (both), edit a check-in ("fossil amend":
 # its comment, author, date, branch, colours, tags, closing, hiding), and
 # reparent it ("fossil reparent", for experts).  Each first runs the
 # command with --dry-run and shows what it would record, to confirm.  The
@@ -7,6 +7,7 @@
 #
 #   tagwrite::addTag REPO CHECKIN ?NAME? ?DONE?
 #   tagwrite::cancelTag REPO NAME CHECKIN ?RAW? ?DONE?
+#   tagwrite::moveTag REPO NAME FROM TO WHERE VALUE ?DONE?
 #   tagwrite::amend REPO RID ?DONE?
 #   tagwrite::reparent REPO CHECKIN ?DONE?
 #
@@ -164,6 +165,79 @@ proc tagwrite::cancelTag {repo name checkin {raw 0} {done ""}} {
     if {$raw} { lappend cmd --raw }
     lappend cmd [fossil::arg $name] [fossil::arg $checkin]
     apply "Cancel tag" "Cancel the tag $name on [string range $checkin 0 9]?" $repo $cmd $done
+}
+
+# Move the tag NAME (with the value VALUE) from the check-in FROM to TO
+# (WHERE says what TO is: "the tip of BRANCH"): add it there, then cancel
+# it on FROM unless it is kept.  Fossil has no command for a move: two
+# control artifacts, the add first, so that a failure leaves the tag on
+# both rather than on none.  (Adding alone already moves the name: Fossil
+# takes the newest check-in that has it.)
+proc tagwrite::moveTag {repo name from to where value {done ""}} {
+    variable f
+    foreach v [list $name $from $to] {
+        if {[catch {fossil::arg $v}]} {
+            failed "Move tag" "This name cannot be passed to fossil:" "\"$v\""
+            return 0
+        }
+    }
+    array set f [list keep 0 value $value]
+    set w [dialog .tagwrite "Move tag"]
+    ttk::label $w.l -justify left -text [string cat "Move $name\n" \
+        "    from [checkinLine $repo $from]\n" "    to $where, [checkinLine $repo $to]"]
+    ttk::label $w.vl -text "Value:"
+    ttk::entry $w.v -textvariable tagwrite::f(value) -width 40
+    ttk::checkbutton $w.k -text "Keep it on the old check-in too (the name goes to the new one anyway)" \
+        -variable tagwrite::f(keep)
+    grid $w.l - -sticky w -pady {0 6}
+    grid $w.vl $w.v -sticky w -pady 2
+    grid $w.k - -sticky w -pady 2
+    focus $w.v
+    bind .tagwrite <Return> {set tagwrite::answer 1}
+    if {![wait .tagwrite "Move\u2026" {::apply {{} {
+        if {$::tagwrite::f(value) ne "" && [catch {fossil::arg $::tagwrite::f(value)}]} {
+            return "A value cannot start with \"[string index $::tagwrite::f(value) 0]\"."
+        }
+    }}}]} { return 0 }
+    set cmds [list [list tag add $name $to {*}[expr {$f(value) eq "" ? "" : [list $f(value)]}]]]
+    if {!$f(keep)} { lappend cmds [list tag cancel $name $from] }
+    # The dry runs of both, in one question.
+    set text ""
+    foreach cmd $cmds {
+        lassign [fossil::run {*}$cmd -R $repo --dry-run] code out
+        if {$code} {
+            failed "Move tag" "fossil tag [lindex $cmd 1] failed:" $out
+            return 0
+        }
+        append text "fossil [join $cmd]\n\n[string trim $out]\n\n"
+    }
+    if {![confirm "Move tag" [expr {$f(keep) ? "Add $name to $where as well?"
+            : "Move $name to $where?"}] $text \
+            -note "Only the local repository is changed: nothing is pushed.\
+                After a push, the name means the new check-in for everyone who pulls:\
+                do not move a tag others rely on, such as a release."]} {
+        return 0
+    }
+    foreach cmd $cmds {
+        lassign [fossil::run {*}$cmd -R $repo] code out
+        if {$code} {
+            failed "Move tag" "fossil tag [lindex $cmd 1] failed:" $out
+            break
+        }
+    }
+    if {$done ne ""} { uplevel #0 $done }
+    return [expr {!$code}]
+}
+
+# A check-in in one line: its short hash, date and comment.
+proc tagwrite::checkinLine {repo uuid} {
+    set row [lindex [fossil::sql $repo "SELECT strftime('%Y-%m-%d %H:%M', e.mtime),\
+        [fossil::outcol "coalesce(e.ecomment,e.comment,'')"] FROM event e JOIN blob b ON b.rid=e.objid\
+        WHERE b.uuid=[fossil::sqlstr $uuid]"] 0]
+    lassign $row date comment
+    set comment [fossil::oneLine $comment]
+    if {[string length $comment] > 60} { set comment [string range $comment 0 58]\u2026 }
+    string trimright "[string range $uuid 0 9]  $date  $comment"
 }
 
 # ---------------------------------------------------------------- amend

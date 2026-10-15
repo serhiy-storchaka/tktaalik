@@ -124,6 +124,7 @@ proc help::context {{w ""}} {
         set title [wm title .tagwrite]
         if {[string match "Add tag*" $title]} { set best timeline#tags-on-check-ins }
         if {[string match "Reparent*" $title]} { set best timeline#tags-on-check-ins }
+        if {[string match "Move tag*" $title]} { set best tags#move }
         if {[string match "Save * as an archive*" $title]} { set best timeline#archives }
         if {[string match "Export a bundle*" $title] || [string match "Import *" $title]} { set best branches#bundles }
         if {[string match "Common ancestor*" $title]} { set best branches#the-branch-menu }

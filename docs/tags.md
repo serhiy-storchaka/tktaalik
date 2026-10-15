@@ -51,12 +51,13 @@ and right-click a heading to choose the columns.
 |---|---|
 | Add… | Add the selected tag (or another) to a check-in; see [Adding and cancelling tags](#adding-and-cancelling-tags) |
 | Cancel… | Cancel the selected tag on a check-in it is on (tags and properties) |
+| Move… | Move the selected tag to the newest check-in of its branch; see [Move…](#move) |
 | Show in Timeline | The tag's check-in in the [Timeline](timeline.md) (not for branch names); also a double-click |
 | Show in Branches | The branch in the [Branches](branches.md) tab: a branch name's own, else the branch of the tag's check-in |
 | Open in browser | The server's timeline of the tag (`/timeline?t=NAME`; not for properties) |
 
 The context menu of a tag, and the **Tag** menu for the tag selected,
-have these buttons (Add tag… and Cancel tag… there;
+have these buttons (Add tag…, Cancel tag… and **Move to the tip of BRANCH…** there;
 Show in Branches is **Show branch NAME** there for a tag that is not a branch name),
 **Save as archive…**
 (the tag's check-in, a release…, as a ZIP, tarball or SQL archive:
@@ -143,3 +144,26 @@ Cancelling a tag that propagates also ends it on the descendants.
 Branch names are not cancelled here: close,
 hide or rename branches in the [Branches](branches.md#managing-branches) tab or
 with [Edit check-in](timeline.md#editing-check-ins).
+
+### Move…
+
+Moves the selected tag to the newest check-in of the branch its check-in is on:
+for a tag that follows a branch, such as `stable` or `deployed`.
+Fossil has no command for it:
+the tag is added to the newest check-in (`fossil tag add`, with the same value),
+then cancelled on the old one (`fossil tag cancel`).
+A window shows where from and where to, the value,
+and **Keep it on the old check-in too**;
+**Move…** shows both dry runs, and only **Apply** changes the repository.
+The add comes first: if the cancel fails, the tag is on both check-ins.
+
+Adding alone already moves the name:
+where a tag is on several check-ins,
+Fossil takes the newest of them for the name (`fossil update stable`).
+The cancel makes the old check-in no longer show it.
+
+Move is only for a tag on one check-in, on a branch,
+that does not propagate and is not on the newest check-in already;
+the button's tooltip says why it is disabled.
+Do not move a tag that others rely on, such as a release:
+after your push, the name means the new check-in for everyone who pulls.
