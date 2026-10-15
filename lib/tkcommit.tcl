@@ -663,6 +663,8 @@ proc tkcommit::build {} {
     .commit.menu add cascade -label Commit -underline 0 -menu [menu .commit.menu.commit]
     menu .commit.menu.commit.diffopts
     diffopts::menu .commit.menu.commit.diffopts tkcommit::refresh
+    menu .commit.menu.commit.bases -tearoff 0 \
+        -postcommand {tkbranches::fillBaseMenu .commit.menu.commit.bases $tkcommit::root tkcommit::refresh}
     foreach {label command accel} {
         "Side-by-side diff"             tkcommit::sideBySide    ""
         "Diff of all changes"           tkcommit::diffAll       ""
@@ -685,6 +687,7 @@ proc tkcommit::build {} {
         "Update\u2026"                      tkcommit::updateCheckout ""
         "Update files to a version\u2026"   tkcommit::updateFiles   ""
         "Merge fork\u2026"                  tkcommit::mergeFork     ""
+        "Merge a base branch"           >bases                  ""
         "Switch the version, keep the files\u2026" tkcommit::switchKeep ""
         "Set the times of files\u2026"      tkcommit::touchFiles    ""
         --                              {}                      ""

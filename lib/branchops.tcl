@@ -265,7 +265,8 @@ proc tkbranches::updateTo {name {label ""}} {
     showOutput "Update to $name" [expr {$code ? "fossil update failed:" : "Updated to $label."}] $out
 }
 
-# Merge $what ({branch NAME}, {checkin UUID}, {cherrypick UUID} or {backout
+# Merge $what ({branch NAME}, {base NAME}: a branch the checkout's was
+# made from, never integrated; {checkin UUID}, {cherrypick UUID} or {backout
 # UUID}) into the checkout, after a dry run (with -v: what it merges from,
 # the baseline and the pivot), with the options of fossil merge: integrate
 # (a branch), keep the merge files (-K), force (-f), a baseline, binary
@@ -298,8 +299,8 @@ proc tkbranches::mergeIn {kind what done} {
     lassign [inCheckout branch current] code out
     set current [expr {$code ? $current : [string trim $out]}]
     array set mergeOpt {integrate 0 keep 0 force 0 baseline "" binary "" answer ""}
-    set label [dict get {branch "Merge" checkin "Merge" cherrypick "Cherry-pick" backout "Back out"} $kind]
-    set message "$label [expr {$kind eq "branch" ? $what : [string range $what 0 9]}]\
+    set label [dict get {branch "Merge" base "Merge" checkin "Merge" cherrypick "Cherry-pick" backout "Back out"} $kind]
+    set message "$label [expr {$kind in {branch base} ? $what : [string range $what 0 9]}]\
         into the checkout (on $current)?  The files change, nothing is committed."
     if {[changedFiles] ne ""} {
         append message "  The checkout already has uncommitted changes."
@@ -387,9 +388,70 @@ proc tkbranches::mergeIn {kind what done} {
             tktaalik::openPath $root
             tktaalik::show commit
         }
+    } elseif {$::tktaalik::active eq "commit"} {
+        # (From the Commit tab: the merge is there to see.)
+        showOutput $label "Merged into the checkout." $out
     } elseif {[ui::ask -title $label \
             "Merged into the checkout." "[string trim $out]\n\nOpen the commit window?"]} {
         commitWindow
+    }
+}
+
+# The bases of the branch of the checkout DIR, nearest first: the branch
+# it was made from, the one that was made from, ... (A made from B, B
+# from main: B, then main), each with how many of its check-ins the
+# checkout does not have yet (not among its ancestors, through merges
+# too, nor merged into it uncommitted): {{NAME COUNT} ...}.  Closed ones
+# are left out (as trunk, the old name of main: closed where main goes on).
+proc tkbranches::checkoutBases {dir} {
+    if {[catch {fossil::checkoutSql $dir "WITH RECURSIVE
+         tg(branch) AS (SELECT tagid FROM tag WHERE tagname='branch'),
+         co(rid) AS (SELECT value FROM vvar WHERE name='checkout'),
+         chain(name, depth) AS (
+          SELECT x.value, 0 FROM tagxref x, tg, co
+          WHERE x.rid=co.rid AND x.tagid=tg.branch AND x.tagtype>0
+          UNION
+          SELECT (SELECT px.value FROM plink p JOIN tagxref px ON px.rid=p.pid
+            AND px.tagid=tg.branch AND px.tagtype>0
+            WHERE p.isprim AND p.cid=(SELECT x.rid FROM tagxref x JOIN event e ON e.objid=x.rid
+             WHERE x.tagid=tg.branch AND x.tagtype>0 AND x.value=chain.name
+             ORDER BY e.mtime LIMIT 1)), depth+1
+          FROM chain, tg WHERE chain.name IS NOT NULL AND depth<20),
+         anc(rid) AS (SELECT rid FROM co
+          UNION SELECT merge FROM vmerge WHERE id IN (0,-4)
+          UNION SELECT p.pid FROM plink p JOIN anc ON p.cid=anc.rid)
+        SELECT name, (SELECT count(*) FROM tagxref x, tg WHERE x.tagid=tg.branch
+          AND x.tagtype>0 AND x.value=chain.name AND x.rid NOT IN anc)
+        FROM chain WHERE depth>0 AND name IS NOT NULL
+          AND name NOT IN (SELECT name FROM chain WHERE depth=0)
+          AND NOT EXISTS (SELECT 1 FROM tagxref c WHERE c.tagtype>0
+           AND c.tagid=(SELECT tagid FROM tag WHERE tagname='closed')
+           AND c.rid=(SELECT x.rid FROM tagxref x, tg JOIN event e ON e.objid=x.rid
+            WHERE x.tagid=tg.branch AND x.tagtype>0 AND x.value=chain.name
+            ORDER BY e.mtime DESC LIMIT 1))
+        GROUP BY name ORDER BY min(depth)"} rows]} {
+        return {}
+    }
+    return $rows
+}
+
+# The submenu M: merge a base of the checkout's branch (checkoutBases)
+# into the checkout DIR, in the merge dialog; DONE after it.
+proc tkbranches::fillBaseMenu {m dir done} {
+    $m delete 0 end
+    set bases [expr {$dir eq "" ? {} : [checkoutBases $dir]}]
+    if {![llength $bases]} {
+        $m add command -label [expr {$dir eq "" ? "No checkout" : "No base branch"}] -state disabled
+        return
+    }
+    foreach row $bases {
+        lassign $row name n
+        if {$n == 0} {
+            $m add command -label "$name: up to date" -state disabled
+        } else {
+            $m add command -label "$name: $n new check-in[expr {$n == 1 ? "" : "s"}]\u2026" \
+                -command [list tkbranches::merge base $name $dir $done]
+        }
     }
 }
 
@@ -397,7 +459,7 @@ proc tkbranches::mergeIn {kind what done} {
 proc tkbranches::mergeOpts {kind} {
     variable mergeOpt
     set opts [list {*}[fossil::nosync merge] {*}[dict get {
-        branch {} checkin {} cherrypick --cherrypick backout --backout} $kind]]
+        branch {} base {} checkin {} cherrypick --cherrypick backout --backout} $kind]]
     if {$kind eq "branch" && $mergeOpt(integrate)} { lappend opts --integrate }
     if {$mergeOpt(keep)} { lappend opts -K }
     if {$mergeOpt(force)} { lappend opts -f }

@@ -62,6 +62,7 @@ The Branch column is always shown.
 |---|---|
 | Update checkout to NAME | See [Update and merge](#update-and-merge) (needs a checkout) |
 | Merge into checkout… | See [Update and merge](#update-and-merge) (needs a checkout) |
+| Merge a base branch ▸ | (the branch of the checkout) Its bases with how many check-ins are new; see [Update and merge](#update-and-merge) |
 | Timeline in browser | The server's timeline of the branch |
 | Close, Reopen, Hide, Unhide | See [Managing branches](#managing-branches) |
 | New branch from here… | A new branch from its last check-in |
@@ -279,6 +280,17 @@ Neither pulls first (`--nosync`).
   (globs, `--binary`). **Dry run again** shows the dry run with the options
   changed; the merge button runs it with them
   (after a dry run of the same options).
+- **Merge a base branch ▸**
+  (in the menu of the branch the checkout is on, and in the [Commit](commit.md#merges) menu)
+  lists the branches it was made from, nearest first:
+  for a branch A made from B, and B made from main, B and then main.
+  Each says how many of its check-ins the checkout does not have yet,
+  through earlier merges too (an uncommitted merge counts),
+  or "up to date";
+  choosing one merges it into the checkout in the same window,
+  without Integrate (a base is not closed).
+  Closed branches are left out
+  (such as trunk in a repository where it was renamed main).
 - **Cherry-pick into checkout…** and **Back out in checkout…**
   (check-in menu) apply or undo one check-in's changes
   (`--cherrypick`, `--backout`).

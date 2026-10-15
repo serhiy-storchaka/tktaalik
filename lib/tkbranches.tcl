@@ -1183,6 +1183,14 @@ proc tkbranches::fillBranchMenu {m name} {
         -command [list tkbranches::updateTo $name]
     $m add command -label "Merge into checkout\u2026" -state $co \
         -command [list tkbranches::merge branch $name]
+    # (The branch of the checkout: its bases into it.)
+    variable current
+    destroy $m.bases
+    if {$co eq "normal" && $name eq $current} {
+        menu $m.bases -tearoff 0
+        fillBaseMenu $m.bases $root tkbranches::reload
+        $m add cascade -label "Merge a base branch" -menu $m.bases
+    }
     $m add separator
     $m add command -label "Timeline in browser" -state $state \
         -command [list tkbranches::openUrl timeline?r=[fossil::urlquery $name]]

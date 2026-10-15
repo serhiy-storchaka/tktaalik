@@ -482,6 +482,10 @@ see [Update and merge](branches.md#update-and-merge).
 ## Merges
 
 Merges are made in the [Branches](branches.md) tab.
+**Commit ▸ Merge a base branch ▸** merges the branch the checkout's branch was made from,
+or the one that was made from (main…),
+with how many check-ins each has that the checkout does not:
+see [Update and merge](branches.md#update-and-merge).
 While a merge (or a cherry-pick,
 a back-out or an integrating merge) is in progress in the checkout,
 the Commit tab:
