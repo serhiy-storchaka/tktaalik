@@ -224,6 +224,9 @@ proc tkbranches::targetHeading {name} {
 # One query for all branches.  A check-in's branch is its "branch" tag;
 # the last check-in is the tip.  A branch is closed or hidden if its tip
 # is.  "Merged into T": its check-ins among the ancestors of T's tip.
+# (The hashes of the tips from the index of hashes, read in order: looked
+# up by rid, each is in a row of the blob table next to its content, and
+# on a slow disk the rows of thousands of tips take seconds to reach.)
 # The check-ins of the branches (ci), the newest of each (tip): the start
 # of both queries.
 proc tkbranches::branchCtes {} {
@@ -258,6 +261,8 @@ proc tkbranches::mergeQuery {target} {
 # All branches: one row each, without the merge states (mergeQuery).
 proc tkbranches::branchQuery {} {
     return "WITH RECURSIVE [branchCtes],
+     tiphash(rid, uuid) AS MATERIALIZED (
+      SELECT rid, uuid FROM blob WHERE uuid>='' AND +rid IN (SELECT rid FROM tip)),
      first(name, rid, mtime) AS MATERIALIZED (
       SELECT name, rid, min(mtime) FROM ci GROUP BY name),
      users(name, list) AS MATERIALIZED (
@@ -293,7 +298,7 @@ proc tkbranches::branchQuery {} {
        AND x.tagid=tg.branch AND x.tagtype>0 WHERE p.cid=first.rid AND p.isprim)"],''),
      coalesce(leaves.n,0), coalesce(core.state,0), coalesce([fossil::outcol core.list],''),
      coalesce(tickets.list,''),
-     (SELECT uuid FROM blob WHERE rid=tip.rid),
+     (SELECT uuid FROM tiphash WHERE rid=tip.rid),
      [fossil::outcol "(SELECT coalesce(ecomment,comment) FROM event WHERE objid=tip.rid)"],
      coalesce([fossil::outcol comments.text],'')
     FROM tip JOIN first USING(name) JOIN users USING(name)
