@@ -70,8 +70,16 @@ proc tkfiles::versions {} {
     variable root
     set list {}
     if {$root ne ""} { lappend list checkout }
-    lassign [fossil::run branch list -R $repo] code out
-    set branches [lmap line [split $out \n] { string trim $line " *#" }]
+    # The open branches, as "fossil branch list" has them (the newest
+    # check-in not closed), from the leaves: the newest check-in of a
+    # branch is one.  ("branch list" looks at every check-in, which takes
+    # seconds in a large repository on a slow disk.)
+    set branches [lmap row [sql "SELECT [fossil::outcol n.name] FROM (SELECT x.value AS name,
+            l.rid AS rid, max(e.mtime) FROM leaf l CROSS JOIN tagxref x CROSS JOIN event e
+            WHERE x.rid=l.rid AND x.tagid=(SELECT tagid FROM tag WHERE tagname='branch')
+            AND x.tagtype>0 AND e.objid=l.rid GROUP BY x.value) AS n
+        WHERE NOT EXISTS(SELECT 1 FROM tagxref c WHERE c.rid=n.rid AND c.tagtype>0
+            AND c.tagid=(SELECT tagid FROM tag WHERE tagname='closed'))"] { lindex $row 0 }]
     foreach b {main trunk} { if {$b in $branches} { lappend list $b } }
     foreach b [lsort -dictionary $branches] { if {$b ni $list && $b ne ""} { lappend list $b } }
     return $list

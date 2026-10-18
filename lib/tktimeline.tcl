@@ -30,6 +30,7 @@ namespace eval tktimeline {
     variable view all           ;# all lastpull outgoing private
     variable limit 1000         ;# rows shown; More doubles it
     variable searched {}        ;# the query and view of the list shown
+    variable pulled             ;# the last pull: see lastPull
     variable status ""
     variable rows               ;# array: rid -> dict of the row
     variable config {}
@@ -296,12 +297,33 @@ proc tktimeline::setView {} {
     search
 }
 
+# The last pull from a server that brought events: {rcvid rid time},
+# with the rid of the newest artifact before it; {} if none.  (The blob
+# table has no index on rcvid, and its rows hold the content: anything
+# that looks for the artifacts of one pull reads the whole repository, a
+# minute on a slow disk.  The newest artifacts are looked at instead, and
+# the pull's are those above that rid, since rids grow as artifacts come.
+# Left out: an artifact the pull filled in that was a phantom before it.)
+proc tktimeline::lastPull {} {
+    set row [lindex [sql "SELECT p.rcvid, coalesce((SELECT rid FROM blob
+            WHERE rcvid<p.rcvid AND size>=0 ORDER BY rid DESC LIMIT 1),0), p.time
+        FROM (SELECT b.rcvid AS rcvid, datetime(r.mtime) AS time
+            FROM blob b CROSS JOIN event e CROSS JOIN rcvfrom r
+            WHERE e.objid=b.rid AND r.rcvid=b.rcvid AND r.ipaddr IS NOT NULL
+            ORDER BY b.rid DESC LIMIT 1) AS p"] 0]
+    return $row
+}
+
 # The condition of a view.
 proc tktimeline::viewCondition {view} {
     switch -- $view {
-        lastpull { return "b.rcvid=(SELECT rcvid FROM rcvfrom WHERE ipaddr IS NOT NULL
-            AND rcvid IN (SELECT rcvid FROM blob JOIN event ON objid=rid)
-            ORDER BY rcvid DESC LIMIT 1)" }
+        lastpull {
+            variable pulled
+            if {![info exists pulled]} { set pulled [lastPull] }
+            if {![llength $pulled]} { return 0 }
+            lassign $pulled rcvid below
+            return "e.objid>$below AND b.rcvid=$rcvid"
+        }
         outgoing { return "e.objid IN (SELECT rid FROM unsent)" }
         private  { return "e.objid IN (SELECT rid FROM private)" }
         default  { return 1 }
@@ -348,10 +370,14 @@ proc tktimeline::search {{remember 0}} {
     }
     set busy [ui::busyHold]
     try {
+        variable pulled [lastPull]
         set counts {}
         foreach v {all lastpull outgoing private} {
-            dict set counts $v [lindex [sql "SELECT count(*) FROM event e JOIN blob b ON b.rid=e.objid
-                WHERE ($where) AND [viewCondition $v]"] 0 0]
+            # (The blob table only when needed: looking up every event's
+            # reads most of the repository.)
+            set cond "($where) AND [viewCondition $v]"
+            set from [expr {[regexp {\mb\.} $cond] ? "event e JOIN blob b ON b.rid=e.objid" : "event e"}]
+            dict set counts $v [lindex [sql "SELECT count(*) FROM $from WHERE $cond"] 0 0]
         }
         set result [sql "SELECT e.objid, e.type, strftime('%Y-%m-%d %H:%M', e.mtime),
             [fossil::outcol coalesce(e.euser,e.user)],
@@ -365,9 +391,7 @@ proc tktimeline::search {{remember 0}} {
             FROM event e JOIN blob b ON b.rid=e.objid
             WHERE ($where) AND [viewCondition $view]
             ORDER BY e.mtime DESC LIMIT $limit"]
-        set lastPull [lindex [sql "SELECT datetime(mtime) FROM rcvfrom WHERE ipaddr IS NOT NULL
-            AND rcvid IN (SELECT rcvid FROM blob JOIN event ON objid=rid)
-            ORDER BY rcvid DESC LIMIT 1"] 0 0]
+        set lastPull [lindex $pulled 2]
         set unsent [lindex [sql "SELECT count(*) FROM unsent"] 0 0]
         set private [lindex [sql "SELECT count(*) FROM private"] 0 0]
     } trap {FOSSIL DB} msg {

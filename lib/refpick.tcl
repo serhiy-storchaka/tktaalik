@@ -26,9 +26,12 @@ proc refpick::resolve {repo kind text} {
     set text [string trim $text]
     if {$repo eq "" || $text eq ""} { return "" }
     if {$kind eq "branch"} {
-        set rows [fossil::sql $repo "SELECT 1 FROM tagxref WHERE tagtype>0
-            AND tagid=(SELECT tagid FROM tag WHERE tagname='branch')
-            AND value=[fossil::sqlstr $text] LIMIT 1"]
+        # (Through its sym- tag, as goto::find.)
+        set q [fossil::sqlstr $text]
+        set rows [fossil::sql $repo "SELECT 1 FROM tagxref s CROSS JOIN tagxref x
+            WHERE s.tagid=(SELECT tagid FROM tag WHERE tagname='sym-'||$q) AND s.tagtype>0
+            AND x.tagid=(SELECT tagid FROM tag WHERE tagname='branch') AND x.rid=s.rid
+            AND x.tagtype>0 AND x.value=$q LIMIT 1"]
         return [expr {[llength $rows] ? $text : ""}]
     }
     if {![regexp {^[0-9a-fA-F]{4,64}$} $text]} { return "" }

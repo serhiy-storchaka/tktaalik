@@ -110,7 +110,9 @@ proc tktimeline::startPull {} {
     if {$auth ne ""} { lappend cmd --httpauth=$auth }
     lappend cmd -R $repo
     variable pullCmd $cmd
-    set pullBefore [lindex [fossil::sql $repo "SELECT coalesce(max(rcvid),0) FROM rcvfrom"] 0 0]
+    variable ridBefore
+    lassign [lindex [fossil::sql $repo "SELECT (SELECT coalesce(max(rcvid),0) FROM rcvfrom),
+        (SELECT coalesce(max(rid),0) FROM blob)"] 0] pullBefore ridBefore
     try {
         set pullChan [fossil::lenient [open |[list {*}$cmd 2>@1] r+]]
     } on error msg {
@@ -160,9 +162,12 @@ proc tktimeline::pullOutput {} {
         }
     }
     # What came: the Last pull view if it came from a server (the view
-    # knows pulls by their address); else everything.
-    set new [fossil::sql $repo "SELECT ipaddr IS NOT NULL FROM rcvfrom WHERE rcvid>$pullBefore
-        AND rcvid IN (SELECT rcvid FROM blob JOIN event ON objid=rid)"]
+    # knows pulls by their address); else everything.  (The new artifacts
+    # by their rids: see lastPull.)
+    variable ridBefore
+    set new [fossil::sql $repo "SELECT DISTINCT r.ipaddr IS NOT NULL
+        FROM blob b CROSS JOIN event e CROSS JOIN rcvfrom r
+        WHERE b.rid>$ridBefore AND e.objid=b.rid AND r.rcvid=b.rcvid AND b.rcvid>$pullBefore"]
     if {[llength $new]} {
         tktaalik::navigate
         set v [expr {[lsearch -exact [join $new] 1] >= 0 ? "lastpull" : "all"}]

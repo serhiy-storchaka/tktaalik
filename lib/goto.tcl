@@ -28,9 +28,12 @@ proc goto::find {text} {
     set found {}
     if {$text eq ""} { return {} }
     set q [fossil::sqlstr $text]
-    # A branch: its newest check-in carries it.
-    if {[llength [fossil::sql $repo "SELECT 1 FROM tagxref WHERE tagtype>0 AND value=$q\
-            AND tagid=(SELECT tagid FROM tag WHERE tagname='branch') LIMIT 1"]]} {
+    # A branch: its newest check-in carries it.  (Through its sym- tag: the
+    # values of tagxref have no index.)
+    if {[llength [fossil::sql $repo "SELECT 1 FROM tagxref s CROSS JOIN tagxref x\
+            WHERE s.tagid=(SELECT tagid FROM tag WHERE tagname='sym-'||$q) AND s.tagtype>0\
+            AND x.tagid=(SELECT tagid FROM tag WHERE tagname='branch') AND x.rid=s.rid\
+            AND x.tagtype>0 AND x.value=$q LIMIT 1"]]} {
         lappend found [list Branch $text "" [list goto::branch $text]]
     }
     # A tag (not a branch's own): the newest check-in with it.
