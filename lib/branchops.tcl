@@ -368,9 +368,18 @@ proc tkbranches::mergeIn {kind what done {versions {}}} {
     grid rowconfigure $w.f [dict get [grid info $w.f.t] -row] -weight 1
     bind $w <Escape> {set tkbranches::mergeOpt(answer) cancel}
     wm protocol $w WM_DELETE_WINDOW {set tkbranches::mergeOpt(answer) cancel}
-    # (Squash: the check-ins VERSIONS, each cherry-picked, in one merge.)
+    # (Squash: the check-ins VERSIONS, each cherry-picked, in one merge.
+    # Fossil 2.24 and older merge one version at a time: then one merge
+    # each, the dry run of the first only, as the others need it done.)
     set shown $what
-    if {$kind eq "squash"} { set shown [join $versions "\n    "] }
+    set several [expr {$kind ne "squash" || [fossil::helpMatches merge "*VERSION ...*"]}]
+    if {$kind eq "squash"} {
+        set shown [join $versions "\n    "]
+        if {!$several} {
+            append shown "\n\n(This Fossil merges one version at a time: the dry run is of the\
+                first; the others are merged after it, one by one.)"
+        }
+    }
     # (The options and version of the dry run shown; none yet: they can be
     # none too.)
     set dry ""
@@ -378,7 +387,7 @@ proc tkbranches::mergeIn {kind what done {versions {}}} {
     while 1 {
         set opts [mergeOpts $kind]
         if {$kind eq "base"} { set what [baseName $mergeOpt(what)]; set shown $what }
-        set arg [expr {$kind eq "squash" ? $versions : [list $what]}]
+        set arg [expr {$kind ne "squash" ? [list $what] : $several ? $versions : [lrange $versions 0 0]}]
         if {$opts eq "-"} {
             tk_messageBox -parent $w -icon info -title $label \
                 -message "The baseline and the binary files cannot start with \"-\", \"<\", \">\" or \"|\"."
@@ -407,7 +416,22 @@ proc tkbranches::mergeIn {kind what done {versions {}}} {
     }
     set dry [lindex $dry 0]
     destroy $w
-    lassign [inCheckout merge {*}$dry {*}$arg] code out
+    if {$several} {
+        lassign [inCheckout merge {*}$dry {*}$arg] code out
+    } else {
+        set out ""
+        foreach v $versions {
+            lassign [inCheckout merge {*}$dry $v] code more
+            append out "fossil merge [join $dry] [string range $v 0 9]\n[string trim $more]\n\n"
+            if {$code} break
+        }
+        # (One failed: the ones before it undone too, the checkout as it
+        # was before the squash, which needs it clean.)
+        if {$code} {
+            lassign [inCheckout revert] rcode rout
+            append out "fossil revert\n[string trim $rout]"
+        }
+    }
     uplevel #0 $done
     if {$code} {
         showOutput $label "fossil merge failed:" $out
