@@ -35,6 +35,9 @@ and the tree stays as it was.
 The tree shows, for each file,
 when it **Last changed** before that version and its **Size**
 (as `fossil ls --age -v`); a directory shows the newest change of its files.
+The files are shown at once, the dates and sizes when Fossil has worked them out:
+in a large repository on a slow disk that can take seconds,
+and the status line says "reading when each changed…" meanwhile.
 Click a heading to sort the tree by name,
 by date (newest first) or by size (biggest first), within each directory;
 click it again for the other order.

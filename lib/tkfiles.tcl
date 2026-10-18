@@ -28,6 +28,7 @@ namespace eval tkfiles {
     variable blameOrigin ""     ;# reverse blame: towards this version (-o)
     variable blameLimit none    ;# how far back: none, N versions, Xs (-n)
     variable fileInfo           ;# array: path -> {date size} at the version
+    variable ageJob ""          ;# the "fossil ls -v" reading them
     variable treeSort {name 0}  ;# the tree's order: name, age or size; descending
     variable grepPattern ""     ;# Find in history: the regular expression
     variable grepCase 0         ;# -i
@@ -99,23 +100,59 @@ proc tkfiles::showVersion {} {
     }
     set hash $h
     variable shownVersion [string trim $version]
-    # With when each file last changed and its size ("ls --age -v").
-    lassign [fossil::run ls --age -v -R $repo -r $hash] code out
+    # The files at once, from the manifest; when each last changed and its
+    # size after, in the background: "fossil ls" works them out from the
+    # history and the sizes of all the files, which takes seconds in a
+    # large repository on a slow disk (whatever its options).
+    variable ageJob
+    if {$ageJob ne ""} { fossil::stop $ageJob }
+    set ageJob ""
+    variable fileInfo
+    array unset fileInfo
+    if {[catch {sql "SELECT [fossil::outcol filename] FROM files_of_checkin([fossil::sqlstr $hash])
+            ORDER BY filename"} rows]} {
+        set status "Cannot read the files: $rows"
+        .files.status configure -foreground red3
+        return
+    }
+    .files.status configure -foreground ""
+    set files [lmap row $rows { lindex $row 0 }]
+    set ageJob [fossil::start -encoding utf-8 -onDone [list tkfiles::agesRead $hash] \
+        ls --age -v -R $repo -r $hash]
+    fillTree
+}
+
+# The dates and sizes of the files of the version shown ("ls --age -v").
+proc tkfiles::agesRead {forHash code out stopped msg} {
+    variable hash
+    variable ageJob
+    variable fileInfo
+    variable status
+    if {$stopped || $forHash ne $hash || ![winfo exists .files]} return
+    set ageJob ""
     if {$code} {
         set status "fossil ls failed: $out"
         .files.status configure -foreground red3
         return
     }
-    .files.status configure -foreground ""
-    variable fileInfo
-    array unset fileInfo
-    set files {}
     foreach line [split [string trim $out] \n] {
         if {![regexp {^(\S+ \S+)\s+(\d+)\s+(.*)$} [string trim $line] -> date size path]} continue
-        lappend files $path
         set fileInfo($path) [list [string range $date 0 15] $size]
     }
-    fillTree
+    # Into the rows shown, in place (what is open and selected stays).
+    set t .files.main.tree.t
+    foreach id [$t tag has dir] { $t set $id age "" }
+    foreach {path info} [array get fileInfo] {
+        if {![$t exists f:$path]} continue
+        lassign $info date size
+        $t item f:$path -values [list $date [sizeText $size]]
+        for {set p [$t parent f:$path]} {$p ne ""} {set p [$t parent $p]} {
+            if {[string compare $date [$t set $p age]] > 0} { $t set $p age $date }
+        }
+    }
+    variable treeSort
+    if {[lindex $treeSort 0] ne "name"} sortTree
+    set status [string map [list "  \u00b7  reading when each changed\u2026" ""] $status]
 }
 
 proc tkfiles::fillTree {} {
@@ -154,6 +191,8 @@ proc tkfiles::fillTree {} {
     }
     sortTree
     set status "$n file[expr {$n == 1 ? "" : "s"}] at $version ([string range $hash 0 9])"
+    variable ageJob
+    if {$ageJob ne ""} { append status "  \u00b7  reading when each changed\u2026" }
     if {$file ne "" && [$t exists f:$file]} {
         $t see f:$file
         $t selection set f:$file

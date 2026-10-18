@@ -8,7 +8,11 @@ proc lseq0 {n} { set r {}; for {set i 0} {$i <= $n} {incr i} { lappend r $i }; r
 start tickets "" 1300x900
 tktaalik::show files; update
 set tkfiles::version core-9-0-2
-tkfiles::showVersion; update
+# (Before the events: the dates may come at the first update.)
+tkfiles::showVersion
+check "the files at once, the dates after: $tkfiles::status" {[.files.main.tree.t exists f:doc/wm.n] && [.files.main.tree.t set f:doc/wm.n age] eq "" && [string match "*reading when each changed*" $tkfiles::status]}
+waitUntil {$tkfiles::ageJob eq ""}
+check "then the status without it: $tkfiles::status" {![string match "*reading*" $tkfiles::status]}
 set t .files.main.tree.t
 # Last changed, size.
 set f f:doc/wm.n
