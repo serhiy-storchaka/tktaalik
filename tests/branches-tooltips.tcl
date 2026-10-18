@@ -53,6 +53,8 @@ set tkbranches::query ""; tkbranches::search 1; update; hoverHead ci
 # The details of a big branch: the newest 1000 check-ins, and how many.
 set tkbranches::query ""; tkbranches::search 1; update
 .branches.main.list.t selection set main; update
+# (The lists of the details come in the background.)
+waitUntil {[string match "Check-ins (*" [.branches.main.details.nb tab 0 -text]]}
 set n [dict get $tkbranches::branches(main) checkins]
 set label [.branches.main.details.nb tab 0 -text]
 check "main: $label" {$n > 1000 && $label eq "Check-ins (1000 of $n)" && [llength [.branches.main.details.nb.checkins.t children {}]] == 1000}

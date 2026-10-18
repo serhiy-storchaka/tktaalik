@@ -50,6 +50,8 @@ set tkbranches::query ""; tkbranches::search; update
 $t selection set main; update
 set c .branches.main.details.nb.checkins.t
 .branches.main.details.nb select 0; update
+# (The lists of the details come in the background.)
+waitUntil {[llength [$c children {}]]}
 set ci [lindex [$c children {}] end]
 rename tk_popup realPopup
 proc tk_popup {m args} { set ::menu $m }

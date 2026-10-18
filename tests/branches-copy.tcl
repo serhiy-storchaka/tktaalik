@@ -45,6 +45,8 @@ check "branch menu: Add tag on its last check-in" {$::tagged eq $tip}
 
 # The check-ins.
 set c $nb.checkins.t
+# (The lists of the details come in the background.)
+waitUntil {[llength [$c children {}]]}
 set ci [lindex [$c children {}] 0]
 $c selection set [list $ci]; update
 check "Ctrl+C in Check-ins: the hash" {[copied $c] eq $ci && [string length $ci] >= 40}
@@ -62,6 +64,7 @@ check "check-in menu: Add tag on this check-in" {$::tagged eq $ci}
 # The tickets.
 set tk $nb.tickets.t
 $nb select $nb.tickets; update
+waitUntil {[llength [$tk children {}]]}
 set id [lindex [$tk children {}] 0]
 check "a ticket: $id" {$id ne ""}
 $tk selection set [list $id]; update
@@ -125,6 +128,7 @@ check "no double-click on a branch" {[bind $t <Double-1>] eq ""}
 # The Tickets tab: the status with its icon and resolution.
 $t selection set [list core-8-6-branch]; $t focus core-8-6-branch; update
 set k $nb.tickets.t
+waitUntil {[llength [$k children {}]]}
 set first [lindex [$k children {}] 0]
 set status [string trim [$k set $first status]]
 if {[package vsatisfies [package provide Tk] 9]} {

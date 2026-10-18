@@ -38,6 +38,8 @@ check "the confirmation names it" {[string match "*colour #8080ff*" [lindex $::b
 # Update to a check-in (an earlier one of main).
 $t selection set main; update
 set c .branches.main.details.nb.checkins.t
+# (The lists of the details come in the background.)
+waitUntil {[llength [$c children {}]]}
 set target [lindex [$c children {}] 3]
 tkbranches::updateTo $target "check-in [string range $target 0 9]"
 check "updated to [string range $target 0 9]: [string range [checkout] 0 9]" {[checkout] eq $target}

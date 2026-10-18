@@ -23,6 +23,7 @@ namespace eval tkbranches {
     variable root ""            ;# the checkout's top directory, or ""
     variable current ""         ;# the branch of the checkout
     variable squash 0           ;# rebase: cherry-pick the check-ins, not merge
+    variable detailJobs {}      ;# the queries of the details (sqlAsync)
     variable me ""              ;# the default user
     variable remote ""          ;# the server, for the browser
     variable targets {}         ;# the branches merges into are shown
@@ -978,8 +979,15 @@ proc tkbranches::showDetails {name} {
     variable tipHash
     variable targets
     set selected $name
+    # (The lists come in the background: those of the branch selected
+    # before are not wanted any more.)
+    variable detailJobs
+    foreach job $detailJobs { fossil::stop $job }
+    set detailJobs {}
     set c .branches.main.details.nb.checkins.t
     $c delete [$c children {}]
+    .branches.main.details.nb tab 0 -text Check-ins
+    .branches.main.details.nb tab 2 -text Tickets
     .branches.main.details.nb.tickets.t delete [.branches.main.details.nb.tickets.t children {}]
     clearFiles
     .branches.main.details.finish state [expr {[finishable $name] ? "!disabled" : "disabled"}]
@@ -1015,8 +1023,12 @@ proc tkbranches::showDetails {name} {
     lappend parts [expr {[llength $released] ? "released in [join $released {, }]" : "not released"}]
     set header [join $parts "  \u00b7  "]
 
-    # The check-ins, and the branches each was merged into.
-    set rows [sql "SELECT strftime('%Y-%m-%d %H:%M',e.mtime), b.uuid, coalesce(e.euser,e.user),
+    # The check-ins, and the branches each was merged into.  (In the
+    # background, as the tickets: a main branch has thousands, and on a
+    # slow disk reading them takes seconds.)
+    variable repo
+    lappend detailJobs [fossil::sqlAsync $repo "SELECT strftime('%Y-%m-%d %H:%M',e.mtime), b.uuid,
+        [fossil::outcol coalesce(e.euser,e.user)],
         [fossil::outcol "(SELECT group_concat(DISTINCT x.value) FROM plink p JOIN tagxref x
           ON x.rid=p.cid AND x.tagid=(SELECT tagid FROM tag WHERE tagname='branch')
           AND x.tagtype>0 WHERE p.pid=e.objid AND NOT p.isprim
@@ -1026,7 +1038,36 @@ proc tkbranches::showDetails {name} {
         FROM tagxref x JOIN event e ON e.objid=x.rid JOIN blob b ON b.rid=e.objid
         WHERE x.tagid=(SELECT tagid FROM tag WHERE tagname='branch') AND x.tagtype>0
         AND x.value=[fossil::sqlstr $name] AND e.type='ci' ORDER BY e.mtime DESC
-        LIMIT 1000"]
+        LIMIT 1000" [list tkbranches::checkinsRead $name]]
+
+    # The tickets.
+    set ids [dict get $b tickets]
+    .branches.main.details.nb tab 2 -text "Tickets ([llength $ids])"
+    if {[llength $ids]} {
+        # (Not every ticket setup has a resolution.)
+        set resolution [expr {[hasResolution] ? "coalesce(resolution,'')" : "''"}]
+        lappend detailJobs [fossil::sqlAsync $repo "SELECT tkt_uuid,
+            [fossil::outcol coalesce(status,'')],
+            [fossil::outcol $resolution], [fossil::outcol [::tickets::stateExpr]],
+            [fossil::outcol coalesce(type,'')], [fossil::outcol coalesce(title,'')]
+            FROM ticket WHERE [join [lmap id $ids {
+                string cat "tkt_uuid GLOB " [fossil::sqlstr $id*]
+            }] { OR }] ORDER BY tkt_mtime DESC" [list tkbranches::ticketsRead $name]]
+    }
+    if {[.branches.main.details.nb select] eq ".branches.main.details.nb.files"} { loadFiles }
+}
+
+# The check-ins of the branch NAME, read (showDetails).
+proc tkbranches::checkinsRead {name code rows} {
+    variable selected
+    variable branches
+    if {$name ne $selected || ![info exists branches($name)]} return
+    set c .branches.main.details.nb.checkins.t
+    if {$code} {
+        .branches.main.details.nb tab 0 -text "Check-ins (not read)"
+        tk_messageBox -icon error -title Branches -message "Cannot read the check-ins:" -detail $rows
+        return
+    }
     foreach row $rows {
         lassign $row date uuid user into comment leaf
         $c insert {} end -id $uuid -tags [expr {$leaf ? "leaf" : ""}] \
@@ -1036,47 +1077,42 @@ proc tkbranches::showDetails {name} {
     }
     if {[llength $rows]} { $c see [lindex [$c children {}] 0] }
     # (The newest 1000: a main branch can have tens of thousands.)
-    set n [dict get $b checkins]
+    set n [dict get $branches($name) checkins]
     .branches.main.details.nb tab 0 -text [expr {$n > [llength $rows]
         ? "Check-ins ([llength $rows] of $n)" : "Check-ins ($n)"}]
+}
 
-    # The tickets.
+# The tickets of the branch NAME, read (showDetails).
+proc tkbranches::ticketsRead {name code rows} {
+    variable selected
+    if {$name ne $selected} return
     set k .branches.main.details.nb.tickets.t
-    set ids [dict get $b tickets]
-    if {[llength $ids]} {
-        # (Not every ticket setup has a resolution.)
-        set resolution [expr {[hasResolution] ? "coalesce(resolution,'')" : "''"}]
-        set rows [sql "SELECT tkt_uuid, [fossil::outcol coalesce(status,'')],
-            [fossil::outcol $resolution], [fossil::outcol [::tickets::stateExpr]],
-            [fossil::outcol coalesce(type,'')], [fossil::outcol coalesce(title,'')]
-            FROM ticket WHERE [join [lmap id $ids {
-                string cat "tkt_uuid GLOB " [fossil::sqlstr $id*]
-            }] { OR }] ORDER BY tkt_mtime DESC"]
-        # The status with its icon, as in the Tickets tab: a cell image
-        # (Tk 9) or an emoji (Tk 8.6); and its resolution.  The tickets
-        # not open in grey, as there.
-        set cellImages [expr {![catch {$k tag cell has {}}]}]
-        set iconCells {}
-        foreach row $rows {
-            lassign $row uuid tstatus res state type title
-            set text [expr {$res in {"" None} || $tstatus eq "" ? $tstatus : "$tstatus \u00b7 $res"}]
-            set icon [tktsearch::iconName state $tstatus $res]
-            if {$icon ne "" && $cellImages} {
-                dict lappend iconCells $icon [list $uuid status]
-                set text " $text"
-            } elseif {$icon ne ""} {
-                set text "[tktsearch::sign state $tstatus $res] $text"
-            }
-            $k insert {} end -id $uuid -tags [expr {$state eq "open" ? "" : "inactive"}] \
-                -values [list [string range $uuid 0 9] $text $type $title]
-        }
-        dict for {icon cells} $iconCells {
-            $k tag configure icon:$icon -image [icons::get $icon row]
-            $k tag cell add icon:$icon $cells
-        }
+    if {$code} {
+        tk_messageBox -icon error -title Branches -message "Cannot read the tickets:" -detail $rows
+        return
     }
-    .branches.main.details.nb tab 2 -text "Tickets ([llength $ids])"
-    if {[.branches.main.details.nb select] eq ".branches.main.details.nb.files"} { loadFiles }
+    # The status with its icon, as in the Tickets tab: a cell image
+    # (Tk 9) or an emoji (Tk 8.6); and its resolution.  The tickets
+    # not open in grey, as there.
+    set cellImages [expr {![catch {$k tag cell has {}}]}]
+    set iconCells {}
+    foreach row $rows {
+        lassign $row uuid tstatus res state type title
+        set text [expr {$res in {"" None} || $tstatus eq "" ? $tstatus : "$tstatus \u00b7 $res"}]
+        set icon [tktsearch::iconName state $tstatus $res]
+        if {$icon ne "" && $cellImages} {
+            dict lappend iconCells $icon [list $uuid status]
+            set text " $text"
+        } elseif {$icon ne ""} {
+            set text "[tktsearch::sign state $tstatus $res] $text"
+        }
+        $k insert {} end -id $uuid -tags [expr {$state eq "open" ? "" : "inactive"}] \
+            -values [list [string range $uuid 0 9] $text $type $title]
+    }
+    dict for {icon cells} $iconCells {
+        $k tag configure icon:$icon -image [icons::get $icon row]
+        $k tag cell add icon:$icon $cells
+    }
 }
 
 # The changed files: the diff of the branch, made when the tab is shown

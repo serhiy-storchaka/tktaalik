@@ -2,6 +2,11 @@
 #
 #   fossil::run ARG...          run fossil, return {exit-code output}
 #   fossil::sql REPO STATEMENT  a read-only query, return a list of rows
+#   fossil::sqlAsync REPO STATEMENT CMD
+#                               the same in the background: CMD gets
+#                               {code rows} when they come (code 1: the
+#                               error message instead); a handle for
+#                               fossil::stop
 #   fossil::checkoutSql DIR STATEMENT  the same in the checkout DIR (its
 #                               tables too: vvar, vfile, stash, ...)
 #   fossil::hasSearch REPO      whether "fossil sql" has Fossil's search
@@ -203,8 +208,8 @@ proc fossil::arg {text} {
 #                               in the checkout ROOT, else with -R REPO
 #   fossil::inDir DIR BODY      BODY evaluated in the caller with DIR as the
 #                               cwd (restored; "": the cwd as it is)
-#   fossil::start ?-dir DIR? ?-encoding ENC? ?-onOutput CMD? ?-onDone CMD?
-#           ?-command LIST? ARG...
+#   fossil::start ?-dir DIR? ?-encoding ENC? ?-input TEXT? ?-onOutput CMD?
+#           ?-onDone CMD? ?-command LIST? ARG...
 #                               fossil ARG... (or the program LIST, whole)
 #                               in the background: a handle (a channel:
 #                               pid works).
@@ -314,14 +319,15 @@ proc fossil::inDir {dir body} {
 
 proc fossil::start {args} {
     variable jobs
-    set opts [Options args {-dir -encoding -onOutput -onDone -command}]
+    set opts [Options args {-dir -encoding -input -onOutput -onDone -command}]
     set command [expr {[dict exists $opts -command] ? [dict get $opts -command] : [list fossil {*}$args]}]
     set dir [expr {[dict exists $opts -dir] ? [dict get $opts -dir] : ""}]
     set here [pwd]
     if {$dir ne ""} { cd $dir }
     try {
         set cmd [command $command]
-        set chan [open |[list {*}$cmd << "" 2>@1] r]
+        set input [expr {[dict exists $opts -input] ? [dict get $opts -input] : ""}]
+        set chan [open |[list {*}$cmd << $input 2>@1] r]
     } finally {
         cd $here
     }
@@ -753,6 +759,31 @@ proc fossil::sqlMode {} {
         set sqlModes($exe) $mode
     }
     return $sqlModes($exe)
+}
+
+# The rows go into a temporary table first, then out: a query writing
+# into a pipe that is not read (no events while something else runs)
+# would wait in its read transaction, and every write to the repository
+# fail as "database is locked"; reading the temporary table locks nothing
+# of it.
+proc fossil::sqlAsync {repo statement cmd} {
+    set script "[sqlMode]\nCREATE TEMP TABLE rows AS [string map {\n { } \r { }} $statement];
+SELECT * FROM rows ORDER BY rowid;\n"
+    set chan [start -input $script -encoding utf-8 -onDone [list fossil::SqlDone $cmd] \
+        sql -R $repo --readonly]
+    fconfigure $chan -translation lf
+    return $chan
+}
+
+proc fossil::SqlDone {cmd code text stopped msg} {
+    if {$stopped} return
+    if {$code} {
+        uplevel #0 [list {*}$cmd 1 [string trim [lindex [split "$text\n$msg" \n] 0]]]
+        return
+    }
+    set rows [expr {$text eq "" ? {}
+        : [lmap row [split [string trimright $text \x1e] \x1e] { split $row \x1f }]}]
+    uplevel #0 [list {*}$cmd 0 $rows]
 }
 
 proc fossil::sqlFinish {chan} {
