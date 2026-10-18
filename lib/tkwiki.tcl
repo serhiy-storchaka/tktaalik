@@ -213,7 +213,6 @@ proc tkwiki::setRepository {path newRoot} {
     variable repo $path
     variable root $newRoot
     variable remote [fossil::remoteUrl $path]
-    tktaalik::setTitle wiki "Wiki \u2014 [file rootname [file tail $repo]]"
     reload
 }
 

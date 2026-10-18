@@ -914,11 +914,7 @@ proc tkcommit::showWidgets {on} {
 proc tkcommit::setRepository {repo newRoot} {
     variable root $newRoot
     showWidgets [expr {$root ne ""}]
-    if {$root eq ""} {
-        tktaalik::setTitle commit "Commit \u2014 no checkout"
-        return
-    }
-    tktaalik::setTitle commit "Commit \u2014 [file tail [string trimright $root /]]"
+    if {$root eq ""} return
     refresh
 }
 

@@ -169,7 +169,6 @@ proc tktags::setRepository {path newRoot} {
     variable repo $path
     variable root $newRoot
     variable remote [fossil::remoteUrl $path]
-    tktaalik::setTitle tags "Tags \u2014 [file rootname [file tail $repo]]"
     reload
 }
 

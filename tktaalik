@@ -56,7 +56,6 @@ namespace eval tktaalik {
     variable stale {}           ;# those that have not read the repository
                                 ;# opened since they were last shown
     variable active ""          ;# the tab shown
-    variable titles {}          ;# tab -> the window title for it
     variable keys {}            ;# shortcut -> tab -> script
     variable stamps {}          ;# tab -> the repository state it has seen
     variable back {}            ;# places to go back to: {tab state}
@@ -167,13 +166,15 @@ proc tktaalik::OpenPath {path} {
         tk_messageBox -icon error -title tktaalik -message "No such repository:" -detail $path
         return 0
     }
-    if {[catch {fossil::sql $path "SELECT 1"} msg]} {
+    if {[catch {fossil::sql $path "SELECT coalesce((SELECT value FROM config
+            WHERE name='project-name'),'')"} rows]} {
         tk_messageBox -icon error -title tktaalik -message "Cannot read the repository:" \
-            -detail "$path\n$msg"
+            -detail "$path\n$rows"
         return 0
     }
     set repo $path
     set root $newRoot
+    setTitle [lindex $rows 0 0]
     # (The repository served for the browser: the one shown before.)
     catch repoops::repositoryChanged
     # Relative paths in the checkout, as in a shell there.
@@ -300,7 +301,6 @@ proc tktaalik::tabChanged {} {
     variable built
     variable repo
     variable tabs
-    variable titles
     set tab [winfo name [.nb select]]
     if {$tab eq $active} return
     # Back returns to the tab left.
@@ -325,7 +325,6 @@ proc tktaalik::tabChanged {} {
     set active $tab
     variable viewTab $tab
     useMenus $tab
-    wm title . [getdef $titles $tab [dict get $tabs $tab]]
     ${ns}::activate
 }
 
@@ -502,11 +501,24 @@ proc tktaalik::dialogWindow {w title} {
     return 1
 }
 
-proc tktaalik::setTitle {tab title} {
-    variable titles
-    variable active
-    dict set titles $tab $title
-    if {$tab eq $active} { wm title . $title }
+# The window title: the project and where it is, the checkout (or the
+# repository file without one), the same on every tab.  The whole path:
+# two checkouts of one repository often end in the same name.
+proc tktaalik::setTitle {project} {
+    variable repo
+    variable root
+    if {$project eq ""} { set project [file rootname [file tail $repo]] }
+    # (Native before "~": Tcl 8.6 would expand it again.)
+    set where [file nativename [expr {$root ne "" ? $root : $repo}]]
+    if {$::tcl_platform(platform) eq "unix"
+            && ![catch {file normalize $::env(HOME)} home] && $home ne "/"} {
+        if {$where eq $home} {
+            set where ~
+        } elseif {[string first $home/ $where] == 0} {
+            set where ~[string range $where [string length $home] end]
+        }
+    }
+    wm title . "$project \u2014 $where"
 }
 
 # The entries of the File menus of all tabs.
@@ -751,6 +763,7 @@ proc tktaalik::main {tab argv} {
     loadConfig
     buildWindow
     icons::appIcon
+    wm title . Tktaalik
     wm geometry . [getdef $config geometry 1200x800]
 
     lassign $argv path query

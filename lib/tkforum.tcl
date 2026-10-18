@@ -148,7 +148,6 @@ proc tkforum::setRepository {path newRoot} {
     lassign [fossil::run user default -R $path] code out
     set me [expr {$code ? "" : [string trim $out]}]
     variable limit 1000
-    tktaalik::setTitle forum "Forum \u2014 [file rootname [file tail $repo]]"
     reload
 }
 

@@ -1168,7 +1168,6 @@ proc tkfiles::setRepository {path newRoot} {
     .files.top.version configure -values $values
     .files.main.right.nb.blame.opts.origin configure -values [concat {{}} $values]
     set version [lindex $values 0]
-    tktaalik::setTitle files "Files \u2014 [file rootname [file tail $repo]]"
     .files.main.right.title configure -text ""
     set titleName ""
     .files.main.right.copy state disabled

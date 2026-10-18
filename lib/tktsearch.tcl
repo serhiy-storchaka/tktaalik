@@ -18,7 +18,6 @@ namespace eval tktsearch {
     variable state ""              ;# the Open/Pending/Closed/All buttons
     variable stateCounts {}
     variable status ""             ;# the status line
-    variable project ""
     variable remote ""             ;# the server, for "Open in browser"
     variable rows                  ;# array: uuid -> dict of the row's values
     variable menuItem ""           ;# the row under the context menu
@@ -60,7 +59,6 @@ proc tktsearch::saveConfig {} {
 # ------------------------------------------------------------ repository
 
 proc tktsearch::openRepository {repo} {
-    variable project
     variable remote
     set repo [file normalize $repo]
     if {![file isfile $repo]} {
@@ -70,19 +68,15 @@ proc tktsearch::openRepository {repo} {
     try {
         # Its ticket fields decide the columns and filters.
         ::tickets::useRepository $repo
-        set project [lindex [::tickets::sql \
-            "SELECT value FROM config WHERE name='project-name'"] 0 0]
     } trap {FOSSIL DB} msg {
         tk_messageBox -icon error -message "Cannot read $repo:\n$msg"
         return 0
     }
-    if {$project eq ""} { set project [file rootname [file tail $repo]] }
     # "@me" is the default user; the server without a user name in it.
     lassign [fossil::run user default -R $repo] code ::tickets::me
     if {$code} { set ::tickets::me "" }
     set ::tickets::me [string trim $::tickets::me]
     set remote [fossil::remoteUrl $repo]
-    tktaalik::setTitle tickets "Tickets \u2014 $project"
     setupColumns
     buildPresets
     return 1

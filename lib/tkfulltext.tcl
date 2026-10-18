@@ -154,7 +154,6 @@ proc tkfulltext::setRepository {path newRoot} {
     set glob [lindex [fossil::sql $repo "SELECT coalesce((SELECT value FROM config\
         WHERE name='doc-glob'),'')"] 0 0]
     if {$glob ne ""} { set docGlob $glob }
-    tktaalik::setTitle search "Search \u2014 [file rootname [file tail $repo]]"
     clear
     if {[string trim $query] ne ""} search
 }

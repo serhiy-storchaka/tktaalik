@@ -940,8 +940,6 @@ proc tkstash::setRepository {path newRoot} {
     variable root $newRoot
     showWidgets [expr {$root ne ""}]
     updateGoBack
-    tktaalik::setTitle stash [expr {$root eq "" ? "Stash \u2014 no checkout"
-        : "Stash \u2014 [file tail $root]"}]
     reload
     after cancel {tkstash::search}
 }

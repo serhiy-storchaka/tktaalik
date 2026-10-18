@@ -1240,9 +1240,6 @@ proc tktimeline::setRepository {path newRoot} {
     if {!$code && [regexp {^https?://} $url]} {
         regsub {^(https?://)[^/@]*@} [string trim $url] {\1} remote
     }
-    set project [lindex [sql "SELECT value FROM config WHERE name='project-name'"] 0 0]
-    if {$project eq ""} { set project [file rootname [file tail $repo]] }
-    tktaalik::setTitle timeline "Timeline \u2014 $project"
     search
     after cancel {tktimeline::search}
 }

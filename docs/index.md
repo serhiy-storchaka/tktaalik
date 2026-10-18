@@ -45,8 +45,11 @@ Then:
 ## The window
 
 The window has a menu bar, a row of tabs, and the tab shown.
-The window title names the tab and the project, for example "Wiki
-— Tk Source Code".
+The window title names the project and where it is:
+the checkout's directory, or the repository file without a checkout,
+for example "Tk Source Code — ~/src/tk".
+It is the same on every tab,
+and tells apart the windows of two checkouts of one repository.
 
 | Tab | What it shows |
 |---|---|

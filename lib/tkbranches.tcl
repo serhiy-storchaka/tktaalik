@@ -25,7 +25,6 @@ namespace eval tkbranches {
     variable squash 0           ;# rebase: cherry-pick the check-ins, not merge
     variable me ""              ;# the default user
     variable remote ""          ;# the server, for the browser
-    variable project ""
     variable targets {}         ;# the branches merges into are shown
     variable branches           ;# array: name -> dict of its fields
     variable view open          ;# open unmerged mine closed all
@@ -145,20 +144,19 @@ proc tkbranches::setRepository {path newRoot} {
     variable root
     variable me
     variable remote
-    variable project
     variable targets
     variable config
     variable defaultTargets
     set old [list $repo $root]
     set repo $path
     set root $newRoot
-    # The project, the default user, the remote, and which of the usual
+    # The default user, the remote, and which of the usual
     # targets are open branches (their newest check-in is not closed): in
     # one query, not one fossil process each.
     set usual [join [lmap t $defaultTargets { fossil::sqlstr $t }] ,]
     try {
         set rows [sql "SELECT name, [fossil::outcol value] FROM config
-            WHERE name IN ('project-name','default-user','last-sync-url')
+            WHERE name IN ('default-user','last-sync-url')
             UNION ALL SELECT 'open', [fossil::outcol name] FROM (
              SELECT x.value AS name, x.rid AS rid, max(e.mtime)
              FROM tagxref x JOIN event e ON e.objid=x.rid
@@ -172,14 +170,12 @@ proc tkbranches::setRepository {path newRoot} {
             -detail "$path\n$msg"
         return 0
     }
-    set project ""
     set me ""
     set remote ""
     set open {}
     foreach row $rows {
         lassign $row name value
         switch -- $name {
-            project-name  { set project $value }
             default-user  { set me $value }
             last-sync-url {
                 if {[regexp {^https?://} $value]} {
@@ -189,7 +185,6 @@ proc tkbranches::setRepository {path newRoot} {
             open          { lappend open $value }
         }
     }
-    if {$project eq ""} { set project [file rootname [file tail $repo]] }
     if {$me eq ""} {
         # Not set in the repository: Fossil also looks elsewhere (the global
         # settings, the login name).
@@ -205,7 +200,6 @@ proc tkbranches::setRepository {path newRoot} {
             set targets [lsearch -all -inline -not -exact $targets trunk]
         }
     }
-    tktaalik::setTitle branches "Branches \u2014 $project[expr {$root ne "" ? " \u2014 [file tail $root]" : ""}]"
     setupColumns
     reload
     return 1
