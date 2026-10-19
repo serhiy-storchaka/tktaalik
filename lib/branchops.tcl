@@ -1403,3 +1403,148 @@ proc tkbranches::backportDone {name} {
         tktaalik::show commit
     }
 }
+
+# ------------------------------------------------- conflicts with a tip
+
+# The Files tab compared with another: which files a merge of the two
+# (either way) would leave with conflicts, red in the list, and which one
+# side changed and the other deleted, orange.  Decided per file as fossil
+# merge does: the versions of their common ancestor and of the two tips
+# merged by Fossil (3-way-merge), in the background, one file at a time.
+# Files are matched by name: a rename on one side is not followed.
+proc tkbranches::checkConflicts {} {
+    variable conflictsWith
+    variable conflictJob
+    variable repo
+    stopConflicts
+    lassign $conflictsWith other pivot branch
+    if {$pivot eq ""} return
+    set dir [fossil::tempDir]
+    set conflictJob [dict create dir $dir other $other queue {} conflict {} warn {} chan ""]
+    showConflictsLater "Looking for conflicts with the tip of $other\u2026"
+    set d [fossil::sqlstr $dir/]
+    set side {SELECT filename AS f, uuid AS u FROM files_of_checkin(%s)}
+    set p [format $side [fossil::sqlstr $pivot]]
+    set b [format $side "(SELECT uuid FROM blob WHERE rid=[histops::checkinRid $repo $branch])"]
+    set o [format $side "(SELECT uuid FROM blob WHERE rid=[histops::checkinRid $repo $other])"]
+    # (Both changed it, not alike: merged if all three have it, else
+    # added on both sides, or deleted on one.)
+    dict set conflictJob chan [fossil::sqlAsync $repo "
+        WITH p AS ($p), b AS ($b), o AS ($o),
+        n(f) AS (SELECT f FROM p UNION SELECT f FROM b UNION SELECT f FROM o),
+        c AS (SELECT n.f AS f, p.u AS pu, b.u AS bu, o.u AS ou,
+                row_number() OVER (ORDER BY n.f) AS i
+            FROM n LEFT JOIN p ON p.f=n.f LEFT JOIN b ON b.f=n.f LEFT JOIN o ON o.f=n.f
+            WHERE b.u IS NOT p.u AND o.u IS NOT p.u AND b.u IS NOT o.u)
+        SELECT f, i, CASE
+            WHEN pu IS NOT NULL AND bu IS NOT NULL AND ou IS NOT NULL THEN
+                'merge' || substr(writefile($d||i||'.base', content(pu))
+                    + writefile($d||i||'.branch', content(bu))
+                    + writefile($d||i||'.other', content(ou)), 0, 0)
+            WHEN pu IS NULL THEN 'conflict' ELSE 'warn' END
+        FROM c" tkbranches::conflictsListed]
+}
+
+proc tkbranches::conflictsListed {code rows} {
+    variable conflictJob
+    if {![dict exists $conflictJob dir]} return
+    dict set conflictJob chan ""
+    if {$code} {
+        showConflicts "Conflicts not known: [fossil::oneLine $rows]"
+        stopConflicts 0
+        return
+    }
+    foreach row $rows {
+        lassign $row file i how
+        if {$how eq "merge"} {
+            dict lappend conflictJob queue [list $file $i]
+        } else {
+            dict lappend conflictJob $how $file
+        }
+    }
+    mergeNext
+}
+
+# The next file both changed: merged into a file of its own.
+proc tkbranches::mergeNext {} {
+    variable conflictJob
+    set queue [dict get $conflictJob queue]
+    if {![llength $queue]} {
+        conflictsDone
+        return
+    }
+    dict set conflictJob queue [lassign $queue next]
+    lassign $next file i
+    set f [file join [dict get $conflictJob dir] $i]
+    dict set conflictJob chan [fossil::start -onDone [list tkbranches::mergedOne $file $f] \
+        3-way-merge $f.base $f.branch $f.other $f.out]
+}
+
+proc tkbranches::mergedOne {file f code out stopped msg} {
+    variable conflictJob
+    if {$stopped || ![dict exists $conflictJob dir]} return
+    dict set conflictJob chan ""
+    # (No warning and nothing written: a binary file, not merged.)
+    if {$code || [string match "*merge conflict*" $out] || ![file exists $f.out]
+            || ([file size $f.out] == 0 && [file size $f.other] > 0)} {
+        dict lappend conflictJob conflict $file
+    }
+    mergeNext
+}
+
+proc tkbranches::conflictsDone {} {
+    variable conflictJob
+    set w .branches.main.details.nb.files
+    set conflict [lsort [dict get $conflictJob conflict]]
+    set warn [lsort [dict get $conflictJob warn]]
+    set other [dict get $conflictJob other]
+    diffview::mark $w $conflict conflict
+    diffview::mark $w $warn warn
+    set parts {}
+    set n [llength $conflict]
+    if {$n} { lappend parts "[expr {$n == 1 ? "1 file conflicts" : "$n files conflict"}] with the tip of $other (red)" }
+    set n [llength $warn]
+    if {$n} { lappend parts "[expr {$n == 1 ? "1 file" : "$n files"}] changed on one side, deleted on the other (orange)" }
+    if {[llength $parts]} {
+        # (Their names too: an added file has no diff in the list.)
+        set tip {}
+        if {[llength $conflict]} { lappend tip "Conflicts:\n  [join $conflict "\n  "]" }
+        if {[llength $warn]} { lappend tip "Changed on one side, deleted on the other:\n  [join $warn "\n  "]" }
+        showConflicts [join $parts "; "] [expr {[llength $conflict] ? "red3" : "darkorange3"}] \
+            [join $tip \n]
+    } else {
+        showConflicts "No conflicts with the tip of $other" darkgreen
+    }
+    stopConflicts 0
+}
+
+proc tkbranches::showConflicts {text {color ""} {tip ""}} {
+    variable conflictsLater
+    after cancel $conflictsLater
+    set l .branches.main.details.nb.files.bar.conflicts
+    $l configure -text $text -foreground $color
+    if {$tip eq ""} {
+        bind $l <Enter> {}
+    } else {
+        icons::tooltip $l $tip
+    }
+}
+
+# The line in a moment, if no other comes first: a check that ends soon
+# replaces the line it had without its being emptied or "Looking" first.
+proc tkbranches::showConflictsLater {text} {
+    variable conflictsLater
+    after cancel $conflictsLater
+    set conflictsLater [after 500 [list tkbranches::showConflicts $text]]
+}
+
+# Stop the check (and with CLEAR its line, soon); its files deleted.
+proc tkbranches::stopConflicts {{clear 1}} {
+    variable conflictJob
+    if {[dict exists $conflictJob chan] && [dict get $conflictJob chan] ne ""} {
+        fossil::stop [dict get $conflictJob chan]
+    }
+    if {[dict exists $conflictJob dir]} { file delete -force [dict get $conflictJob dir] }
+    set conflictJob {}
+    if {$clear && [winfo exists .branches.main.details.nb.files.bar.conflicts]} { showConflictsLater "" }
+}

@@ -49,6 +49,9 @@ namespace eval tkbranches {
                                 ;# (base), or {name NAME}
     variable tips 0             ;# Files, compared with another: from its
                                 ;# tip (1) or where they parted (0)
+    variable conflictsWith {}   ;# Files: {OTHER ANCESTOR BRANCH} compared
+    variable conflictJob {}     ;# the check of their conflicts: a dict
+    variable conflictsLater ""  ;# the line of the check to show soon
     variable config {}
     variable configFile [config::path branches]
 
@@ -1126,6 +1129,7 @@ proc tkbranches::ticketsRead {name code rows} {
 proc tkbranches::clearFiles {} {
     variable filesShown ""
     variable targets
+    stopConflicts
     diffview::clear .branches.main.details.nb.files
     .branches.main.details.nb tab 1 -text Files
     set name $::tkbranches::selected
@@ -1194,17 +1198,19 @@ proc tkbranches::loadFiles {} {
     variable tips
     if {$filesShown eq [list $selected $from $tips]} return
     set filesShown [list $selected $from $tips]
+    stopConflicts
+    set ::tkbranches::conflictsWith {}
     if {$from eq ""} {
+        showConflicts ""
         set args [list --branch [fossil::arg $selected]]
     } else {
         # By default from where the two parted (as git diff
         # OTHER...BRANCH): what the branch changed, not also what the other
         # changed since.  Their tips if they have no common ancestor.
-        if {!$tips} {
-            set pivot [histops::mergeBase $repo "" $from $selected]
-            if {$pivot ne ""} { set from $pivot }
-        }
-        set args [list --from [fossil::arg $from] --to [fossil::arg $selected]]
+        set pivot [histops::mergeBase $repo "" $from $selected]
+        set ::tkbranches::conflictsWith [list $from $pivot $selected]
+        set args [list --from [fossil::arg [expr {!$tips && $pivot ne "" ? $pivot : $from}]] \
+            --to [fossil::arg $selected]]
     }
     diffview::runIn .branches.main.details.nb.files -done tkbranches::filesCounted \
         -- -R $repo {*}$args
@@ -1212,6 +1218,7 @@ proc tkbranches::loadFiles {} {
 
 proc tkbranches::filesCounted {n} {
     .branches.main.details.nb tab 1 -text "Files ($n)"
+    checkConflicts
 }
 
 # ----------------------------------------------------------- context menus
@@ -1485,6 +1492,8 @@ proc tkbranches::build {} {
     ttk::checkbutton $b.how -text "Tip to tip" -variable tkbranches::tips -command tkbranches::loadFiles
     pack $b.compared -side left -padx {4 0}
     pack $b.how -side left -padx {8 0}
+    ttk::label $b.conflicts
+    pack $b.conflicts -side left -padx {8 0}
     bind $b.compared <<ComboboxSelected>> tkbranches::compareWith
     bind $b.compared <Return> tkbranches::compareWith
     bind $b.compared <KP_Enter> tkbranches::compareWith
