@@ -47,6 +47,8 @@ namespace eval tkbranches {
     variable compared own       ;# Files: the diff from where the branch
                                 ;# started (own), from its base's tip
                                 ;# (base), or {name NAME}
+    variable tips 0             ;# Files, compared with another: from its
+                                ;# tip (1) or where they parted (0)
     variable config {}
     variable configFile [config::path branches]
 
@@ -63,6 +65,7 @@ proc tkbranches::loadConfig {} {
     variable config
     set config [config::get $configFile branches tkbranches.conf]
     set ::tkbranches::compared [getdef $config compared own]
+    set ::tkbranches::tips [getdef $config tips 0]
 }
 
 proc tkbranches::getdef {dict key default} {
@@ -84,6 +87,7 @@ proc tkbranches::saveConfig {} {
     dict set config query $query
     dict set config history $history
     dict set config compared $::tkbranches::compared
+    dict set config tips $::tkbranches::tips
     config::put $configFile $config {table targets}
 }
 
@@ -1116,8 +1120,9 @@ proc tkbranches::ticketsRead {name code rows} {
 }
 
 # The changed files: the diff of the branch, made when the tab is shown
-# (it takes long for a big branch); or its tip compared with the tip of
-# another branch (the one it was made from, a merge target, any name).
+# (it takes long for a big branch); or compared with another branch (the
+# one it was made from, a merge target, any name): from where they
+# parted, or from its tip.
 proc tkbranches::clearFiles {} {
     variable filesShown ""
     variable targets
@@ -1131,6 +1136,13 @@ proc tkbranches::clearFiles {} {
     set c .branches.main.details.nb.files.bar.compared
     $c configure -values $values
     $c set [comparedText]
+    howState
+}
+
+# Tip to tip: only when compared with another.
+proc tkbranches::howState {} {
+    .branches.main.details.nb.files.bar.how state \
+        [expr {[comparedText] eq "where it started" ? "disabled" : "!disabled"}]
 }
 
 # What the diff of the Files tab compares the branch with, as said in its
@@ -1155,6 +1167,7 @@ proc tkbranches::compareWith {} {
         set compared [list name $text]
     }
     .branches.main.details.nb.files.bar.compared set [comparedText]
+    howState
     loadFiles
 }
 
@@ -1178,11 +1191,19 @@ proc tkbranches::loadFiles {} {
         default { set from "" }
     }
     if {$from eq $selected} { set from "" }
-    if {$filesShown eq [list $selected $from]} return
-    set filesShown [list $selected $from]
+    variable tips
+    if {$filesShown eq [list $selected $from $tips]} return
+    set filesShown [list $selected $from $tips]
     if {$from eq ""} {
         set args [list --branch [fossil::arg $selected]]
     } else {
+        # By default from where the two parted (as git diff
+        # OTHER...BRANCH): what the branch changed, not also what the other
+        # changed since.  Their tips if they have no common ancestor.
+        if {!$tips} {
+            set pivot [histops::mergeBase $repo "" $from $selected]
+            if {$pivot ne ""} { set from $pivot }
+        }
         set args [list --from [fossil::arg $from] --to [fossil::arg $selected]]
     }
     diffview::runIn .branches.main.details.nb.files -done tkbranches::filesCounted \
@@ -1461,11 +1482,15 @@ proc tkbranches::build {} {
     ttk::label $b.comparedl -text "Compared with:"
     ttk::combobox $b.compared -width 24
     pack $b.comparedl -side left
+    ttk::checkbutton $b.how -text "Tip to tip" -variable tkbranches::tips -command tkbranches::loadFiles
     pack $b.compared -side left -padx {4 0}
+    pack $b.how -side left -padx {8 0}
     bind $b.compared <<ComboboxSelected>> tkbranches::compareWith
     bind $b.compared <Return> tkbranches::compareWith
     bind $b.compared <KP_Enter> tkbranches::compareWith
-    icons::tooltip $b.compared "Where it started: what the branch changed (fossil diff --branch).\nAnother branch (its base, a merge target), or any branch, tag or\ncheck-in typed and Return: its tip against the branch's tip\n(fossil diff --from OTHER --to BRANCH), with what the other\nchanged since as well, reverted."
+    icons::tooltip $b.compared "Where it started: what the branch changed (fossil diff --branch).\nAnother branch (its base, a merge target), or any branch, tag or\ncheck-in typed and Return: from their common ancestor to the\nbranch's tip (fossil diff --from ANCESTOR --to BRANCH), what the\nbranch changed since they parted, as git diff OTHER...BRANCH."
+    icons::tooltip $b.how "Checked: from the other's tip (fossil diff --from OTHER --to\nBRANCH, as git diff OTHER BRANCH), with what the other changed\nsince they parted as well, reverted.\nUnchecked: from their common ancestor (git diff OTHER...BRANCH)."
+    howState
     tree .branches.main.details.nb.tickets {id {Ticket 11} status {Status 18} type {Type 10} title {Title 60 1}}
     .branches.main.details.nb.tickets.t tag configure inactive -foreground gray45
     .branches.main.details.nb add .branches.main.details.nb.checkins -text Check-ins

@@ -107,16 +107,39 @@ proc choose {text} {
 set base [dict get $tkbranches::branches($other) base]
 check "the choices name the base: [$c cget -values]" {$base ne "" && [lindex [$c cget -values] 0] eq "where it started" && "$base (its base)" in [$c cget -values]}
 choose "$base (its base)"
-check "against $base: [dict get $diffview::data($p) args]" {[dict get $diffview::data($p) args] eq [list -R $tkbranches::repo --from [fossil::arg $base] --to [fossil::arg $other]] && [string match "Files (*)" [$nb tab $nb.files -text]]}
+# (From where they parted, as git diff BASE...BRANCH.)
+set pivot [histops::mergeBase $tkbranches::repo "" $base $other]
+check "against $base: from their common ancestor [string range $pivot 0 9]: [dict get $diffview::data($p) args]" {$pivot ne "" && [dict get $diffview::data($p) args] eq [list -R $tkbranches::repo --from $pivot --to [fossil::arg $other]] && [string match "Files (*)" [$nb tab $nb.files -text]]}
+# Tip to tip (git diff BASE BRANCH), and back.
+set how $p.bar.how
+check "since they parted by default, Tip to tip enabled" {!$tkbranches::tips && ![$how instate disabled]}
+$how invoke
+waitUntil {![dict exists $diffview::data($p) chan]}
+check "tip to tip: [dict get $diffview::data($p) args]" {[dict get $diffview::data($p) args] eq [list -R $tkbranches::repo --from [fossil::arg $base] --to [fossil::arg $other]]}
 tkbranches::saveConfig
-check "kept in the settings" {[dict get [config::get $tkbranches::configFile branches tkbranches.conf] compared] eq "base"}
+set conf [config::get $tkbranches::configFile branches tkbranches.conf]
+check "kept in the settings" {[dict get $conf compared] eq "base" && [dict get $conf tips] == 1}
+$how invoke
+waitUntil {![dict exists $diffview::data($p) chan]}
+check "since they parted again" {[lrange [dict get $diffview::data($p) args] 2 3] eq [list --from $pivot]}
 choose core-8-6-2
-check "a tag typed: [dict get $diffview::data($p) args]" {[dict get $diffview::data($p) args] eq [list -R $tkbranches::repo --from core-8-6-2 --to [fossil::arg $other]] && [$c get] eq "core-8-6-2"}
+set pivot [histops::mergeBase $tkbranches::repo "" core-8-6-2 $other]
+check "a tag typed: [dict get $diffview::data($p) args]" {$pivot ne "" && [dict get $diffview::data($p) args] eq [list -R $tkbranches::repo --from $pivot --to [fossil::arg $other]] && [$c get] eq "core-8-6-2"}
 $t selection set [list $small]; $t focus $small; update
 waitUntil {![dict exists $diffview::data($p) chan] && [llength [$f children {}]]}
-check "kept for $small: [dict get $diffview::data($p) args]" {[lrange [dict get $diffview::data($p) args] 2 3] eq {--from core-8-6-2}}
+set pivot [histops::mergeBase $tkbranches::repo "" core-8-6-2 $small]
+check "kept for $small: [dict get $diffview::data($p) args]" {[lrange [dict get $diffview::data($p) args] 2 3] eq [list --from $pivot] && [$c get] eq "core-8-6-2"}
+# Two branches without a common ancestor (none in Tk's): their tips.
+rename histops::mergeBase histops::realMergeBase
+proc histops::mergeBase args { return "" }
+set tkbranches::filesShown ""
+tkbranches::loadFiles
+waitUntil {![dict exists $diffview::data($p) chan]}
+check "no common ancestor: the tag's tip: [dict get $diffview::data($p) args]" {[lrange [dict get $diffview::data($p) args] 2 3] eq {--from core-8-6-2}}
+rename histops::mergeBase ""
+rename histops::realMergeBase histops::mergeBase
 choose "where it started"
-check "where it started: the branch's diff" {"--branch" in [dict get $diffview::data($p) args]}
+check "where it started: the branch's diff, Tip to tip disabled" {"--branch" in [dict get $diffview::data($p) args] && [$how instate disabled]}
 # A branch made from no other (the first): no base to choose.
 set root [lindex [lmap b [$t children {}] { if {[tkbranches::baseOf $b] eq ""} { set b } else continue }] 0]
 $t selection set [list $root]; $t focus $root; update
