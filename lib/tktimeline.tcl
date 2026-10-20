@@ -909,6 +909,8 @@ proc tktimeline::relations {d rid} {
             $d insert end [string range $uuid 0 9] [list link $tag]
             $d insert end " $date $user[expr {$branch ne "" ? " ($branch)" : ""}]" meta
             $d tag bind $tag <1> [list goto::checkin $uuid]
+            $d tag bind $tag <Enter> [list goto::tipAt $d [list goto::checkin $uuid] %X %Y]
+            $d tag bind $tag <Leave> icons::tipHide
         }
         $d insert end \n
     }

@@ -13,7 +13,7 @@ proc tktsearch::card {d who what body {mimetype ""}} {
         set html "<pre>[string map {& &amp; < &lt; > &gt;} [string trimright $body]]</pre>"
     }
     htmltext::insert $d $html -tags cardbody -margin [font measure TkDefaultFont 0] \
-        -command tktsearch::followLink -external tktsearch::isExternal \
+        -command tktsearch::followLink -external tktsearch::isExternal -tooltip goto::linkTip \
         -autolink [list $::fossil::hashLinkRE tktsearch::hashLink]
     # The selection above the rendered text's tags.
     $d tag raise sel

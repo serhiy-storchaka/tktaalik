@@ -228,6 +228,9 @@ Tktaalik (a check-in in the [Timeline](timeline.md), as [Go to](goto.md) does),
 links to a branch (`/timeline?r=BRANCH`) in the [Branches](branches.md) tab,
 links to a diff (`/vdiff?…`) in the diff window;
 other links open in the browser, and end with a small ↗.
+The pointer over a link to a check-in or a ticket shows
+the first line of the check-in's comment or the ticket's title,
+with its icon (a ticket's of its status, as in the Tickets list).
 
 At the end is the **Add a comment…** button.
 It opens a window with the ticket's title and the editor of the comment:

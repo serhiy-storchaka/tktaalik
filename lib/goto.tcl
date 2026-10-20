@@ -265,6 +265,61 @@ proc goto::nameTarget {name prefer} {
     return ""
 }
 
+# The tooltip of a link to a check-in or a ticket (by HREF, as
+# linkTarget takes it): {TEXT IMAGE} as targetTip, or "" for other links.
+proc goto::linkTip {href} {
+    targetTip [linkTarget $href]
+}
+
+# The tooltip of a check-in or a ticket by the SCRIPT that goes there
+# (goto::checkin UUID, goto::ticket UUID): {TEXT IMAGE}, the first line
+# of its comment or its title (the link shows the hash already; a long
+# line cut), with the icon of the kind,
+# a ticket's of its status as in the Tickets tab.  Read each time: a
+# ticket changes.
+proc goto::targetTip {script} {
+    set repo $::tktaalik::repo
+    lassign $script cmd uuid
+    if {$repo eq "" || $cmd ni {goto::checkin goto::ticket}} { return "" }
+    set q [fossil::sqlstr $uuid]
+    try {
+        if {$cmd eq "goto::checkin"} {
+            set row [lindex [fossil::sql $repo "SELECT [fossil::outcol "coalesce(e.ecomment,e.comment,'')"], e.type
+                FROM blob b JOIN event e ON e.objid=b.rid WHERE b.uuid=$q"] 0]
+            if {![llength $row]} { return "" }
+            lassign $row text type
+            set icon [expr {$type eq "ci" ? "k-checkin" : "k-technote"}]
+        } else {
+            # (Another schema may lack the fields of the icon: without it.)
+            set rows {}
+            foreach fields {{title status resolution} {title status} {title}} {
+                set cols [lmap f {title status resolution} {
+                    expr {$f in $fields ? [fossil::outcol "coalesce($f,'')"] : "''"}
+                }]
+                if {![catch {fossil::sql $repo "SELECT [join $cols ,] FROM ticket WHERE tkt_uuid=$q"} rows]} break
+                set rows {}
+            }
+            if {![llength $rows]} { return "" }
+            lassign [lindex $rows 0] text status resolution
+            set icon [tktsearch::iconName state $status $resolution]
+            if {$icon eq ""} { set icon k-ticket }
+        }
+    } trap {FOSSIL DB} {} {
+        return ""
+    }
+    set text [fossil::oneLine $text]
+    if {$text eq ""} { return "" }
+    if {[string length $text] > 100} { set text "[string trimright [string range $text 0 98]]\u2026" }
+    list $text [icons::get $icon row]
+}
+
+# Show the tooltip of SCRIPT (as targetTip) soon at the pointer (X, Y) over
+# W, if it has one.
+proc goto::tipAt {w script X Y} {
+    lassign [targetTip $script] text image
+    if {$text ne ""} { icons::tipLater $w $text $X $Y $image }
+}
+
 # Follow a link in the application if it can be: 1 if it was.
 proc goto::openLink {href} {
     set script [linkTarget $href]

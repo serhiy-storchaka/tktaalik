@@ -56,6 +56,10 @@ Links can be clicked:
   [Branches](branches.md) tab, links to a diff (`/vdiff?…`) in the diff window;
 - other links open in the browser; they end with a small ↗.
 
+The pointer over a link to a check-in or a ticket shows
+the first line of the check-in's comment or the ticket's title,
+with its icon (a ticket's of its status, as in the Tickets list).
+
 **Open in browser** shows the page or technote on the server.
 The context menu of the list, and the **Page** menu for the page selected,
 have the page's buttons

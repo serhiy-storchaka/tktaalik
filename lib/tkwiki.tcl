@@ -553,7 +553,7 @@ proc tkwiki::fill {tag mimetype text} {
         if {$html eq ""} {
             set html "<pre>[string map {& &amp; < &lt; > &gt;} $text]</pre>"
         }
-        htmltext::insert $d $html -tags body -margin 4 -command tkwiki::followLink \
+        htmltext::insert $d $html -tags body -margin 4 -command tkwiki::followLink -tooltip goto::linkTip \
             -external tkwiki::isExternal \
             -autolink [list $::fossil::hashLinkRE tkwiki::hashLink]
         $d tag raise sel

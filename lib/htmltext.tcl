@@ -15,6 +15,9 @@
 #                       Default: links with a scheme of the web or mail
 #                       (https:, mailto:...).  Without -command no link
 #                       is followed, so none is external.
+#       -tooltip CMD    called with an href: the tooltip of the link, a
+#                       list {TEXT ?IMAGE?} (an icon left of the text), or
+#                       "" for none
 #       -autolink {RE CMD}
 #                       text matching the regular expression RE (outside
 #                       code and links) becomes a link if CMD, called with
@@ -86,7 +89,7 @@ proc htmltext::attributes {text} {
 
 proc htmltext::insert {w html args} {
     variable count
-    set opts [dict merge {-tags {} -margin 0 -font TkTextFont -command {} -autolink {} -external {}} $args]
+    set opts [dict merge {-tags {} -margin 0 -font TkTextFont -command {} -autolink {} -external {} -tooltip {}} $args]
     if {![info exists count($w)]} { set count($w) 0 }
     styles $w
     # The state, passed to the procs below by name.
@@ -221,6 +224,12 @@ proc htmltext::styles {w} {
     $w tag bind ht-link <Leave> [list ::apply {{w} {
         if {[info exists ::htmltext::cursor($w)]} { $w configure -cursor $::htmltext::cursor($w) }
     }} $w]
+}
+
+# The tooltip of a link (by CMD, as -tooltip), at the pointer.
+proc htmltext::tip {w cmd href X Y} {
+    lassign [uplevel #0 [list {*}$cmd $href]] text image
+    if {$text ne ""} { icons::tipLater $w $text $X $Y $image }
 }
 
 # The font of the current style, as a tag.
@@ -380,6 +389,12 @@ proc htmltext::linkTag {stVar href} {
         $w tag bind $tag <ButtonRelease-1> [list ::apply {{cmd href} {
             uplevel #0 [list {*}$cmd $href]
         }} $cmd $href]
+    }
+    set tipCmd [dict get $st opts -tooltip]
+    if {$tipCmd ne ""} {
+        $w tag bind $tag <Enter> [list htmltext::tip $w $tipCmd $href %X %Y]
+        $w tag bind $tag <Leave> icons::tipHide
+        $w tag bind $tag <ButtonPress> icons::tipHide
     }
     if {$out} { return [list $tag ht-external] }
     return $tag

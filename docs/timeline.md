@@ -231,7 +231,8 @@ Then, by kind:
   what it was **Cherry-picked from** and what it **Backs out**,
   its **Child** (or Children), what it was **Merged into**,
   **Cherry-picked into** and **Backed out by**,
-  each a link that shows that check-in (Back returns),
+  each a link that shows that check-in (Back returns;
+  its tooltip is the first line of the check-in's comment),
   and its **State** (a leaf, open or closed); **Describe**:
   the nearest tag before it and how many check-ins since
   (`TAG-N-HASH`, as `fossil describe`, also without a checkout;

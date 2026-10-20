@@ -76,6 +76,9 @@ Links in the posts:
 `[hash]` references in the text
 (a hash prefix in square brackets) become links when the repository has what
 they name.
+The pointer over a link to a check-in or a ticket shows
+the first line of the check-in's comment or the ticket's title,
+with its icon (a ticket's of its status, as in the Tickets list).
 
 Following a link records a place for **Back** (Alt+Left),
 which returns to the thread and the place in it you left.

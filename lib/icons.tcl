@@ -84,13 +84,14 @@ proc icons::tooltip {w text} {
     bind $w <ButtonPress> icons::tipHide
 }
 
-proc icons::tipLater {w text {X ""} {Y ""}} {
+# (IMAGE: an icon on the left of the text.)
+proc icons::tipLater {w text {X ""} {Y ""} {image ""}} {
     variable tipAfter
     after cancel $tipAfter
-    set tipAfter [after 600 [list icons::tipShow $w $text $X $Y]]
+    set tipAfter [after 600 [list icons::tipShow $w $text $X $Y $image]]
 }
 
-proc icons::tipShow {w text {X ""} {Y ""}} {
+proc icons::tipShow {w text {X ""} {Y ""} {image ""}} {
     if {![winfo exists $w]} return
     set t .iconsTip
     destroy $t
@@ -99,6 +100,7 @@ proc icons::tipShow {w text {X ""} {Y ""}} {
     catch {wm attributes $t -type tooltip}
     label $t.l -text $text -justify left -background #ffffe0 -foreground black -padx 6 -pady 2 \
         -font TkTooltipFont
+    if {$image ne ""} { $t.l configure -image $image -compound left }
     pack $t.l -padx 1 -pady 1
     # Below the widget, or the pointer; on the screen.
     update idletasks

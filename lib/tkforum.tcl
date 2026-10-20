@@ -382,7 +382,7 @@ proc tkforum::showThread {froot} {
         } else {
             set html [fossil::render $repo $mimetype $text]
             if {$html eq ""} { set html "<pre>[string map {& &amp; < &lt; > &gt;} $text]</pre>" }
-            htmltext::insert $d $html -margin $margin -command tkforum::followLink \
+            htmltext::insert $d $html -margin $margin -command tkforum::followLink -tooltip goto::linkTip \
                 -external tkforum::isExternal \
                 -autolink [list $::fossil::hashLinkRE tkforum::hashLink]
         }
