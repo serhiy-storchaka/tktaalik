@@ -72,7 +72,7 @@ proc tkbranches::loadConfig {} {
 }
 
 proc tkbranches::getdef {dict key default} {
-    expr {[dict exists $dict $key] ? [dict get $dict $key] : $default}
+    if {[dict exists $dict $key]} {dict get $dict $key} else {set default}
 }
 
 proc tkbranches::saveConfig {} {
@@ -197,7 +197,7 @@ proc tkbranches::setRepository {path newRoot} {
         # Not set in the repository: Fossil also looks elsewhere (the global
         # settings, the login name).
         lassign [fossil::run user default -R $repo] code out
-        set me [expr {$code ? "" : [string trim $out]}]
+        set me [if {!$code} {string trim $out}]
     }
     # The targets: as set for this repository, else the usual ones.
     if {[dict exists $config targets $repo]} {
@@ -526,7 +526,7 @@ proc tkbranches::parseQuery {query} {
                             set found @current
                         }
                     }
-                    foreach t [expr {$found eq "" ? $targets : {}}] {
+                    foreach t [if {$found eq ""} {set targets}] {
                         if {[string equal -nocase $a $t]
                                 || [string equal -nocase $a [targetHeading $t]]} {
                             set found $t
@@ -898,7 +898,7 @@ proc tkbranches::showList {} {
         }
         if {![inView $b $view]} continue
         set cells [dict create \
-            name [expr {$name eq $current ? "\u2605 $name" : $name}] \
+            name [if {$name eq $current} {string cat "\u2605 $name"} else {set name}] \
             updated [dict get $b updated] created [dict get $b created] \
             checkins [dict get $b checkins] users [join [dict get $b users] ", "] \
             base [dict get $b base] ci [mark [dict get $b ci]] \
@@ -1105,7 +1105,7 @@ proc tkbranches::ticketsRead {name code rows} {
     set iconCells {}
     foreach row $rows {
         lassign $row uuid tstatus res state type title
-        set text [expr {$res in {"" None} || $tstatus eq "" ? $tstatus : "$tstatus \u00b7 $res"}]
+        set text [if {$res in {"" None} || $tstatus eq ""} {set tstatus} else {string cat "$tstatus \u00b7 $res"}]
         set icon [tktsearch::iconName state $tstatus $res]
         if {$icon ne "" && $cellImages} {
             dict lappend iconCells $icon [list $uuid status]
@@ -1180,7 +1180,7 @@ proc tkbranches::baseOf {name} {
     variable branches
     if {$name eq "" || ![info exists branches($name)]} { return "" }
     set base [dict get $branches($name) base]
-    expr {$base ne $name && [info exists branches($base)] ? $base : ""}
+    if {$base ne $name && [info exists branches($base)]} {set base}
 }
 
 proc tkbranches::loadFiles {} {
@@ -1209,7 +1209,7 @@ proc tkbranches::loadFiles {} {
         # changed since.  Their tips if they have no common ancestor.
         set pivot [histops::mergeBase $repo "" $from $selected]
         set ::tkbranches::conflictsWith [list $from $pivot $selected]
-        set args [list --from [fossil::arg [expr {!$tips && $pivot ne "" ? $pivot : $from}]] \
+        set args [list --from [fossil::arg [if {!$tips && $pivot ne ""} {set pivot} else {set from}]] \
             --to [fossil::arg $selected]]
     }
     diffview::runIn .branches.main.details.nb.files -done tkbranches::filesCounted \
@@ -1250,7 +1250,7 @@ proc tkbranches::fillBranchMenu {m name} {
     # (A base into it, chosen in the window; of another branch than the
     # checkout's, the checkout is updated to it first.)
     variable current
-    set other [expr {$name eq $current ? "" : $name}]
+    set other [if {$name ne $current} {set name}]
     $m add command -label "Merge a base branch\u2026" -state $co \
         -command [list tkbranches::mergeBase $root tkbranches::reload $other]
     $m add command -label "Rebase onto a base branch\u2026" -state $co \
@@ -1270,10 +1270,10 @@ proc tkbranches::fillBranchMenu {m name} {
     $m add command -label [expr {$hidden ? "Unhide" : "Hide"}] -state $state \
         -command [list tkbranches::tagBranches [expr {$hidden ? "unhide" : "hide"}]]
     $m add command -label "New branch from here\u2026" -state $state \
-        -command [list tkbranches::newBranch [expr {$ok ? [dict get $branches($name) tip] : ""}] \
+        -command [list tkbranches::newBranch [if {$ok} {dict get $branches($name) tip}] \
             "the last check-in of $name"]
     $m add command -label "Add tag\u2026" -state $state \
-        -command [list tagwrite::addTag $::tkbranches::repo [expr {$ok ? [dict get $branches($name) tip] : ""}] \
+        -command [list tagwrite::addTag $::tkbranches::repo [if {$ok} {dict get $branches($name) tip}] \
             "" tkbranches::reload]
     set private [expr {$ok && [dict get $branches($name) private]}]
     $m add command -label "Make public\u2026" -state [expr {$private ? "normal" : "disabled"}] \
@@ -1282,12 +1282,12 @@ proc tkbranches::fillBranchMenu {m name} {
     # The common ancestor: of the two branches selected, else with the
     # first merge target.
     set sel [selectedNames]
-    set other [expr {[llength $sel] == 2 ? [lindex [lsearch -all -inline -not -exact $sel $name] 0] : [lindex $targets 0]}]
+    set other [if {[llength $sel] == 2} {lindex [lsearch -all -inline -not -exact $sel $name] 0} else {lindex $targets 0}]
     $m add command -label [expr {$other eq "" ? "Common ancestor" : "Common ancestor with $other"}] \
         -state [expr {$ok && $other ne "" && $other ne $name ? "normal" : "disabled"}] \
         -command [list histops::showMergeBase $::tkbranches::repo $::tkbranches::root $name $other]
     $m add command -label "Save as archive\u2026" -state $state \
-        -command [list histops::archive $::tkbranches::repo [expr {$ok ? [dict get $branches($name) tip] : ""}] \
+        -command [list histops::archive $::tkbranches::repo [if {$ok} {dict get $branches($name) tip}] \
             "the last check-in of $name"]
     $m add command -label "Export as bundle\u2026" -state $state \
         -command [list histops::exportBundle $::tkbranches::repo $name]

@@ -208,7 +208,7 @@ proc tktsearch::fillTable {result} {
                 set values [lassign $values second]
                 dict set data [dict get $::tickets::extra $key] $second
                 if {$second ni {"" None}} {
-                    set text [expr {$text eq "" ? $second : "$text \u00b7 $second"}]
+                    set text [if {$text eq ""} {set second} else {string cat "$text \u00b7 $second"}]
                 }
             }
             # Status, priority and severity: only the icon, a cell image

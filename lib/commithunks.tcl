@@ -392,7 +392,7 @@ proc tkcommit::stashChecked {} {
     }
     set what [lmap path $paths {
         set p [lsearch -inline -index 1 $parts $path]
-        expr {$p eq "" ? $path : "$path: [dict get $p ticked] of [dict get $p total] changes"}
+        if {$p eq ""} {set path} else {string cat "$path: [dict get $p ticked] of [dict get $p total] changes"}
     }]
     set ::ui::f(comment) ""
     set ::ui::f(snapshot) 0

@@ -441,8 +441,8 @@ proc tktsearch::showDetails {uuid} {
     # the box for a new one.
     findHashes [list $comment {*}[lmap remark $remarks {lindex $remark 2}]]
     if {[string trim $comment] ne ""} {
-        set by [expr {$submitter ne "" ? $submitter : $opener}]
-        card $d [expr {$by ne "" ? $by : "Description"}] "opened $created" \
+        set by [if {$submitter ne ""} {set submitter} else {set opener}]
+        card $d [if {$by ne ""} {set by} else {string cat "Description"}] "opened $created" \
             $comment $cmimetype
     }
     foreach remark $remarks {

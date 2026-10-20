@@ -128,7 +128,7 @@ proc tkcommit::field {w name label var {width 40}} {
 # The output of fossil, or why it failed.
 proc tkcommit::dryRun {args} {
     lassign [fossil {*}$args] code out
-    expr {$code ? "Fossil refuses:\n$out" : $out}
+    if {$code} {string cat "Fossil refuses:\n$out"} else {set out}
 }
 
 # The globs of the unmanaged files: --dotfiles, --ignore, --clean.  The
@@ -279,8 +279,8 @@ proc tkcommit::movePreview {} {
 # A directory of the checkout: the one of the selected file to start with.
 proc tkcommit::currentDir {} {
     variable current
-    set dir [expr {$current eq "" ? "" : [file dirname $current]}]
-    expr {$dir eq "." ? "" : $dir}
+    set dir [if {$current ne ""} {file dirname $current}]
+    if {$dir ne "."} {set dir}
 }
 
 # Rename or move a directory with all its files (fossil mv DIR NEW).
@@ -351,7 +351,7 @@ proc tkcommit::removeFile {} {
     set paths [managedFiles]
     if {![llength $paths]} return
     set removing $paths
-    set what [expr {[llength $paths] == 1 ? [lindex $paths 0] : "these [llength $paths] files"}]
+    set what [if {[llength $paths] == 1} {lindex $paths 0} else {string cat "these [llength $paths] files"}]
     set onDisk 0
     set w [dialog .commit.remove "Remove" "Remove $what from the repository: from the next\
         commit on, Fossil no longer has [expr {[llength $paths] == 1 ? "it" : "them"}].  (An\
@@ -673,7 +673,7 @@ proc tkcommit::revertFiles {{all 0}} {
     } else {
         set paths [managedFiles]
         if {![llength $paths]} return
-        set what [expr {[llength $paths] == 1 ? [lindex $paths 0] : "these [llength $paths] files"}]
+        set what [if {[llength $paths] == 1} {lindex $paths 0} else {string cat "these [llength $paths] files"}]
         set list [expr {[llength $paths] == 1 ? "" : [join $paths \n]}]
     }
     set revision ""
@@ -849,7 +849,7 @@ proc tkcommit::updateCheckout {{target ""}} {
     variable updateTo $target
     # The check-in moved to another branch since (tkcommit::branchMoved):
     # the update would follow it there; to the old branch instead?
-    set moved [expr {$target eq "" ? [branchMoved] : {}}]
+    set moved [if {$target eq ""} {branchMoved}]
     if {[llength $moved]} {
         lassign $moved to from user date
         if {$from ne "" && ![catch {fossil::arg $from}]} {
@@ -889,7 +889,7 @@ proc tkcommit::updateFiles {} {
     if {![llength $paths]} return
     set updating $paths
     set revision ""
-    set what [expr {[llength $paths] == 1 ? [lindex $paths 0] : "these [llength $paths] files"}]
+    set what [if {[llength $paths] == 1} {lindex $paths 0} else {string cat "these [llength $paths] files"}]
     set w [dialog .commit.updatefiles "Update files to a version" "Update $what to how\
         [expr {[llength $paths] == 1 ? "it is" : "they are"}] in another version: a check-in,\
         branch or tag.  Their changes are merged into it; the rest of the checkout stays." \
@@ -971,7 +971,7 @@ proc tkcommit::compareTwo {} {
     if {[file isdirectory $dir]} { set from [file normalize $dir] }
     set args [list --from=$from]
     if {$to ne ""} { lappend args --to=$to }
-    diffview::run "[file tail $from] \u2192 [expr {$to eq "" ? "the checkout" : $to}]" -dir $root \
+    diffview::run "[file tail $from] \u2192 [if {$to eq ""} {string cat "the checkout"} else {set to}]" -dir $root \
         -- -N {*}[diffopts::args] {*}$args
 }
 

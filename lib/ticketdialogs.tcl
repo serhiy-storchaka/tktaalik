@@ -109,7 +109,7 @@ proc tktsearch::commentDialog {uuid} {
     ttk::frame $w.f -padding 10
     ttk::label $w.f.title -text "[string range $uuid 0 9]  $title" -font TkHeadingFont \
         -wraplength 600 -justify left
-    set text [expr {[dict exists $drafts $uuid] ? [dict get $drafts $uuid] : ""}]
+    set text [if {[dict exists $drafts $uuid]} {dict get $drafts $uuid}]
     set opts [list -formats $formats -variable tktsearch::format -repo $::tickets::repo -text $text]
     if {![::tickets::canWrite icomment]} { lappend opts -fixed "Fossil wiki" }
     formattext::create $w.f.editor {*}$opts
@@ -240,7 +240,7 @@ proc tktsearch::choiceButton {mb field value values} {
     }
     foreach v $values {
         set icon [choiceIcon $field $v]
-        $mb.m add radiobutton -label [expr {$v eq "" ? "(none)" : $v}] \
+        $mb.m add radiobutton -label [if {$v eq ""} {string cat "(none)"} else {set v}] \
             -variable ::tktsearch::formValue($mb) -value $v \
             -image [expr {$icon eq "" ? [blankIcon] : [icons::get $icon row]}] -compound left \
             -command [list tktsearch::choiceShow $mb $field]
@@ -282,7 +282,7 @@ proc tktsearch::choiceShow {mb field} {
         set resolution [fieldValue $w.eresolution]
     }
     set icon [choiceIcon $field $value $resolution]
-    $mb configure -text [expr {$value eq "" ? "(none)" : $value}] \
+    $mb configure -text [if {$value eq ""} {string cat "(none)"} else {set value}] \
         -image [expr {$icon eq "" ? [blankIcon] : [icons::get $icon row]}]
     if {$field eq "resolution" && [winfo exists $w.estatus]} {
         choiceShow $w.estatus status
@@ -546,7 +546,7 @@ proc tktsearch::branchName {title} {
 proc tktsearch::fixBases {} {
     set repo $::tickets::repo
     set bases {}
-    foreach b [concat {main trunk} [expr {[info exists ::tkbranches::targets] ? $::tkbranches::targets : {}}]] {
+    foreach b [concat {main trunk} [if {[info exists ::tkbranches::targets]} {set ::tkbranches::targets}]] {
         if {$b in $bases} continue
         if {[llength [fossil::sql $repo "SELECT 1 FROM tag WHERE tagname=[fossil::sqlstr sym-$b]"]]} {
             lappend bases $b

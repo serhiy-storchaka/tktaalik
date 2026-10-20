@@ -132,7 +132,7 @@ proc ticketreports::choose {} {
 # The report's SQL as the web pages run it: $login is the user.
 proc ticketreports::query {sql} {
     variable filter
-    set me [expr {[info exists ::tickets::me] ? $::tickets::me : ""}]
+    set me [if {[info exists ::tickets::me]} {set ::tickets::me}]
     regsub -all {\$login\M} $sql [fossil::sqlstr $me] sql
     set sql [string trimright [string trim $sql] ";"]
     if {[string trim $filter] ne ""} {
@@ -311,7 +311,7 @@ proc ticketreports::save {} {
     foreach row [concat [list $columns] $rows] {
         if {$csv} {
             puts $f [join [lmap v $row {
-                expr {[regexp {[",\n\r]} $v] ? "\"[string map {\" \"\"} $v]\"" : $v}
+                if {[regexp {[",\n\r]} $v]} {string cat "\"[string map {\" \"\"} $v]\""} else {set v}
             }] ,]
         } else {
             puts $f [join [lmap v $row { string map {\t " " \n " " \r ""} $v }] \t]

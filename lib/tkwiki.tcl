@@ -340,7 +340,7 @@ proc tkwiki::reload {} {
         if {$kind eq "Technote"} {
             # The title and date of a technote are in the artifact.
             lassign [artifact $uuid] cards text
-            set title [expr {[dict exists $cards C] ? [plain [dict get $cards C]] : [string range $tag 6 15]}]
+            set title [if {[dict exists $cards C]} {plain [dict get $cards C]} else {string range $tag 6 15}]
             if {[dict exists $cards E]} {
                 set date [string map {T " "} [string range [lindex [dict get $cards E] 0] 0 15]]
             }
@@ -384,7 +384,7 @@ proc tkwiki::showList {} {
         incr n
         set title [dict get $p title]
         if {[dict get $p deleted]} { append title " (deleted)" }
-        set id [expr {$kind eq "Technote" ? [string range $tag 6 end] : ""}]
+        set id [if {$kind eq "Technote"} {string range $tag 6 end}]
         lappend items [list $tag [dict create title $title kind $kind date [dict get $p date] \
             user [dict get $p user] count [dict get $p count] id $id] \
             [dict create title [string tolower [dict get $p title]]] \
@@ -680,7 +680,7 @@ proc tkwiki::save {} {
 
 # What an attachment of a page names: the page name, or a technote's ID.
 proc tkwiki::target {tag} {
-    expr {[string match event-* $tag] ? [string range $tag 6 end] : [string range $tag 5 end]}
+    if {[string match event-* $tag]} {string range $tag 6 end} else {string range $tag 5 end}
 }
 
 proc tkwiki::buildAttachments {f} {
@@ -891,7 +891,7 @@ proc tkwiki::attach {} {
             "Attach [join $names {, }] to $what?" $detail]} return
     foreach file $files {
         # (A technote by its ID: its date need not be unique.)
-        set args [expr {$note ? [list -t [target $shown]] : [list [fossil::arg [target $shown]]]}]
+        set args [if {$note} {list -t [target $shown]} else {list [fossil::arg [target $shown]]}]
         lassign [fossil::run attachment add {*}$args [file normalize $file] -R $repo] code out
         if {$code} {
             tk_messageBox -parent .wiki -icon error -title Attach \
@@ -906,7 +906,7 @@ proc tkwiki::attach {} {
 proc tkwiki::user {} {
     variable repo
     lassign [fossil::run user default -R $repo] code out
-    expr {$code ? "" : [string trim $out]}
+    if {!$code} {string trim $out}
 }
 
 # A technote's tags and color from its T cards.
@@ -1097,7 +1097,7 @@ proc tkwiki::commit {text} {
         puts -nonewline $fh $text
         close $fh
         set command [expr {$editMode eq "edit" ? "commit" : "create"}]
-        set args [list wiki $command [expr {$note ? $comment : $name}] $file -M $mimetype]
+        set args [list wiki $command [if {$note} {set comment} else {set name}] $file -M $mimetype]
         if {$note} {
             lappend args -t $date
             if {$tags ne ""} { lappend args --technote-tags $tags }
@@ -1155,5 +1155,5 @@ proc tkwiki::rowName {item} {
 # The file name of the attachment I (Ctrl+C).
 proc tkwiki::attachmentName {i} {
     variable attached
-    expr {[info exists attached($i)] ? [dict get $attached($i) name] : ""}
+    if {[info exists attached($i)]} {dict get $attached($i) name}
 }

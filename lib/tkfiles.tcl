@@ -174,7 +174,7 @@ proc tkfiles::fillTree {} {
         set parent {}
         set dir ""
         foreach part [lrange [split $path /] 0 end-1] {
-            set dir [expr {$dir eq "" ? $part : "$dir/$part"}]
+            set dir [if {$dir eq ""} {set part} else {string cat "$dir/$part"}]
             if {![$t exists d:$dir]} {
                 $t insert $parent end -id d:$dir -text $part -open [expr {$f ne ""}] -tags dir
             }
@@ -691,7 +691,7 @@ proc tkfiles::target {} {
     variable hash
     variable file
     variable at
-    expr {[llength $at] ? $at : [list $hash $file]}
+    if {[llength $at]} {set at} else {list $hash $file}
 }
 
 proc tkfiles::loadContent {} {
@@ -751,7 +751,7 @@ proc tkfiles::blameOptions {} {
     set origin [string trim $blameOrigin]
     if {$origin ne "" && ![catch {fossil::arg $origin}]} {
         set h [resolve $origin]
-        lappend opts -o [expr {$h ne "" ? $h : $origin}]
+        lappend opts -o [if {$h ne ""} {set h} else {set origin}]
     }
     set limit [string trim $blameLimit]
     if {[regexp {^\d+s?$} $limit]} { lappend opts -n $limit }
@@ -822,7 +822,7 @@ proc tkfiles::diffCheckin {uuid} {
     variable file
     variable names
     if {$uuid eq "" || $file eq ""} return
-    set name [expr {[dict exists $names $uuid] ? [dict get $names $uuid] : $file}]
+    set name [if {[dict exists $names $uuid]} {dict get $names $uuid} else {set file}]
     diffview::run "$name in [string range $uuid 0 9]" -mode sidebyside -- \
         -R $repo -N --checkin $uuid [fossil::arg $name]
 }
@@ -852,7 +852,7 @@ proc tkfiles::historyMenu {x y X Y} {
     $m add command -label "Add tag\u2026" -command [list tagwrite::addTag $::tkfiles::repo $uuid]
     $m add separator
     variable fileHashes
-    set fh [expr {[dict exists $fileHashes $uuid] ? [dict get $fileHashes $uuid] : ""}]
+    set fh [if {[dict exists $fileHashes $uuid]} {dict get $fileHashes $uuid}]
     $m add command -label "Copy file hash" -command [list ui::copy $fh] \
         -state [expr {$fh eq "" ? "disabled" : "normal"}]
     popup::default $m "Diff against the previous version"

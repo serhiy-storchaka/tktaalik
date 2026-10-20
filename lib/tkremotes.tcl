@@ -210,7 +210,7 @@ proc tkremotes::add {{from ""}} {
                     -message "A URL cannot start with \"-\", \"<\", \">\" or \"|\"."
                 continue
             }
-            set now [expr {[dict exists $remotes default] ? [dict get $remotes default] : "none"}]
+            set now [if {[dict exists $remotes default]} {dict get $remotes default} else {string cat "none"}]
             if {![confirm "Make $url the default remote?" "Pull and push will use it\
                     instead of\n$now"]} continue
             if {[change $url]} break
@@ -232,7 +232,7 @@ proc tkremotes::add {{from ""}} {
         if {![confirm "Add the remote $name?" "$url\n\nNothing is synced; pull and push\
                 still use the default remote."]} continue
         # (A copy by the name: with the password Fossil keeps for it.)
-        if {[change add $name [expr {$from ne "" ? $from : $url}]]} break
+        if {[change add $name [if {$from ne ""} {set from} else {set url}]]} break
     }
     destroy $w
 }
@@ -255,7 +255,7 @@ proc tkremotes::makeDefault {} {
     variable remotes
     set name [selected]
     if {$name eq "" || $name eq "default"} return
-    set now [expr {[dict exists $remotes default] ? [dict get $remotes default] : "none"}]
+    set now [if {[dict exists $remotes default]} {dict get $remotes default} else {string cat "none"}]
     if {![confirm "Make $name the default remote?" "Pull and push will use\n[dict get $remotes $name]\
             \ninstead of\n$now"]} return
     change $name
@@ -315,5 +315,5 @@ proc tkremotes::popupMenu {m item} {
 # The URL of the remote NAME (Ctrl+C).
 proc tkremotes::url {name} {
     variable remotes
-    expr {[dict exists $remotes $name] ? [dict get $remotes $name] : ""}
+    if {[dict exists $remotes $name]} {dict get $remotes $name}
 }

@@ -508,8 +508,11 @@ proc htmltext::element {stVar close name rest} {
         }
         img {
             set attrs [attributes $rest]
-            set alt [expr {[dict exists $attrs alt] && [dict get $attrs alt] ne ""
-                ? [dict get $attrs alt] : "image"}]
+            set alt [if {[dict exists $attrs alt] && [dict get $attrs alt] ne ""} {
+                dict get $attrs alt
+            } else {
+                string cat "image"
+            }]
             set italic [dict get $st italic]
             dict set st italic 1
             emit st "\[$alt\]"

@@ -206,7 +206,7 @@ proc formattext::get {w} {
 proc formattext::mimetype {w} {
     variable opts
     set o $opts($w)
-    set label [expr {[dict get $o -fixed] ne "" ? [dict get $o -fixed] : [set ::[dict get $o -variable]]}]
+    set label [if {[dict get $o -fixed] ne ""} {dict get $o -fixed} else {set ::[dict get $o -variable]}]
     dict get [dict get $o -formats] $label
 }
 
@@ -348,7 +348,7 @@ proc formattext::Link {t template} {
     set mark [expr {$url eq "url" ? "%u" : "%t"}]
     set at [string first $mark $template]
     set first [string length [string map [list %t $text %u $url] [string range $template 0 $at-1]]]
-    set last [expr {$first + [string length [expr {$mark eq "%u" ? $url : $text}]]}]
+    set last [expr {$first + [string length [if {$mark eq "%u"} {set url} else {set text}]]}]
     Replace $t $from $to $result $first $last
 }
 
@@ -396,7 +396,7 @@ proc formattext::Lines {t spec} {
                 }]
             } else {
                 set result [list $open {*}[lmap line $lines {
-                    expr {[string trim $line] eq "" ? $line : "<li>$line</li>"}
+                    if {[string trim $line] eq ""} {set line} else {string cat "<li>$line</li>"}
                 }] $close]
             }
         }
@@ -418,9 +418,9 @@ proc formattext::Prefix {lines prefix} {
     if {![llength $marked]} { return [list $prefix[join $lines ""]] }
     set n [string length $prefix]
     if {[llength [lsearch -all -inline -not -glob $marked [string map {* \\* ? \\? [ \\[} $prefix]*]] == 0} {
-        return [lmap line $lines { expr {$line eq "" ? "" : [string range $line $n end]} }]
+        return [lmap line $lines { if {$line ne ""} {string range $line $n end} }]
     }
-    lmap line $lines { expr {$line eq "" ? "" : "$prefix$line"} }
+    lmap line $lines { if {$line ne ""} {string cat "$prefix$line"} }
 }
 
 proc formattext::Number {lines} {
@@ -430,7 +430,7 @@ proc formattext::Number {lines} {
     }
     if {![llength $marked]} { return [list "1. [join $lines ""]"] }
     set i 0
-    lmap line $lines { expr {$line eq "" ? "" : "[incr i]. $line"} }
+    lmap line $lines { if {$line ne ""} {string cat "[incr i]. $line"} }
 }
 
 proc formattext::EachLine {lines open close} {
@@ -441,9 +441,9 @@ proc formattext::EachLine {lines open close} {
     foreach line $marked {
         if {[string first $open $line] != 0 || [string range $line end-[expr {$c - 1}] end] ne $close} { set all 0 }
     }
-    if {$all} { return [lmap line $lines { expr {$line eq "" ? "" : [string range $line $o end-$c]} }] }
+    if {$all} { return [lmap line $lines { if {$line ne ""} {string range $line $o end-$c} }] }
     if {![llength $marked]} { return [list $open[join $lines ""]$close] }
-    lmap line $lines { expr {$line eq "" ? "" : "$open$line$close"} }
+    lmap line $lines { if {$line ne ""} {string cat "$open$line$close"} }
 }
 
 # ---------------------------------------------------------- references
@@ -473,7 +473,7 @@ proc formattext::Reference {w kind} {
         return
     }
     # (Many lines: no search for them, the text only.)
-    set query [expr {[string first \n $selected] < 0 ? $selected : ""}]
+    set query [if {[string first \n $selected] < 0} {set selected}]
     refpick::choose $w $repo $kind $query [list formattext::InsertReference $w $kind $id $selected]
 }
 
@@ -481,11 +481,11 @@ proc formattext::Reference {w kind} {
 proc formattext::InsertReference {w kind given text {chosen ""}} {
     variable markup
     if {![winfo exists $w]} return
-    set id [expr {$given ne "" ? $given : $chosen}]
+    set id [if {$given ne ""} {set given} else {set chosen}]
     set t $w.src.t
     set spec [dict get $markup [mimetype $w] $kind]
     lassign $spec - template withText
-    set name [expr {$kind eq "branch" ? $id : [string range $id 0 9]}]
+    set name [if {$kind eq "branch"} {set id} else {string range $id 0 9}]
     if {$text eq ""} { set text $name } elseif {$withText ne ""} { set template $withText }
     if {[mimetype $w] eq "text/html"} { set text [string map {& &amp; < &lt; > &gt;} $text] }
     set result [string map [list %h $name %u [fossil::urlquery $id] %t $text] $template]

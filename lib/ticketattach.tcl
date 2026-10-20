@@ -74,7 +74,7 @@ proc tktsearch::fillAttachments {attachments} {
 # The file name of the attachment I (Ctrl+C).
 proc tktsearch::attachmentName {i} {
     variable attached
-    expr {[info exists attached($i)] ? [dict get $attached($i) name] : ""}
+    if {[info exists attached($i)]} {dict get $attached($i) name}
 }
 
 # View an attachment, or open it on the server if it is not here.
@@ -323,7 +323,7 @@ proc tktsearch::attachFiles {uuid} {
         }
         lappend names [file tail $file]
     }
-    set old [expr {$uuid eq $shownTicket ? [lmap i [array names attached] { dict get $attached($i) name }] : {}}]
+    set old [if {$uuid eq $shownTicket} {lmap i [array names attached] { dict get $attached($i) name }}]
     set replaced [lmap n $names { if {$n in $old} { set n } else continue }]
     set title [lindex [::tickets::sql "SELECT [fossil::outcol "coalesce([::tickets::field title],'')"]\
         FROM ticket WHERE tkt_uuid=[fossil::sqlstr $uuid]"] 0 0]

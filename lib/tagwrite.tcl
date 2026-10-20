@@ -45,8 +45,11 @@ proc tagwrite::wait {w ok {check {}}} {
 # What the command would record (its dry run): apply it?  -note NOTE: the
 # line under it (what changes, what does not).
 proc tagwrite::confirm {title message text args} {
-    set note [expr {[dict exists $args -note] ? [dict get $args -note]
-        : "Only the local repository is changed: nothing is pushed."}]
+    set note [if {[dict exists $args -note]} {
+        dict get $args -note
+    } else {
+        string cat "Only the local repository is changed: nothing is pushed."
+    }]
     set w [dialog .tagwrite title]
     wm title .tagwrite $title
     ttk::label $w.msg -text $message -wraplength 600 -justify left
@@ -76,7 +79,7 @@ proc tagwrite::apply {title message repo cmd done} {
         return 0
     }
     if {![confirm $title $message "fossil [join [lmap a $cmd {
-            expr {[regexp {[\s"]} $a] ? "\"$a\"" : $a}
+            if {[regexp {[\s"]} $a]} {string cat "\"$a\""} else {set a}
         }]]\n\n$out"]} {
         return 0
     }
@@ -199,7 +202,7 @@ proc tagwrite::moveTag {repo name from to where value {done ""}} {
             return "A value cannot start with \"[string index $::tagwrite::f(value) 0]\"."
         }
     }}}]} { return 0 }
-    set cmds [list [list tag add $name $to {*}[expr {$f(value) eq "" ? "" : [list $f(value)]}]]]
+    set cmds [list [list tag add $name $to {*}[if {$f(value) ne ""} {list $f(value)}]]]
     if {!$f(keep)} { lappend cmds [list tag cancel $name $from] }
     # The dry runs of both, in one question.
     set text ""

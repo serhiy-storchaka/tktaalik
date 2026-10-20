@@ -18,7 +18,7 @@ set long [lindex [fossil::sql $R "SELECT b.uuid FROM event e JOIN blob b ON b.ri
     WHERE e.type='ci' AND length(e.comment) > 200 AND instr(e.comment, char(10)) = 0 ORDER BY e.mtime DESC LIMIT 1"] 0 0]
 set cut [lindex [goto::linkTip info:$long] 0]
 check "a long line cut: [list $cut]" {[string length $cut] <= 100 && [string index $cut end] eq "\u2026"
-    && [string match "[string range $cut 0 end-1]*" [commentOf $long]]}
+    && [string first [string range $cut 0 end-1] [commentOf $long]] == 0}
 check "its icon: the check-in's" {$image eq [icons::get k-checkin row]}
 check "as /info/HASH too" {[lindex [goto::linkTip /info/[string range $ci 0 9]] 0] eq $tip}
 # A closed ticket with a resolution: its title, the icon of the two.

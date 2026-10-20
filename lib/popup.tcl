@@ -141,7 +141,7 @@ proc popup::copyKey {w {command ""}} {
 proc popup::copyRows {w command} {
     set values {}
     foreach item [$w selection] {
-        set v [expr {$command eq "" ? $item : [uplevel #0 [list {*}$command $item]]}]
+        set v [if {$command eq ""} {set item} else {uplevel #0 [list {*}$command $item]}]
         if {$v ne ""} { lappend values $v }
     }
     if {[llength $values]} { ui::copy [join $values \n] }

@@ -32,7 +32,7 @@ proc refpick::resolve {repo kind text} {
             WHERE s.tagid=(SELECT tagid FROM tag WHERE tagname='sym-'||$q) AND s.tagtype>0
             AND x.tagid=(SELECT tagid FROM tag WHERE tagname='branch') AND x.rid=s.rid
             AND x.tagtype>0 AND x.value=$q LIMIT 1"]
-        return [expr {[llength $rows] ? $text : ""}]
+        return [if {[llength $rows]} {set text}]
     }
     if {![regexp {^[0-9a-fA-F]{4,64}$} $text]} { return "" }
     set glob [fossil::sqlstr "[string tolower $text]*"]
@@ -42,7 +42,7 @@ proc refpick::resolve {repo kind text} {
         set rows [fossil::sql $repo "SELECT b.uuid FROM blob b JOIN event e ON e.objid=b.rid
             WHERE e.type='ci' AND b.uuid GLOB $glob LIMIT 2"]
     }
-    expr {[llength $rows] == 1 ? [lindex $rows 0 0] : ""}
+    if {[llength $rows] == 1} {lindex $rows 0 0}
 }
 
 proc refpick::find {repo kind query} {

@@ -235,7 +235,7 @@ proc tkbranches::needCheckout {what} {
 
 proc tkbranches::changedFiles {} {
     lassign [inCheckout changes] code out
-    expr {$code ? "" : [string trim $out]}
+    if {!$code} {string trim $out}
 }
 
 # Update the checkout to a branch's last check-in, or to a check-in
@@ -299,13 +299,18 @@ proc tkbranches::mergeIn {kind what done {versions {}}} {
     if {$kind ne "base" && ![fossil::argOk $what $kind]} { return 0 }
     # (The branch of the checkout merged into: its own, from any tab.)
     lassign [inCheckout branch current] code out
-    set current [expr {$code ? $current : [string trim $out]}]
+    set current [if {$code} {set current} else {string trim $out}]
     array set mergeOpt {integrate 0 keep 0 force 0 baseline "" binary "" answer ""}
     set mergeOpt(what) $what
     set label [dict get {branch "Merge" base "Merge" rebase "Merge" squash "Cherry-pick" checkin "Merge"
         cherrypick "Cherry-pick" backout "Back out"} $kind]
-    set message "$label [expr {$kind in {branch rebase} ? $what : $kind eq "base" ? "a base branch"
-        : $kind eq "squash" ? "the [llength $versions] check-ins of $what" : [string range $what 0 9]}]\
+    set message "$label [if {$kind in {branch rebase}} {set what} elseif {$kind eq "base"} {
+            string cat "a base branch"
+        } elseif {$kind eq "squash"} {
+            string cat "the [llength $versions] check-ins of $what"
+        } else {
+            string range $what 0 9
+        }]\
         into the checkout (on $current)?  The files change, nothing is committed."
     if {[changedFiles] ne ""} {
         append message "  The checkout already has uncommitted changes."
@@ -387,7 +392,7 @@ proc tkbranches::mergeIn {kind what done {versions {}}} {
     while 1 {
         set opts [mergeOpts $kind]
         if {$kind eq "base"} { set what [baseName $mergeOpt(what)]; set shown $what }
-        set arg [expr {$kind ne "squash" ? [list $what] : $several ? $versions : [lrange $versions 0 0]}]
+        set arg [if {$kind ne "squash"} {list $what} elseif {$several} {set versions} else {lrange $versions 0 0}]
         if {$opts eq "-"} {
             tk_messageBox -parent $w -icon info -title $label \
                 -message "The baseline and the binary files cannot start with \"-\", \"<\", \">\" or \"|\"."
@@ -410,8 +415,11 @@ proc tkbranches::mergeIn {kind what done {versions {}}} {
         set mergeOpt(answer) ""
         vwait ::tkbranches::mergeOpt(answer)
         if {$mergeOpt(answer) eq "cancel"} { destroy $w; return 0 }
-        if {$mergeOpt(answer) eq "ok" && $dryDone && [list [mergeOpts $kind] [expr {$kind eq "base"
-                ? [baseName $mergeOpt(what)] : $what}]] eq $dry} break
+        if {$mergeOpt(answer) eq "ok" && $dryDone && [list [mergeOpts $kind] [if {$kind eq "base"} {
+                    baseName $mergeOpt(what)
+                } else {
+                    set what
+                }]] eq $dry} break
         # (OK with options changed since the dry run: the dry run first.)
     }
     set dry [lindex $dry 0]
@@ -599,7 +607,7 @@ proc tkbranches::checkoutWhere {} {
     set uuid [lindex [fossil::checkoutSql $root "SELECT b.uuid FROM blob b
         WHERE b.rid=[startRid ""]"] 0 0]
     lassign [inCheckout branch current] code out
-    list $uuid [expr {$code ? [string range $uuid 0 9] : [string trim $out]}]
+    list $uuid [if {$code} {string range $uuid 0 9} else {string trim $out}]
 }
 
 # Not merged: the checkout back to the check-in UUID (on BRANCH), as it was.
@@ -658,7 +666,7 @@ proc tkbranches::RebaseIn {base done branch} {
     # rest).
     set line [lmap row [fossil::checkoutSql $root "WITH RECURSIVE
          tg(branch) AS (SELECT tagid FROM tag WHERE tagname='branch'),
-         line(rid) AS (SELECT [startRid [expr {$other ? $branch : ""}]]
+         line(rid) AS (SELECT [startRid [if {$other} {set branch}]]
           UNION SELECT p.pid FROM plink p JOIN line ON p.cid=line.rid, tg
           WHERE p.isprim AND EXISTS (SELECT 1 FROM tagxref x WHERE x.rid=p.pid
            AND x.tagid=tg.branch AND x.tagtype>0 AND x.value=[fossil::sqlstr $branch]))
@@ -669,9 +677,9 @@ proc tkbranches::RebaseIn {base done branch} {
         showOutput $title "$branch has no check-ins." ""
         return 0
     }
-    lassign [baseChoices $root [expr {$other ? $branch : ""}]] choices default
+    lassign [baseChoices $root [if {$other} {set branch}]] choices default
     set base [chooseRebase $title $branch $was $other [llength $line] $choices \
-        [expr {$base ne "" ? $base : $default}]]
+        [if {$base ne ""} {set base} else {set default}]]
     if {$base eq ""} { return 0 }
     variable squash
     lassign [inCheckout update --nosync $base] code out
@@ -690,7 +698,7 @@ proc tkbranches::RebaseIn {base done branch} {
     update idletasks
     set ::tkcommit::branch $branch
     set ::tkcommit::rebased $branch
-    set ::tkcommit::squashed [expr {$squash ? $from : ""}]
+    set ::tkcommit::squashed [if {$squash} {set from}]
     set t .commit.bottom.msg.text
     if {[string trim [$t get 1.0 end]] eq ""} {
         $t insert end [expr {$squash ? "Rebase to $base (squashed)" : "Rebase to $base"}]

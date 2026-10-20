@@ -64,7 +64,7 @@ proc diffview::parse {text} {
             }
             set old [fileName [string range $line 4 end]]
             set new [fileName [string range [lindex $all $i+1] 4 end]]
-            set name [expr {$new eq "/dev/null" ? $old : $new}]
+            set name [if {$new eq "/dev/null"} {set old} else {set new}]
             set header [concat $start [list $line [lindex $all $i+1]]]
             set lines {}
             set added 0
@@ -288,7 +288,7 @@ proc diffview::gdiffCommand {w} {
         {fossil patch diff -f} {fossil patch gdiff -f}
     }
     set c [dict get $data($w) command]
-    expr {[dict exists $map $c] ? [dict get $map $c] : ""}
+    if {[dict exists $map $c]} {dict get $map $c}
 }
 
 proc diffview::external {w} {
@@ -497,7 +497,7 @@ proc diffview::setText {w text} {
     set i 0
     foreach f $files {
         lassign $f name header body a d
-        set label [expr {$name eq "" ? "(description)" : $name}]
+        set label [if {$name eq ""} {string cat "(description)"} else {set name}]
         $t insert {} end -id $i -values [list [expr {$a ? $a : ""}] [expr {$d ? $d : ""}] $label]
         incr added $a
         incr deleted $d
@@ -513,7 +513,7 @@ proc diffview::setText {w text} {
     } elseif {!$plain && "$w.p.files" ni [$w.p panes]} {
         $w.p insert 0 $w.p.files -weight 1
     }
-    mark $w [expr {[dict exists $data($w) marks hit] ? [dict get $data($w) marks hit] : {}}]
+    mark $w [if {[dict exists $data($w) marks hit]} {dict get $data($w) marks hit}]
     if {![llength $files]} {
         set msg [string trim $text]
         $w.status configure -text [expr {$msg eq "" ? "No differences." : $msg}]
@@ -607,7 +607,7 @@ proc diffview::sideBySide {l r i f} {
     foreach d [list $l $r] {
         $d mark set f$i end-1c
         $d mark gravity f$i left
-        $d insert end "[expr {$name eq "" ? "(description)" : $name}]\n" file
+        $d insert end "[if {$name eq ""} {string cat "(description)"} else {set name}]\n" file
     }
     if {$name eq ""} {
         # A patch's description: on the left only.

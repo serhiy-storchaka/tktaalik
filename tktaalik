@@ -118,7 +118,7 @@ proc tktaalik::saveConfig {} {
 }
 
 proc tktaalik::getdef {dict key default} {
-    expr {[dict exists $dict $key] ? [dict get $dict $key] : $default}
+    if {[dict exists $dict $key]} {dict get $dict $key} else {set default}
 }
 
 # ------------------------------------------------------------ repository

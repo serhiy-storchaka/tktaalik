@@ -53,7 +53,7 @@ proc tkstash::saveConfig {} {
 }
 
 proc tkstash::getdef {dict key default} {
-    expr {[dict exists $dict $key] ? [dict get $dict $key] : $default}
+    if {[dict exists $dict $key]} {dict get $dict $key} else {set default}
 }
 
 # ----------------------------------------------------------------- data
@@ -109,7 +109,7 @@ proc tkstash::reload {} {
     array unset ::tkstash::conflictsOf
     foreach row $rows {
         lassign $row id date hash comment
-        set branch [expr {[dict exists $branchOf $hash] ? [dict get $branchOf $hash] : ""}]
+        set branch [if {[dict exists $branchOf $hash]} {dict get $branchOf $hash}]
         # The files it changes.  Fossil can record every file of the
         # checkout in a stash (after "fossil mv"), most of them unchanged:
         # a file counts if it is added, deleted or renamed, or if its diff
@@ -577,7 +577,7 @@ proc tkstash::filesThat {result how} {
 
 proc tkstash::changes {} {
     lassign [fossil changes] code out
-    expr {$code ? "" : [string trim $out]}
+    if {!$code} {string trim $out}
 }
 
 proc tkstash::confirm {title message detail} {

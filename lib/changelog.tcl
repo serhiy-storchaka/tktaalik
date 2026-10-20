@@ -44,7 +44,7 @@ proc tktimeline::releaseTags {} {
 
 proc tktimeline::previousTag {name tags} {
     set i [lsearch -exact $tags $name]
-    set later [expr {$i < 0 ? $tags : [lrange $tags $i+1 end]}]
+    set later [if {$i < 0} {set tags} else {lrange $tags $i+1 end}]
     set stem [regsub {[0-9]+$} $name ""]
     if {$stem ne $name} {
         foreach t $later {
@@ -64,7 +64,7 @@ proc tktimeline::compareReleases {{newer ""}} {
     variable repo
     if {$repo eq ""} return
     set tags [releaseTags]
-    set cl(to) [expr {$newer ne "" ? $newer : [lindex $tags 0]}]
+    set cl(to) [if {$newer ne ""} {set newer} else {lindex $tags 0}]
     set cl(from) [previousTag $cl(to) $tags]
     set w .timeline.compare
     set f [ui::dialog $w "Compare releases" -escape [list destroy $w] -help timeline#releases-and-changelogs]
@@ -121,7 +121,7 @@ proc tktimeline::compareDone {log} {
     tktaalik::navigate
     # (Quoted if need be: a name is a term's value.)
     set q [lmap {key name} [list in $to -in $from] {
-        string cat $key : [expr {[regexp {[\s",]} $name] ? "\"$name\"" : $name}]
+        string cat $key : [if {[regexp {[\s",]} $name]} {string cat "\"$name\""} else {set name}]
     }]
     set query "[join $q] kind:ci"
     after cancel tktimeline::search

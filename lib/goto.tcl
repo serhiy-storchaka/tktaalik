@@ -200,7 +200,7 @@ proc goto::linkTarget {href} {
         set script ""
         switch -- $page {
             info - ci - vinfo - artifact - hexdump - tktview - forumpost - forumthread {
-                set name [expr {$rest ne "" ? $rest : [dictGet $params name]}]
+                set name [if {$rest ne ""} {set rest} else {dictGet $params name}]
                 if {$name ne ""} { set script [nameTarget $name artifact] }
             }
             timeline {
@@ -230,7 +230,7 @@ proc goto::linkTarget {href} {
 }
 
 proc goto::dictGet {d key} {
-    expr {[dict exists $d $key] ? [dict get $d $key] : ""}
+    if {[dict exists $d $key]} {dict get $d $key}
 }
 
 # What NAME (a hash, a branch, a tag...) is to be shown as: the script of
@@ -504,7 +504,7 @@ proc goto::choose {id} {
 # The name of a match (Ctrl+C).
 proc goto::foundName {item} {
     variable found
-    expr {[dict exists $found $item] ? [lindex [dict get $found $item] 1] : ""}
+    if {[dict exists $found $item]} {lindex [dict get $found $item] 1}
 }
 
 # The context menu of a match.

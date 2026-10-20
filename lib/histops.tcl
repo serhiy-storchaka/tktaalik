@@ -83,7 +83,7 @@ proc histops::archive {repo checkin {label ""}} {
     set project [lindex [fossil::sql $repo "SELECT coalesce((SELECT value FROM config\
         WHERE name='project-name'),'')"] 0 0]
     regsub -all {[^A-Za-z0-9._-]+} $project - project
-    set short [expr {[regexp {^[0-9a-f]{10,}$} $checkin] ? [string range $checkin 0 9] : $checkin}]
+    set short [if {[regexp {^[0-9a-f]{10,}$} $checkin]} {string range $checkin 0 9} else {set checkin}]
     if {![info exists archive(format)]} { set archive(format) zip }
     set archive(name) [string trim "$project-$short" -]
     set archive(include) ""
@@ -323,7 +323,7 @@ proc histops::exportBundle {repo {branch ""}} {
     grid $w.rc $w.checkin -sticky w -pady 2
     grid $w.sa - -sticky w -pady {6 0}
     if {![tagwrite::wait .tagwrite "Save\u2026" histops::bundleProblem]} return
-    set name [expr {$bundle(how) eq "branch" ? $bundle(branch) : "bundle"}]
+    set name [if {$bundle(how) eq "branch"} {set bundle(branch)} else {string cat "bundle"}]
     set file [tk_getSaveFile -title "Save the bundle" -initialfile [regsub -all {[^A-Za-z0-9._-]} $name -].bundle]
     if {$file eq ""} return
     # (A bundle file that exists is added to: replaced instead, as asked.)
@@ -560,7 +560,7 @@ proc histops::graveMenu {m item} {
 # The hash of an artifact of a purge (Ctrl+C); none for a purge.
 proc histops::graveHash {item} {
     set t .graveyard.f.t
-    expr {[$t parent $item] eq "" ? "" : [lindex [$t set $item what] 0]}
+    if {[$t parent $item] ne ""} {lindex [$t set $item what] 0}
 }
 
 proc histops::graveUndo {repo done} {
@@ -653,7 +653,7 @@ proc histops::describe {repo rid {match *}} {
     set text ""
     if {$row ne ""} {
         lassign $row tag n uuid
-        set text [expr {$n == 0 ? $tag : "$tag-$n-[string range $uuid 0 [hashDigits $repo]-1]"}]
+        set text [if {$n == 0} {set tag} else {string cat "$tag-$n-[string range $uuid 0 [hashDigits $repo]-1]"}]
     }
     dict set describeCache $key $text
     return $text

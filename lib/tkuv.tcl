@@ -346,7 +346,7 @@ proc tkuv::add {} {
             "Optional: a folder for them in the repository (doc, releases/1.0)"]
         if {$dlgDone ne "ok"} return
         set folder [string trim $folder /]
-        set names [lmap p $paths { expr {$folder eq "" ? [nameOf $p] : "$folder/[nameOf $p]"} }]
+        set names [lmap p $paths { if {$folder eq ""} {nameOf $p} else {string cat "$folder/[nameOf $p]"} }]
     }
     foreach n $names {
         set problem [badName $n]

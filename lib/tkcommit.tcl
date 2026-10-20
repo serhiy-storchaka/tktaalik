@@ -557,7 +557,7 @@ proc tkcommit::commit {{dryRun 0}} {
                     "The check-in the checkout is at was moved to $to[expr {$from ne "" ? " from $from" : ""}]\
                     by $user on $date (a tag change, as \"fossil amend --branch\" makes), and\
                     a commit goes to the branch of its check-in.  To commit to\
-                    [expr {$from ne "" ? $from : "the other branch"}] instead, update to it first\
+                    [if {$from ne ""} {set from} else {string cat "the other branch"}] instead, update to it first\
                     (Branches tab), or give a new branch here.\n\nCommit to $to?"]} return
         }
     }

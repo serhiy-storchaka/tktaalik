@@ -161,7 +161,7 @@ proc fossil::eqOptions {} {
 
 proc fossil::run {args} {
     set opts [Options args {-dir -input}]
-    set input [expr {[dict exists $opts -input] ? [dict get $opts -input] : ""}]
+    set input [if {[dict exists $opts -input]} {dict get $opts -input}]
     if {![dict exists $opts -dir] || [dict get $opts -dir] eq ""} { return [Exec $input $args] }
     set here [pwd]
     cd [dict get $opts -dir]
@@ -320,13 +320,13 @@ proc fossil::inDir {dir body} {
 proc fossil::start {args} {
     variable jobs
     set opts [Options args {-dir -encoding -input -onOutput -onDone -command}]
-    set command [expr {[dict exists $opts -command] ? [dict get $opts -command] : [list fossil {*}$args]}]
-    set dir [expr {[dict exists $opts -dir] ? [dict get $opts -dir] : ""}]
+    set command [if {[dict exists $opts -command]} {dict get $opts -command} else {list fossil {*}$args}]
+    set dir [if {[dict exists $opts -dir]} {dict get $opts -dir}]
     set here [pwd]
     if {$dir ne ""} { cd $dir }
     try {
         set cmd [command $command]
-        set input [expr {[dict exists $opts -input] ? [dict get $opts -input] : ""}]
+        set input [if {[dict exists $opts -input]} {dict get $opts -input}]
         set chan [open |[list {*}$cmd << $input 2>@1] r]
     } finally {
         cd $here
@@ -335,8 +335,8 @@ proc fossil::start {args} {
     lenient $chan
     if {[dict exists $opts -encoding]} { fconfigure $chan -encoding [dict get $opts -encoding] }
     dict set jobs $chan [dict create \
-        onOutput [expr {[dict exists $opts -onOutput] ? [dict get $opts -onOutput] : ""}] \
-        onDone [expr {[dict exists $opts -onDone] ? [dict get $opts -onDone] : ""}] \
+        onOutput [if {[dict exists $opts -onOutput]} {dict get $opts -onOutput}] \
+        onDone [if {[dict exists $opts -onDone]} {dict get $opts -onDone}] \
         text "" stopped 0]
     fileevent $chan readable [list fossil::JobRead $chan]
     return $chan
@@ -434,10 +434,13 @@ proc fossil::runWindow {args} {
     pack $w.b -side bottom -fill x
     pack $w.y -side right -fill y
     pack $w.t -fill both -expand 1
-    set shown [expr {[dict exists $opts -shown] && [dict get $opts -shown] ne ""
-        ? [dict get $opts -shown] : [mask "fossil [join $argv]"]}]
+    set shown [if {[dict exists $opts -shown] && [dict get $opts -shown] ne ""} {
+        dict get $opts -shown
+    } else {
+        mask "fossil [join $argv]"
+    }]
     $w.t insert end "$shown\n\n"
-    set done [expr {[dict exists $opts -onDone] ? [dict get $opts -onDone] : ""}]
+    set done [if {[dict exists $opts -onDone]} {dict get $opts -onDone}]
     set start [list -onOutput [list fossil::WindowOutput $w] -onDone [list fossil::WindowDone $w $done]]
     if {[dict exists $opts -dir] && [dict get $opts -dir] ne ""} { lappend start -dir [dict get $opts -dir] }
     if {[dict exists $opts -command]} { lappend start -command [dict get $opts -command] }
@@ -523,7 +526,7 @@ proc fossil::setting {name args} {
     set opts [Options args {-dir -R}]
     set cmd [list settings $name --exact]
     if {[dict exists $opts -R]} { lappend cmd -R [dict get $opts -R] }
-    set dir [expr {[dict exists $opts -dir] ? [dict get $opts -dir] : ""}]
+    set dir [if {[dict exists $opts -dir]} {dict get $opts -dir}]
     lassign [run -dir $dir {*}$cmd] code out
     foreach line [split $out \n] {
         if {[regexp {^(\S+)\s+(?:\([^)]*\)\s+)?(.*)$} $line -> key value] && $key eq $name} {
@@ -564,7 +567,7 @@ proc fossil::autosyncValue {setting {subsystem ""}} {
             set default $entry
         }
     }
-    expr {$value ne "" ? $value : $default}
+    if {$value ne ""} {set value} else {set default}
 }
 
 proc fossil::urlquery {text {keep ""}} {
@@ -781,8 +784,9 @@ proc fossil::SqlDone {cmd code text stopped msg} {
         uplevel #0 [list {*}$cmd 1 [string trim [lindex [split "$text\n$msg" \n] 0]]]
         return
     }
-    set rows [expr {$text eq "" ? {}
-        : [lmap row [split [string trimright $text \x1e] \x1e] { split $row \x1f }]}]
+    set rows [if {$text ne ""} {
+        lmap row [split [string trimright $text \x1e] \x1e] { split $row \x1f }
+    }]
     uplevel #0 [list {*}$cmd 0 $rows]
 }
 
@@ -894,7 +898,7 @@ proc fossil::hashLink {links match hash {label ""}} {
     set hash [string tolower $hash]
     if {![dict exists $links $hash]} { return "" }
     set label [string trim $label]
-    expr {$label eq "" ? [dict get $links $hash] : [list [dict get $links $hash] $label]}
+    if {$label eq ""} {dict get $links $hash} else {list [dict get $links $hash] $label}
 }
 
 # The server of the repository (its remote URL without the user name), for

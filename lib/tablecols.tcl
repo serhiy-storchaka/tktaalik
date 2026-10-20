@@ -151,7 +151,7 @@ proc tablecols::others {t keys} {
 proc tablecols::option {t key name default} {
     variable columns
     set col [dict get $columns($t) $key]
-    expr {[dict exists $col $name] ? [dict get $col $name] : $default}
+    if {[dict exists $col $name]} {dict get $col $name} else {set default}
 }
 
 # The sort keys: key -> {heading TEXT dir DIR column KEY}, the columns and
@@ -196,7 +196,7 @@ proc tablecols::fill {t rows} {
     foreach row $rows {
         lassign $row id cells sorts tags
         $t insert {} end -id $id -tags $tags \
-            -values [lmap k $keys { expr {[dict exists $cells $k] ? [dict get $cells $k] : ""} }]
+            -values [lmap k $keys { if {[dict exists $cells $k]} {dict get $cells $k} }]
         if {[dict size $sorts]} { set sortvalue($t,$id) $sorts }
     }
     variable sortcommand
@@ -244,7 +244,7 @@ proc tablecols::headings {t} {
     foreach key [$t cget -columns] {
         set icon [option $t $key icon ""]
         # An icon heading: the image and the arrow (the rest in the tooltip).
-        set text [expr {$icon eq "" ? [option $t $key heading $key] : ""}]
+        set text [if {$icon eq ""} {option $t $key heading $key}]
         if {$key eq $skey} {
             append text $arrow
         } elseif {[dict get $sorted column] eq $key} {

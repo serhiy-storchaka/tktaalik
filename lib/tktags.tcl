@@ -363,7 +363,7 @@ proc tktags::showDetails {name} {
 
 # The name of a tag in the tag table: "sym-NAME", or a property's own.
 proc tktags::rawName {name} {
-    expr {[string match " *" $name] ? [string range $name 1 end] : "sym-$name"}
+    if {[string match " *" $name]} {string range $name 1 end} else {string cat "sym-$name"}
 }
 
 # Add the tag shown (or a new one) to a check-in.

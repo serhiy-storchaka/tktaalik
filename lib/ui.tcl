@@ -86,7 +86,7 @@ proc ui::copy {text} {
 }
 
 proc ui::openServer {remote path args} {
-    set title [expr {[dict exists $args -title] ? [dict get $args -title] : "Tktaalik"}]
+    set title [if {[dict exists $args -title]} {dict get $args -title} else {string cat "Tktaalik"}]
     set browse [expr {[dict exists $args -browse] ? [dict get $args -browse] : "fossil::browse"}]
     if {$remote eq ""} {
         if {![dict exists $args -quiet] || ![dict get $args -quiet]} {

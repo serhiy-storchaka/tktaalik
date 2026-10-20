@@ -294,7 +294,7 @@ proc tickets::queryState {query} {
         if {$neg || ![isState $key $value] || $value ni $states} continue
         set value
     }]
-    expr {[llength $found] == 1 ? [lindex $found 0] : ""}
+    if {[llength $found] == 1} {lindex $found 0}
 }
 
 proc tickets::addTerm {query key value} {

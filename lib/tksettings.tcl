@@ -44,7 +44,7 @@ proc tksettings::parse {text {names {}}} {
         } elseif {$name ne ""} {
             regexp {^    (.*)$} $line -> line
             set value [dict get $result $name value]
-            dict set result $name value [expr {$value eq "" ? $line : "$value\n$line"}]
+            dict set result $name value [if {$value eq ""} {set line} else {string cat "$value\n$line"}]
         }
     }
     return $result
@@ -77,7 +77,7 @@ proc tksettings::reload {} {
     dict for {name s} $effective {
         set g [expr {[dict exists $global $name] && [dict get $global $name scope] eq "global"
             ? [dict get $global $name value] : ""}]
-        set l [expr {[dict get $s scope] eq "local" ? [dict get $s value] : ""}]
+        set l [if {[dict get $s scope] eq "local"} {dict get $s value}]
         set settings($name) [dict create local $l global $g file [dict get $s file] \
             isLocal [expr {[dict get $s scope] eq "local"}] \
             isGlobal [expr {[dict exists $global $name] && [dict get $global $name scope] eq "global"}]]
@@ -95,7 +95,7 @@ proc tksettings::origin {s} {
 
 proc tksettings::oneLine {text} {
     set lines [split $text \n]
-    expr {[llength $lines] > 1 ? "[lindex $lines 0] \u2026 ([llength $lines] lines)" : $text}
+    if {[llength $lines] > 1} {string cat "[lindex $lines 0] \u2026 ([llength $lines] lines)"} else {set text}
 }
 
 proc tksettings::showList {} {
@@ -196,7 +196,7 @@ proc tksettings::showDetails {name} {
     $d configure -state disabled
     $d yview moveto 0
     # The value to set: the one of this repository, else the global one.
-    set v [expr {[dict get $s isLocal] ? [dict get $s local] : [dict get $s global]}]
+    set v [if {[dict get $s isLocal]} {dict get $s local} else {dict get $s global}]
     $e.value insert end $v
     $e.b.local state !disabled
     $e.b.global state !disabled

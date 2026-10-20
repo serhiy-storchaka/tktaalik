@@ -95,6 +95,12 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   scripts that run there.  Write `::apply` in such scripts.
 - **`text insert` takes text and tags in pairs**: pass `""` for a chunk
   without tags, or the next chunk becomes a tag list.
+- **Choose strings with `if`, not with `?:`.**  `expr` returns a string
+  that looks like a number as the number: `expr {$c ? $id : ""}` turns
+  the hash 8413e79232 into Inf, 007 into 7, 0x10 into 16, and fails on
+  NaN.  For hashes, names, paths, texts and lists write
+  `[if {$c} {set id}]`, `[if {[dict exists $d $k]} {dict get $d $k} else {set default}]`;
+  keep `?:` for numbers, booleans and fixed words.
 - **Settings** live in `config::path NAME` (`~/.config/tktaalik/NAME.conf`,
   or under `$XDG_CONFIG_HOME`), a Tcl dict with one key per line written by
   `config::put`.  Keep old keys readable when changing the format.

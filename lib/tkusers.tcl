@@ -173,7 +173,7 @@ proc tkusers::reload {} {
         set tags {}
         if {$login in $special} { lappend tags special }
         if {$login eq $default} { lappend tags default }
-        set shown [expr {$login eq $default ? "\u2605 $login" : $login}]
+        set shown [if {$login eq $default} {string cat "\u2605 $login"} else {set login}]
         lappend items [list $login [dict create login $shown cap $cap info $info mtime $mtime] \
             [dict create login $login] $tags]
     }
@@ -196,7 +196,7 @@ proc tkusers::reload {} {
         showDetails ""
     }
     if {![info exists msg]} {
-        set status "[llength $rows] users; default user: [expr {$default eq "" ? "none" : $default}]"
+        set status "[llength $rows] users; default user: [if {$default eq ""} {string cat "none"} else {set default}]"
         if {$defaultFrom ne ""} { append status " (from $defaultFrom)" }
     }
     .users.b.unset state [expr {$defaultFrom eq "repository" && [newDefault] ? "!disabled" : "disabled"}]
@@ -278,7 +278,7 @@ proc tkusers::makeDefault {} {
     if {![ui::confirm -parent .users -title Users \
             "Make $login the default user of [file tail $repo]?" \
             "Changes made here (commits, ticket changes) will be recorded as $login.\
-                Now: [expr {$default eq "" ? "none" : $default}]."]} return
+                Now: [if {$default eq ""} {string cat "none"} else {set default}]."]} return
     lassign [fossil::run user default $login -R $repo] code out
     if {$code} {
         tk_messageBox -parent .users -icon error -title Users -message "fossil user default failed:" \
@@ -422,7 +422,7 @@ proc tkusers::save {login oldCap} {
     } else {
         if {$info ne [dict get $users($login) info]} {
             lappend steps [list contact $login $info]
-            lappend what "contact: [expr {$info eq "" ? "none" : $info}]"
+            lappend what "contact: [if {$info eq ""} {string cat "none"} else {set info}]"
         }
         if {$cap ne $oldCap} {
             lappend steps [list capabilities $login $cap]
@@ -450,7 +450,7 @@ proc tkusers::save {login oldCap} {
         }
     }
     reload
-    set name [expr {$login eq "" ? $name : $login}]
+    set name [if {$login eq ""} {set name} else {set login}]
     if {[.users.main.list.t exists $name]} {
         .users.main.list.t selection set [list $name]
         .users.main.list.t see $name

@@ -70,7 +70,7 @@ proc tktimeline::saveConfig {} {
 }
 
 proc tktimeline::getdef {dict key default} {
-    expr {[dict exists $dict $key] ? [dict get $dict $key] : $default}
+    if {[dict exists $dict $key]} {dict get $dict $key} else {set default}
 }
 
 proc tktimeline::sql {statement} {
@@ -541,7 +541,7 @@ proc tktimeline::addTerm {key value neg} {
 # The hash of the row RID (Ctrl+C in the list).
 proc tktimeline::rowHash {rid} {
     variable rows
-    expr {[info exists rows($rid)] ? [dict get $rows($rid) uuid] : ""}
+    if {[info exists rows($rid)]} {dict get $rows($rid) uuid}
 }
 
 proc tktimeline::showDetails {rid} {
@@ -589,7 +589,7 @@ proc tktimeline::showDetails {rid} {
             set desc [describe $uuid]
             variable config
             set match [getdef $config describeMatch core-*]
-            set release [expr {$match ne "*" ? [describe $uuid $match] : ""}]
+            set release [if {$match ne "*"} {describe $uuid $match}]
             if {$desc ne ""} {
                 $d insert end "Describe: " label $desc
                 if {$release ne "" && $release ne $desc} { $d insert end "   (from $match: $release)" meta }

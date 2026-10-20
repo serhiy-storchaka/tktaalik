@@ -146,7 +146,7 @@ proc tkforum::setRepository {path newRoot} {
     variable remote [fossil::remoteUrl $path]
     variable me
     lassign [fossil::run user default -R $path] code out
-    set me [expr {$code ? "" : [string trim $out]}]
+    set me [if {!$code} {string trim $out}]
     variable limit 1000
     reload
 }
@@ -323,7 +323,7 @@ proc tkforum::showThread {froot} {
     set top {}
     foreach post $order {
         set firt [lindex $row($current($post)) 2]
-        set to [expr {$firt eq "" ? "" : [firstVersion prev $firt]}]
+        set to [if {$firt ne ""} {firstVersion prev $firt}]
         if {$to eq "" || ![info exists current($to)]} {
             lappend top $post
         } else {
@@ -425,7 +425,7 @@ proc tkforum::poster {} {
     variable me
     if {![info exists webUser($remote)]} {
         set urlUser [fossil::remoteUser $repo]
-        set webUser($remote) [expr {$urlUser ne "" ? $urlUser : $me}]
+        set webUser($remote) [if {$urlUser ne ""} {set urlUser} else {set me}]
     }
     return $webUser($remote)
 }
@@ -562,7 +562,7 @@ proc tkforum::mayPush {} {
     variable remote
     variable pushers
     set key $remote,[string trim [poster]]
-    expr {[info exists pushers($key)] ? $pushers($key) : ""}
+    if {[info exists pushers($key)]} {set pushers($key)}
 }
 
 # Ask the server (once a session for each user) if the password is
@@ -627,7 +627,7 @@ proc tkforum::post {mode hash {how web}} {
     set w .forum.compose
     if {![winfo exists $w]} return
     set f $w.f
-    set text [expr {$mode eq "delete" ? "" : [string trim [formattext::get $f.editor]]}]
+    set text [if {$mode ne "delete"} {string trim [formattext::get $f.editor]}]
     set title [string trim $postTitle]
     set user [string trim [poster]]
     if {[winfo exists $f.title] && $title eq ""} {
@@ -778,7 +778,7 @@ proc tkforum::Cards {mode hash title mimetype user text} {
         reply { append cards "I $hash\n" }
         edit - delete {
             if {$first} {
-                append cards "H [fossil::card [expr {$mode eq "delete" ? "" : $title}]]\n"
+                append cards "H [fossil::card [if {$mode ne "delete"} {set title}]]\n"
             } else {
                 append cards "I $firt\n"
             }
@@ -941,5 +941,5 @@ proc tkforum::threadLink {froot} {
 # The title of a row of the list (Ctrl+C).
 proc tkforum::rowTitle {item} {
     variable threads
-    expr {[info exists threads($item)] ? [dict get $threads($item) title] : ""}
+    if {[info exists threads($item)]} {dict get $threads($item) title}
 }
