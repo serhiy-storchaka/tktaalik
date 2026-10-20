@@ -11,7 +11,7 @@ proc tkbranches::openUrl {path} {
 proc tkbranches::diffCheckin {uuid} {
     variable repo
     if {$uuid ne ""} {
-        diffview::run "Check-in [string range $uuid 0 9]" -- -R $repo --checkin $uuid
+        diffview::run "Check-in [string range $uuid 0 9]" -- -R $repo -N --checkin $uuid
     }
 }
 
@@ -145,7 +145,7 @@ proc tkbranches::showChanges {from to} {
 
 proc tkbranches::diffRelease {from to} {
     variable repo
-    diffview::run "[version $from] \u2192 [version $to]" -- -R $repo --from $from --to $to
+    diffview::run "[version $from] \u2192 [version $to]" -- -R $repo -N --from $from --to $to
 }
 
 # ------------------------------------------------------------- operations
@@ -1506,7 +1506,7 @@ proc tkbranches::conflictsDone {} {
     set n [llength $warn]
     if {$n} { lappend parts "[expr {$n == 1 ? "1 file" : "$n files"}] changed on one side, deleted on the other (orange)" }
     if {[llength $parts]} {
-        # (Their names too: an added file has no diff in the list.)
+        # (Their names too: the list can be long.)
         set tip {}
         if {[llength $conflict]} { lappend tip "Conflicts:\n  [join $conflict "\n  "]" }
         if {[llength $warn]} { lappend tip "Changed on one side, deleted on the other:\n  [join $warn "\n  "]" }

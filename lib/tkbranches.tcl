@@ -1213,7 +1213,7 @@ proc tkbranches::loadFiles {} {
             --to [fossil::arg $selected]]
     }
     diffview::runIn .branches.main.details.nb.files -done tkbranches::filesCounted \
-        -- -R $repo {*}$args
+        -- -R $repo -N {*}$args
 }
 
 proc tkbranches::filesCounted {n} {

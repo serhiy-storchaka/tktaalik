@@ -61,8 +61,7 @@ proc compare {name} {
     update
 }
 compare trunk
-# (f.txt, added, has no diff in the list: only named in the tooltip.)
-check "conflicts: [marked conflict]" {[marked conflict] eq {a.txt}}
+check "conflicts: [marked conflict]" {[marked conflict] eq {a.txt f.txt}}
 check "the names in the tooltip: [list [bind $line <Enter>]]" {[string match "*Conflicts:\n  a.txt\n  f.txt\nChanged on one side, deleted on the other:\n  d.txt*" [bind $line <Enter>]]}
 check "changed and deleted: [marked warn]" {[marked warn] eq {d.txt}}
 check "the line: [$line cget -text]" {[$line cget -text] eq "2 files conflict with the tip of trunk (red); 1 file changed on one side, deleted on the other (orange)"
@@ -74,8 +73,7 @@ check "as Fossil's dry run: [list $dry]" {[regexp {MERGE[^\n]*a\.txt[^\n]*\n\*{5
 set tkbranches::tips 1; tkbranches::loadFiles
 waitUntil {![dict exists $diffview::data($p) chan] && $tkbranches::conflictJob eq ""}
 update
-# (d.txt, not on trunk, has no diff in the list there.)
-check "tip to tip: [marked conflict], [marked warn]" {[marked conflict] eq {a.txt f.txt} && [marked warn] eq ""
+check "tip to tip: [marked conflict], [marked warn]" {[marked conflict] eq {a.txt f.txt} && [marked warn] eq {d.txt}
     && [string match "2 files conflict*1 file changed*" [$line cget -text]]}
 set tkbranches::tips 0
 # None: compared with itself's start, and with a check-in it contains.

@@ -251,8 +251,8 @@ proc histops::showMergeBase {repo root a b {ignore 0}} {
     pack $w.ignore -anchor w -pady {6 0}
     foreach {b2 text cmd} [list \
             show "Show in Timeline" [list goto::checkin $uuid] \
-            diffa "Diff to $a" [list diffview::run "[string range $uuid 0 9] \u2192 $a" -- -R $repo --from $uuid --to [fossil::arg $a]] \
-            diffb "Diff to $b" [list diffview::run "[string range $uuid 0 9] \u2192 $b" -- -R $repo --from $uuid --to [fossil::arg $b]]] {
+            diffa "Diff to $a" [list diffview::run "[string range $uuid 0 9] \u2192 $a" -- -R $repo -N --from $uuid --to [fossil::arg $a]] \
+            diffb "Diff to $b" [list diffview::run "[string range $uuid 0 9] \u2192 $b" -- -R $repo -N --from $uuid --to [fossil::arg $b]]] {
         ttk::button .tagwrite.b.$b2 -text $text -command "[list destroy .tagwrite]; $cmd"
         pack .tagwrite.b.$b2 -side left -padx {0 4}
     }

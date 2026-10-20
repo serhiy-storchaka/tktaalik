@@ -824,7 +824,7 @@ proc tkfiles::diffCheckin {uuid} {
     if {$uuid eq "" || $file eq ""} return
     set name [expr {[dict exists $names $uuid] ? [dict get $names $uuid] : $file}]
     diffview::run "$name in [string range $uuid 0 9]" -mode sidebyside -- \
-        -R $repo --checkin $uuid [fossil::arg $name]
+        -R $repo -N --checkin $uuid [fossil::arg $name]
 }
 
 # The context menu of a version in the history.

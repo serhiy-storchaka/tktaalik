@@ -306,12 +306,12 @@ proc goto::wiki {tag uuid} {
 
 # Diffs (/vdiff links): in the diff window.
 proc goto::diffBranch {name} {
-    diffview::run "Branch $name" -- -R $::tktaalik::repo --branch [fossil::arg $name]
+    diffview::run "Branch $name" -- -R $::tktaalik::repo -N --branch [fossil::arg $name]
 }
 
 proc goto::diffVersions {from to} {
     diffview::run "[string range $from 0 9] \u2192 [string range $to 0 9]" -- \
-        -R $::tktaalik::repo --from [fossil::arg $from] --to [fossil::arg $to]
+        -R $::tktaalik::repo -N --from [fossil::arg $from] --to [fossil::arg $to]
 }
 
 proc goto::forum {uuid} {

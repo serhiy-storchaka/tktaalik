@@ -660,7 +660,7 @@ proc tktimeline::ticketFields {uuid} {
 
 proc tktimeline::diff {uuid} {
     variable repo
-    diffview::run "Check-in [string range $uuid 0 9]" -- -R $repo --checkin $uuid
+    diffview::run "Check-in [string range $uuid 0 9]" -- -R $repo -N --checkin $uuid
 }
 
 proc tktimeline::showTicket {id} {

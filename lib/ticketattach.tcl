@@ -275,7 +275,7 @@ proc tktsearch::checkinMenu {tv x y X Y} {
     $m delete 0 end
     $m add command -label "Show in Timeline" -command [list goto::checkin $uuid]
     $m add command -label "Diff of this check-in" -command [list diffview::run \
-        "Check-in [string range $uuid 0 9]" -- -R $::tickets::repo --checkin $uuid]
+        "Check-in [string range $uuid 0 9]" -- -R $::tickets::repo -N --checkin $uuid]
     $m add command -label "Open in browser" -command [list tktsearch::openUrl info/$uuid]
     popup::default $m "Show in Timeline"
     tk_popup $m $X $Y
