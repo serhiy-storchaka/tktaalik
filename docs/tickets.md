@@ -191,7 +191,10 @@ Its header has the title,
 the fields with their icons
 (TIP, Type, Status with the resolution, Subsystem, Priority, Severity, Found in,
 Assignee) and an **Edit…** button, then the short id,
-when it was opened and by whom, updated, and closed and by whom.
+when it was opened and by whom, updated, and closed and by whom
+(by whom it was opened: the Submitter field,
+or if it is empty, as for a ticket made with `fossil ticket add`,
+who made its first change, not a link then).
 The copy buttons after the title and after the id
 copy them to the clipboard (the id all of it).
 

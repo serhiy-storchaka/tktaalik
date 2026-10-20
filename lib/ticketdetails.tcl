@@ -285,6 +285,7 @@ proc tktsearch::showDetails {uuid} {
     foreach tag [$h tag names] { if {[string match fl-* $tag]} { $h tag delete $tag } }
     htmltext::reset $d
     set remarks {}; set checkins {}; set attachments {}; set comment ""; set changes 0
+    set opener ""
     try {
         if {$uuid eq ""} return
         set fields {title type status resolution subsystem priority severity
@@ -314,6 +315,19 @@ proc tktsearch::showDetails {uuid} {
                 WHERE tkt_id=$id AND icomment<>'' ORDER BY tkt_mtime"]
         }
         set changes [lindex [::tickets::sql "SELECT count(*) FROM ticketchng WHERE tkt_id=$id"] 0 0]
+        # Who opened it, where the Submitter field is empty or missing
+        # (a ticket made by "fossil ticket add", Fossil's own schema): the
+        # login of its first change, or the user who made that change where
+        # it has none.
+        if {$submitter eq ""} {
+            set who "coalesce(e.user,'')"
+            if {[::tickets::canWrite login]} {
+                set who "coalesce(nullif(c.username,''),nullif(c.login,''),e.user,'')"
+            }
+            set opener [lindex [::tickets::sql "SELECT [fossil::outcol $who]\
+                FROM ticketchng c LEFT JOIN event e ON e.objid=c.tkt_rid\
+                WHERE c.tkt_id=$id ORDER BY c.tkt_mtime LIMIT 1"] 0 0]
+        }
         # Check-ins whose comments mention any prefix of the ticket id.
         set u [fossil::sqlstr $uuid]
         set checkins [::tickets::sql "SELECT datetime(e.mtime),\
@@ -408,6 +422,9 @@ proc tktsearch::showDetails {uuid} {
     if {$submitter ne ""} {
         $h insert end " by " {meta when}
         fieldLink $h author $submitter $submitter {meta when}
+    } elseif {$opener ne ""} {
+        # (No link: author: searches the Submitter field.)
+        $h insert end " by $opener" {meta when}
     }
     $h insert end ", updated $updated" {meta when}
     if {$closed ne ""} {
@@ -424,7 +441,8 @@ proc tktsearch::showDetails {uuid} {
     # the box for a new one.
     findHashes [list $comment {*}[lmap remark $remarks {lindex $remark 2}]]
     if {[string trim $comment] ne ""} {
-        card $d [expr {$submitter ne "" ? $submitter : "Description"}] "opened $created" \
+        set by [expr {$submitter ne "" ? $submitter : $opener}]
+        card $d [expr {$by ne "" ? $by : "Description"}] "opened $created" \
             $comment $cmimetype
     }
     foreach remark $remarks {

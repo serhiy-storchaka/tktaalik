@@ -98,4 +98,19 @@ check "rewraps: $before -> [$h cget -height] lines, last visible" {[$h cget -hei
 wm geometry . 1270x900; update
 $nb select $nb.attachments; update
 $nb select $nb.comments; update
+# No Submitter (made by "fossil ticket add"): the login of its first
+# change, or the user who made it, in the header and on the description.
+set row [lindex [sql "SELECT t.tkt_uuid, (SELECT coalesce(nullif(c.username,''),nullif(c.login,''),e.user)
+    FROM ticketchng c LEFT JOIN event e ON e.objid=c.tkt_rid
+    WHERE c.tkt_id=t.tkt_id ORDER BY c.tkt_mtime LIMIT 1) AS who FROM ticket t
+    WHERE coalesce(t.submitter,'')='' AND coalesce(t.comment,'')<>'' AND who<>'' ORDER BY t.tkt_ctime DESC LIMIT 1"] 0]
+if {[llength $row]} {
+    lassign $row nosub who
+    tktsearch::showTicket $nosub; update
+    set d .tickets.main.details.nb.comments.text
+    check "no Submitter: opened by $who in the header" {[string match "*opened * by $who, updated*" [$h get 1.0 end]]}
+    check "and on the description" {[string match "$who*opened*" [string trimleft [$d get 1.0 end]]]}
+} else {
+    puts "(no ticket without a Submitter here: not checked)"
+}
 done
