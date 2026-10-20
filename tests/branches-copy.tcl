@@ -24,6 +24,15 @@ $t selection set {}; update
 check "no branch: the copy buttons disabled" {[.branches.main.details.copy instate disabled] && [.branches.main.details.copytip instate disabled] && $tkbranches::tipHash eq ""}
 $t selection set [list core-8-6-branch]; $t focus core-8-6-branch; update
 check "Ctrl+C: the branch name" {[copied $t] eq "core-8-6-branch"}
+# Ctrl+Insert too; not then the Treeview class's copy of Tk 9.1 (the
+# headings and whole rows), here made so in every Tk.
+set classCopy [bind Treeview <<Copy>>]
+bind Treeview <<Copy>> {ui::copy "the class's"}
+clipboard clear
+event generate $t <Control-Insert>; update
+check "Ctrl+Insert: the name, not the class's copy: [list [clipboard get]]" {[clipboard get] eq "core-8-6-branch"}
+check "Ctrl+C: not the class's copy either" {[copied $t] eq "core-8-6-branch"}
+bind Treeview <<Copy>> $classCopy
 $t selection set [list core-8-6-branch main]; update
 check "Ctrl+C: the names selected, a line each: [list [copied $t]]" {[lsort [split [copied $t] \n]] eq {core-8-6-branch main}}
 $t selection set [list core-8-6-branch]; $t focus core-8-6-branch; update

@@ -134,7 +134,8 @@ proc popup::copy {m label text} {
 }
 
 proc popup::copyKey {w {command ""}} {
-    bind $w <<Copy>> [list popup::copyRows $w $command]
+    # (Not then the Treeview class's of Tk 9.1: the headings and the rows.)
+    bind $w <<Copy>> "[list popup::copyRows $w $command]; break"
 }
 
 proc popup::copyRows {w command} {
