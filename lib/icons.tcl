@@ -79,7 +79,8 @@ proc icons::copyButton {w tip command} {
 # ---------------------------------------------------------------- tooltips
 
 proc icons::tooltip {w text} {
-    bind $w <Enter> [list icons::tipLater $w $text]
+    # (A binding substitutes %: "100%" must be written "100%%".)
+    bind $w <Enter> [string map {% %%} [list icons::tipLater $w $text]]
     bind $w <Leave> icons::tipHide
     bind $w <ButtonPress> icons::tipHide
 }

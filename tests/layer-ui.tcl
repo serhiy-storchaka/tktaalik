@@ -143,4 +143,14 @@ check "busyHold .: the main window only" {$held eq "." && [tk busy status .] && 
 ui::busyRelease $held
 check "busyRelease" {![tk busy status .]}
 destroy .lb
+# A tooltip with % in its text (a binding substitutes %).
+ttk::label .ltip -text tip
+pack .ltip
+update
+icons::tooltip .ltip "Ctrl+0: 100%; {braces} \\ \$x \[cmd\]"
+event generate .ltip <Enter>
+waitUntil {[winfo exists .iconsTip.l]}
+check "tooltip with %: [.iconsTip.l cget -text]" {[.iconsTip.l cget -text] eq "Ctrl+0: 100%; {braces} \\ \$x \[cmd\]"}
+icons::tipHide
+destroy .ltip
 done
