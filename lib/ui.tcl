@@ -41,6 +41,21 @@ namespace eval ui {
     variable formPreview        ;# array: form -> the command of its preview
 }
 
+# A line selected in a text ends in its newline, and an entry pasted it
+# as it was ("abc\n" for a title): entries get their paste in one line.
+# (Every paste of Tk's entries, the clipboard and the middle button, ttk
+# or not, goes through tk::GetSelection.)
+if {[info commands ::ui::RealGetSelection] eq ""} {
+    rename ::tk::GetSelection ::ui::RealGetSelection
+    proc ::tk::GetSelection {w sel} {
+        set text [::ui::RealGetSelection $w $sel]
+        if {[winfo class $w] in {TEntry TCombobox TSpinbox Entry Spinbox}} {
+            set text [string map {\r\n " " \n " " \r " "} [string trim $text \r\n]]
+        }
+        return $text
+    }
+}
+
 # ------------------------------------------------------------ messages
 
 proc ui::Box {icon type argv} {

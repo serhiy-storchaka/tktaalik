@@ -153,4 +153,30 @@ waitUntil {[winfo exists .iconsTip.l]}
 check "tooltip with %: [.iconsTip.l cget -text]" {[.iconsTip.l cget -text] eq "Ctrl+0: 100%; {braces} \\ \$x \[cmd\]"}
 icons::tipHide
 destroy .ltip
+
+# A line selected in a text, with its newline, pasted into entries: one
+# line (a text still gets the newlines).
+text .ptext
+ttk::entry .pentry
+ttk::combobox .pcombo
+text .ptext2
+pack .ptext .pentry .pcombo .ptext2
+update
+.ptext insert end "first\nabc\n\nx\ny\n"
+.ptext tag add sel 2.0 3.0
+tk_textCopy .ptext
+focus -force .pentry
+event generate .pentry <<Paste>>
+check "entry paste: [.pentry get]" {[.pentry get] eq "abc"}
+event generate .pcombo <<Paste>>
+check "combobox paste: [.pcombo get]" {[.pcombo get] eq "abc"}
+.ptext tag remove sel 1.0 end
+.ptext tag add sel 4.0 end
+tk_textCopy .ptext
+.pentry delete 0 end
+event generate .pentry <<Paste>>
+check "entry paste of lines: [.pentry get]" {[.pentry get] eq "x y"}
+event generate .ptext2 <<Paste>>
+check "text paste keeps lines" {[.ptext2 get 1.0 end-1c] eq [.ptext get 4.0 end]}
+destroy .ptext .pentry .pcombo .ptext2
 done
