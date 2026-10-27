@@ -355,7 +355,7 @@ proc tktsearch::contextMenu {x y X Y} {
     }
     foreach {k value} $facets {
         if {[cellText $k $value] eq ""} continue
-        set term [::tickets::termText 0 $k $value]
+        set term [::tickets::termText 0 $k [::tickets::fold $value]]
         $m add command -label "Filter $term" -command [list tktsearch::addTerm $k $value 0]
         $m add command -label "Exclude $term" -command [list tktsearch::addTerm $k $value 1]
     }
@@ -403,11 +403,7 @@ proc tktsearch::ticketMenu {m} {
 proc tktsearch::addTerm {key value neg} {
     variable query
     tktaalik::navigate
-    if {$neg} {
-        set query [string trim "$query [::tickets::termText 1 $key $value]"]
-    } else {
-        set query [::tickets::addTerm $query $key $value]
-    }
+    set query [::tickets::addTerm $query $key $value $neg]
     search
 }
 
@@ -743,7 +739,9 @@ proc tktsearch::completion {} {
         set icons {status {tktsearch::iconName state} priority {tktsearch::iconName priority}
             severity {tktsearch::iconName severity}}
         set icon [expr {[dict exists $icons $col] ? [dict get $icons $col] : ""}]
-        dict set keys $key [list "the field $col" $values $icon]
+        # (Listed as they are, put in the box in lower case as the terms
+        # are written: tickets::fold.)
+        dict set keys $key [list "the field $col" $values $icon ::tickets::fold]
     }
     dict for {key col} $::tickets::dateFields {
         dict set keys $key [list "a date (YYYY, YYYY-MM, >=, ..)" ""]
@@ -764,7 +762,7 @@ proc tktsearch::completion {} {
             foreach col $::tickets::people { lappend people {*}[complete::column $repo ticket $col $prefix] }
             if {$::tickets::changers} { lappend people {*}[complete::column $repo ticketchng login $prefix] }
             linsert [lsort -unique -nocase $people] 0 @me
-        }} $repo]]
+        }} $repo] "" ::tickets::fold]
     }
     dict set keys id [list "a prefix of the ticket's id" ""]
     dict set keys in [list "words in the title only" {complete::fixed title}]

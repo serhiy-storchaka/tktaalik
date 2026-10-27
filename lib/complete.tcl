@@ -4,11 +4,13 @@
 #
 #   complete::attach ENTRY SOURCE
 #       completion in ENTRY (an entry or combobox): SOURCE is a command
-#       giving the keys, a dict key -> {DESCRIPTION VALUES ?ICON?}; VALUES
-#       a command (called with the text typed of the value) giving the
-#       values, or "" for none; ICON a command (called with a value)
+#       giving the keys, a dict key -> {DESCRIPTION VALUES ?ICON? ?INSERT?};
+#       VALUES a command (called with the text typed of the value) giving
+#       the values, or "" for none; ICON a command (called with a value)
 #       giving the name of its icon (lib/icons.tcl), or "" for none:
-#       shown in Tk 9 only (as the images in the tables)
+#       shown in Tk 9 only (as the images in the tables); INSERT a command
+#       (called with a value) giving the text put in the box for it, or
+#       "" for the value as it is listed
 #   complete::show ENTRY ?ALL?
 #       the list for the word at the cursor (ALL: also for an empty word,
 #       all the keys); closed if nothing matches
@@ -126,7 +128,7 @@ proc complete::show {e {all 0}} {
         set kind key
     } else {
         if {![dict exists $keys $key]} { close $e; return }
-        lassign [dict get $keys $key] - command iconCommand
+        lassign [dict get $keys $key] - command iconCommand insertCommand
         if {$command eq ""} { close $e; return }
         # (Icons in a list: Tk 9 only, as in the tables.)
         if {![package vsatisfies [package provide Tk] 9] || [info commands ::icons::get] eq ""} {
@@ -140,7 +142,9 @@ proc complete::show {e {all 0}} {
             if {[string equal -nocase $v $prefix]} continue
             set icon ""
             if {$iconCommand ne "" && [catch {uplevel #0 [list {*}$iconCommand $v]} icon]} { set icon "" }
-            lappend items [list $v $v $icon]
+            set insert $v
+            if {$insertCommand ne "" && [catch {uplevel #0 [list {*}$insertCommand $v]} insert]} { set insert $v }
+            lappend items [list $insert $v $icon]
             if {[llength $items] >= $maxShown} break
         }
         # (To the end of this value, not the rest of the list.)

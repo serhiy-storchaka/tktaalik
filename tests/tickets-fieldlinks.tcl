@@ -43,7 +43,8 @@ foreach tag [$h tag names] {
 }
 set sub [lsearch -inline -glob [dict keys $links] "*Win Menus*"]
 click $h [dict get $links $sub] 4
-check "Ctrl+click: [list $tktsearch::query]" {[string match "type:bug subsystem:\"*Win Menus*\"" $tktsearch::query]}
+check "Ctrl+click: in lower case: [list $tktsearch::query]" {[string match "type:bug subsystem:\"*win menus*\"" $tktsearch::query]
+    && [.tickets.main.list.t exists $uuid]}
 # The submitter: author:.
 tktsearch::showTicket $uuid; update
 set links {}

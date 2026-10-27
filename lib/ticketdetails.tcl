@@ -260,7 +260,7 @@ proc tktsearch::searchField {key value state} {
         return
     }
     tktaalik::navigate
-    set query [::tickets::termText 0 $key $value]
+    set query [::tickets::termText 0 $key [::tickets::fold $value]]
     search
 }
 

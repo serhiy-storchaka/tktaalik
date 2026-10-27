@@ -91,6 +91,8 @@ Fixed and Tested as closed.
 
 Values:
 
+- The case of the letters A-Z does not matter: `type:Bug` is `type:bug`.
+  Completion and the context menu write the values in lower case.
 - A comma means OR: `type:bug,rfe`.
 - A leading minus excludes: `-type:rfe`, `-resolution:none`, also `-word`.
 - `*` is a wildcard: `version:8.6*`.
@@ -178,7 +180,7 @@ for the ticket shown, but for Filter and Exclude:
 
 | Entry | What it does |
 |---|---|
-| Filter *term* / Exclude *term* | add `key:value` (or `-key:value`) of the cell you clicked to the search |
+| Filter *term* / Exclude *term* | add `key:value` (or `-key:value`) of the cell you clicked to the search, in lower case, instead of the same term or its opposite |
 | Open in browser | the ticket on the server |
 | Edit ticket… | see [Editing tickets](#editing-tickets) |
 | Attach files… | see [Attaching files](#attaching-files) |

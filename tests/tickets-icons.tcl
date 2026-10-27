@@ -50,6 +50,21 @@ set labels {}
 for {set i 0} {$i <= [.tickets.ctx index end]} {incr i} { if {[.tickets.ctx type $i] eq "command"} { lappend labels [.tickets.ctx entrycget $i -label] } }
 tk::MenuUnpost .tickets.ctx
 check "context menu on severity: [lrange $labels 0 1]" {[string match "Filter severity:*" [lindex $labels 0]]}
+# Filter and Exclude: the term in lower case, instead of the same one (in
+# any case) or its opposite; the rest of the search kept.
+set filter [.tickets.ctx entrycget 0 -command]
+set exclude [.tickets.ctx entrycget 1 -command]
+set sev [dict get $tktsearch::rows($open) severity]
+set low [::tickets::termText 0 severity [::tickets::fold $sev]]
+check "the label in lower case: [lrange $labels 0 1]" {[lindex $labels 0] eq "Filter $low" && [lindex $labels 1] eq "Exclude $low"}
+set id id:[string range $open 0 9]
+q "-[::tickets::termText 0 Severity [string toupper $sev]] $id"
+uplevel #0 $filter; update
+check "Filter: instead of its opposite: $tktsearch::query" {$tktsearch::query eq "$id $low"}
+uplevel #0 $filter; update
+check "Filter again: once: $tktsearch::query" {$tktsearch::query eq "$id $low"}
+uplevel #0 $exclude; update
+check "Exclude: instead of it: $tktsearch::query" {$tktsearch::query eq "$id -$low"}
 q {is:open type:bug}
 tablecols::sortBy $t updated desc; update
 .tickets.main.list.t selection set [lindex [.tickets.main.list.t children {}] 0]; update; after 300; update

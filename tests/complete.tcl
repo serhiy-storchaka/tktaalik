@@ -105,6 +105,10 @@ typeIn $q "status:"
 check "tickets: the states [lrange [items $q] 0 5]" {[lsearch -nocase [items $q] open] >= 0 && [lsearch -nocase [items $q] closed] >= 0}
 check "tickets: the status icons (Tk 9): [lrange [icons $q] 0 3]" {!$tk9 ||
     [lindex [icons $q] [lsearch -nocase [items $q] open]] eq "st-open"}
+typeIn $q "type:B"
+check "tickets: values listed as they are: [list [items $q]]" {"Bug" in [items $q]}
+key $q <Tab>
+check "tickets: put in the box in lower case: [list [$q get]]" {[$q get] eq "type:bug"}
 typeIn $q "assignee:"
 check "tickets: @me among the people" {[lindex [items $q] 0] eq "@me" && [llength [items $q]] > 1}
 typeIn $q "version:"

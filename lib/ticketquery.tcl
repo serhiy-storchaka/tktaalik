@@ -12,6 +12,8 @@ package require Tcl 8.6-
 
 namespace eval tickets {
     variable states {open closed pending deleted}
+    # A term: -? key: value, the value a word or a quoted phrase.
+    variable termRe {(-?)(?:([A-Za-z_]+):)?("[^"]*"?|\S+)}
 
     # Ticket tables differ: Fossil's default has no subsystem, submitter,
     # assignee, closer, closedate or is_private, which the Tcl/Tk trackers
@@ -250,8 +252,8 @@ proc tickets::queryError {msg} {
 # Split the query into {neg key value quoted} terms:
 #   -?  (name:)?  ("quoted text" | non-space characters)
 proc tickets::tokenize {query} {
-    set re {(-?)(?:([A-Za-z_]+):)?("[^"]*"?|\S+)}
-    lmap {- neg key value} [regexp -all -inline $re $query] {
+    variable termRe
+    lmap {- neg key value} [regexp -all -inline $termRe $query] {
         set quoted [regexp {^"([^"]*)"?$} $value -> value]
         list [expr {$neg eq "-"}] [string tolower $key] $value $quoted
     }
@@ -297,10 +299,35 @@ proc tickets::queryState {query} {
     if {[llength $found] == 1} {lindex $found 0}
 }
 
-proc tickets::addTerm {query key value} {
-    set term [termText 0 $key $value]
-    if {$term in [regexp -all -inline {\S+} $query]} { return $query }
-    string trim "$query $term"
+# TEXT in lower case as the queries compare it: SQLite's lower() and LIKE
+# fold only A-Z, so other letters keep their case (string tolower would
+# turn a Cyrillic capital to a small letter, which then finds nothing).
+proc tickets::fold {text} {
+    string map {A a B b C c D d E e F f G g H h I i J j K k L l M m N n O o P p Q q R r S s T t U u V v W w X x Y y Z z} $text
+}
+
+# QUERY with the term KEY:VALUE (-KEY:VALUE if NEG) at its end, in lower
+# case; the terms of the same key and value (in any case) are removed, so
+# that adding a term twice, or its opposite, leaves one.  The rest is kept
+# as it was typed.
+proc tickets::addTerm {query key value {neg 0}} {
+    variable termRe
+    set key [string tolower $key]
+    set value [fold $value]
+    set drop {}
+    foreach {all - k v} [regexp -all -inline -indices $termRe $query] {
+        set v [string range $query {*}$v]
+        regexp {^"([^"]*)"?$} $v -> v
+        if {[string tolower [string range $query {*}$k]] eq $key && [fold $v] eq $value} {
+            set drop [linsert $drop 0 $all]
+        }
+    }
+    foreach range $drop {
+        lassign $range from to
+        while {[string is space -strict [string index $query $to+1]]} { incr to }
+        set query [string replace $query $from $to]
+    }
+    string trim "[string trim $query] [termText $neg $key $value]"
 }
 
 # SQL true when column $col matches $pattern case-insensitively: the whole
