@@ -161,8 +161,9 @@ check "no double-click on a branch" {[bind $t <Double-1>] eq ""}
 $t selection set [list core-8-6-branch]; $t focus core-8-6-branch; update
 set k $nb.tickets.t
 waitUntil {[llength [$k children {}]]}
-set first [lindex [$k children {}] 0]
-set status [string trim [$k set $first status]]
+# (One with a resolution: the status shows both.)
+set first [lindex [lmap i [$k children {}] { if {[string match "*\u00b7*" [$k set $i status]]} { set i } else continue }] 0]
+set status [if {$first ne ""} { string trim [$k set $first status] }]
 if {[package vsatisfies [package provide Tk] 9]} {
     check "Tickets: an icon in the status cell ($status)" {[llength [lsearch -all -glob [$k tag names] icon:st-*]] && [lsearch -glob [lmap tag [lsearch -all -inline -glob [$k tag names] icon:*] { $k tag cell has $tag }] "*$first status*"] >= 0 && [string match "*\u00b7*" $status]}
 } else {

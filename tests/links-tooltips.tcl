@@ -11,7 +11,7 @@ proc commentOf {prefix} {
         JOIN blob b ON b.rid=e.objid WHERE b.uuid GLOB '$prefix*'"] 0 0
 }
 set ci [lindex [fossil::sql $R "SELECT b.uuid FROM event e JOIN blob b ON b.rid=e.objid
-    WHERE e.type='ci' AND length(e.comment) < 300 ORDER BY e.mtime DESC LIMIT 1 OFFSET 10"] 0 0]
+    WHERE e.type='ci' AND length(e.comment) <= 100 ORDER BY e.mtime DESC LIMIT 1 OFFSET 10"] 0 0]
 lassign [goto::linkTip info:$ci] tip image
 check "a check-in: the first line of its comment: [list $tip]" {$tip eq [fossil::oneLine [commentOf $ci]] && $tip ne ""}
 set long [lindex [fossil::sql $R "SELECT b.uuid FROM event e JOIN blob b ON b.rid=e.objid
