@@ -578,8 +578,7 @@ proc histops::graveUndo {repo done} {
                 changes; nothing is pushed."]} return
     lassign [fossil::run purge undo $id -R $repo] code out
     if {$code} {
-        tk_messageBox -parent .graveyard -icon error -title "Purge graveyard" \
-            -message "fossil purge undo failed:" -detail $out
+        ui::errorBox -parent .graveyard -title "Purge graveyard" "fossil purge undo failed:" $out
     } elseif {$done ne ""} {
         uplevel #0 $done
     }
@@ -595,8 +594,7 @@ proc histops::graveObliterate {repo} {
                 purge cannot be undone any more.  This cannot be undone."]} return
     lassign [fossil::run purge obliterate $id --force -R $repo] code out
     if {$code} {
-        tk_messageBox -parent .graveyard -icon error -title "Purge graveyard" \
-            -message "fossil purge obliterate failed:" -detail $out
+        ui::errorBox -parent .graveyard -title "Purge graveyard" "fossil purge obliterate failed:" $out
     }
     graveFill $repo
 }
