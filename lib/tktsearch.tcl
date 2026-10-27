@@ -193,6 +193,7 @@ proc tktsearch::fillTable {result} {
     set iconCells {}
     variable rows
     set t .tickets.main.list.t
+    set selected [lindex [$t selection] 0]
     array unset rows
     set items {}
     foreach row $result {
@@ -236,10 +237,13 @@ proc tktsearch::fillTable {result} {
         $t tag cell add icon:$icon $cells
     }
     if {[llength $result]} {
-        set first [lindex [$t children {}] 0]
-        $t selection set $first
-        $t focus $first
-        $t see $first
+        # The ticket selected before if it is still there, else the first.
+        if {$selected eq "" || ![$t exists $selected]} {
+            set selected [lindex [$t children {}] 0]
+        }
+        $t selection set $selected
+        $t focus $selected
+        $t see $selected
     } else {
         showDetails ""
     }

@@ -113,4 +113,16 @@ if {[llength $row]} {
 } else {
     puts "(no ticket without a Submitter here: not checked)"
 }
+
+# Searching again keeps the ticket selected if it is still listed, else
+# selects the first.
+set tktsearch::query {checkins:>=3 comments:>=2 attachments:>=1}
+tktsearch::search; update
+set second [lindex [$t children {}] 1]
+$t selection set $second; update
+tktsearch::search; update
+check "search again: the same ticket selected" {[$t selection] eq [list $second] && [$t focus] eq $second}
+set tktsearch::query "id:[string range $first 0 9]"
+tktsearch::search; update
+check "not listed: the first selected" {[$t selection] eq [list $first]}
 done

@@ -185,6 +185,17 @@ clipboard clear
 $g selection set [list $art]; focus -force $g; update
 event generate $g <Control-c>; update
 check "Ctrl+C: the hash: [clipboard get]" {[clipboard get] eq [lindex [$g set $art what] 0] && [string length [clipboard get]] >= 16}
+# Filled again: the purge selected kept (of an artifact: its purge).
+histops::graveFill $R; update
+check "filled again: the artifact's purge selected" {[$g selection] eq [list $new]}
+set old [lindex [$g children {}] end]
+if {$old ne $new} {
+    $g selection set [list $old]; update
+    histops::graveFill $R; update
+    check "filled again: an older purge kept" {[$g selection] eq [list $old]}
+} else {
+    puts "(no older purge here: keeping it not checked)"
+}
 $g selection set [list $new]; update
 histops::graveUndo $R tktimeline::changedHere
 check "undone: back" {[ridOf $A] ne "" && [llength [sql "SELECT 1 FROM event WHERE objid=[ridOf $A]"]]}

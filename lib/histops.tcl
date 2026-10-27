@@ -521,6 +521,8 @@ proc histops::graveyard {repo {done ""}} {
 
 proc histops::graveFill {repo} {
     set t .graveyard.f.t
+    # The purge selected (its artifacts' rows are made anew): kept.
+    set keep [graveSelected]
     $t delete [$t children {}]
     lassign [fossil::run purge list -l -R $repo] code out
     if {$code} {
@@ -539,7 +541,11 @@ proc histops::graveFill {repo} {
     set empty [expr {![llength [lsearch -all -inline -glob [$t children {}] p*]]}]
     if {$empty && ![$t exists none]} { $t insert {} end -id none -text "(empty)" }
     foreach b {undo obl} { .graveyard.f.b.$b state [expr {$empty ? "disabled" : "!disabled"}] }
-    if {!$empty} { $t selection set [list [lindex [$t children {}] 0]] }
+    if {!$empty} {
+        set keep [if {$keep ne "" && [$t exists p$keep]} {set keep p$keep} else {lindex [$t children {}] 0}]
+        $t selection set [list $keep]
+        $t see $keep
+    }
 }
 
 # The purge selected (or of the artifact selected): its number, or "".
