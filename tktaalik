@@ -103,6 +103,7 @@ proc tktaalik::loadConfig {} {
     variable config
     # Before, they were in ~/.config/tktaalik.conf.
     set config [config::get $configFile tktaalik tktaalik.conf]
+    ui::textSize [getdef $config textsize 1]
 }
 
 proc tktaalik::saveConfig {} {
@@ -114,6 +115,7 @@ proc tktaalik::saveConfig {} {
     dict set config path [expr {$root ne "" ? $root : $repo}]
     dict set config tab $active
     dict set config geometry [wm geometry .]
+    dict set config textsize [ui::textSize]
     config::put $configFile $config
 }
 

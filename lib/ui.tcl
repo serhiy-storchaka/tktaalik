@@ -33,12 +33,19 @@
 #   ui::formBusy                1 if a form is open (then it is raised)
 #   ui::textWindow W TITLE TEXT a text to read (and copy), with Close
 #   ui::helpFor W TARGET        F1 in W: TARGET (page#anchor) of the manual
+#   ui::zoomText STEP           the size of the text in every text widget:
+#                               a step larger (1), smaller (-1), 100% (0)
+#   ui::textSize ?FACTOR?       that size (1 is 100%): to keep in settings
 
 namespace eval ui {
     variable f                  ;# array: the fields of a form (by default)
     variable done ""            ;# ok or cancel: a form's answer (by default)
     variable formOpen ""        ;# the form open (one at a time)
     variable formPreview        ;# array: form -> the command of its preview
+    variable textSizes {0.5 0.67 0.8 0.9 1 1.1 1.25 1.5 1.75 2 2.5 3}
+    variable textSize 1         ;# of the text widgets (one of textSizes)
+    variable zoomed             ;# array: text -> dict {TAG OPTION} -> {ORIGINAL SET}
+    variable wheel 0            ;# Ctrl+Wheel turned short of a step
 }
 
 # A line selected in a text ends in its newline, and an entry pasted it
@@ -433,3 +440,138 @@ proc ui::PreviewNow {w} {
     if {![winfo exists $w.f.p.t] || ![info exists formPreview($w)]} return
     setText $w.f.p.t [string trim [uplevel #0 [list {*}$formPreview($w) $w]]]
 }
+
+# ------------------------------------------------------------ text size
+
+# Ctrl+plus, Ctrl+minus and Ctrl+Wheel in a text widget make the text of
+# all of them larger or smaller, Ctrl+0 100% (Ctrl+0 elsewhere is a tab:
+# break).  The fonts of the widget and of its tags are scaled, and the
+# tabs and margins in pixels with them; the text filled anew (new tags,
+# fonts set again) is scaled when its lines are laid out
+# (<<WidgetViewSync>>).
+proc ui::zoomText {step} {
+    variable textSizes
+    variable textSize
+    set i [lsearch -exact $textSizes $textSize]
+    if {$step == 0} {
+        set i [lsearch -exact $textSizes 1]
+    } elseif {$i + $step < 0 || $i + $step >= [llength $textSizes]} {
+        return
+    } else {
+        incr i $step
+    }
+    textSize [lindex $textSizes $i]
+}
+
+proc ui::textSize {args} {
+    variable textSizes
+    variable textSize
+    variable zoomed
+    if {[llength $args]} {
+        set size [lindex $args 0]
+        if {$size ni $textSizes} { set size 1 }
+        set textSize $size
+        foreach w [array names zoomed] {
+            if {![winfo exists $w]} { unset zoomed($w) }
+        }
+        foreach w [TextWidgets .] { ZoomIn $w }
+    }
+    return $textSize
+}
+
+proc ui::TextWidgets {w} {
+    set found [if {[winfo class $w] eq "Text"} { list $w }]
+    foreach c [winfo children $w] { lappend found {*}[TextWidgets $c] }
+    return $found
+}
+
+# The text widget W in the size chosen: its options that are not as they
+# were set last are new originals.
+proc ui::ZoomIn {w} {
+    variable textSize
+    variable zoomed
+    if {![winfo exists $w]} return
+    if {$textSize == 1 && ![info exists zoomed($w)]} return
+    set d [if {[info exists zoomed($w)]} { set zoomed($w) }]
+    set new {}
+    foreach tag [list "" {*}[$w tag names]] {
+        foreach opt {-font -tabs -lmargin1 -lmargin2 -rmargin} {
+            if {$tag eq ""} {
+                if {$opt ni {-font -tabs}} continue
+                set value [$w cget $opt]
+            } else {
+                set value [$w tag cget $tag $opt]
+            }
+            set key [list $tag $opt]
+            if {[dict exists $d $key] && [lindex [dict get $d $key] 1] eq $value} {
+                set orig [lindex [dict get $d $key] 0]
+            } elseif {$value eq ""} {
+                continue
+            } else {
+                set orig $value
+            }
+            set scaled [Scaled $opt $orig]
+            if {$scaled ne $value} {
+                if {$tag eq ""} {
+                    $w configure $opt $scaled
+                    set scaled [$w cget $opt]
+                } else {
+                    $w tag configure $tag $opt $scaled
+                    set scaled [$w tag cget $tag $opt]
+                }
+            }
+            if {$textSize != 1} { dict set new $key [list $orig $scaled] }
+        }
+    }
+    if {[dict size $new]} {
+        set zoomed($w) $new
+    } else {
+        unset -nocomplain zoomed($w)
+    }
+}
+
+# VALUE of OPT (a font, or distances) in the size chosen.
+proc ui::Scaled {opt value} {
+    variable textSize
+    if {$textSize == 1} { return $value }
+    if {$opt eq "-font"} {
+        set font [font actual $value]
+        set size [dict get $font -size]
+        set scaled [expr {max(1, round(abs($size) * $textSize))}]
+        dict set font -size [expr {$size < 0 ? -$scaled : $scaled}]
+        return $font
+    }
+    # (Distances in pixels; with units, such as 2c, and the alignments of
+    # tabs, as they are.)
+    lmap v $value {
+        if {[string is double -strict $v]} { expr {round($v * $textSize)} } else { set v }
+    }
+}
+
+proc ui::ZoomWheel {delta} {
+    variable wheel
+    # (A step for each notch, 120; a touchpad sends less, more often.)
+    set wheel [expr {$wheel + $delta}]
+    while {abs($wheel) >= 120} {
+        zoomText [expr {$wheel > 0 ? 1 : -1}]
+        set wheel [expr {$wheel > 0 ? $wheel - 120 : $wheel + 120}]
+    }
+}
+
+foreach key {Control-plus Control-equal Control-KP_Add} {
+    bind Text <$key> {ui::zoomText 1; break}
+}
+foreach key {Control-minus Control-KP_Subtract} {
+    bind Text <$key> {ui::zoomText -1; break}
+}
+bind Text <Control-0> {ui::zoomText 0; break}
+bind Text <Control-MouseWheel> {ui::ZoomWheel %D; break}
+# (Tk 8.6 on X11: the wheel is buttons 4 and 5.)
+if {![package vsatisfies [package provide Tk] 9] && [tk windowingsystem] eq "x11"} {
+    bind Text <Control-Button-4> {ui::zoomText 1; break}
+    bind Text <Control-Button-5> {ui::zoomText -1; break}
+}
+bind Text <<WidgetViewSync>> {ui::ZoomIn %W}
+bind Text <Map> {ui::ZoomIn %W}
+bind Text <Destroy> {unset -nocomplain ::ui::zoomed(%W)}
+unset key

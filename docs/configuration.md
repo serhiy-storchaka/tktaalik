@@ -11,7 +11,7 @@ remember:
 
 | File | What it keeps |
 |---|---|
-| `tktaalik.conf` | the repository or checkout used last, the tab, the window's size and place |
+| `tktaalik.conf` | the repository or checkout used last, the tab, the window's size and place, the [size of the text](keys.md#text-size) |
 | `timeline.conf` | the search, the earlier searches, the view, the columns |
 | `tickets.conf` | the search, the saved searches, the columns |
 | `branches.conf` | the search, the earlier searches, the view, "show hidden", the columns, the merge targets of each repository |

@@ -81,6 +81,21 @@ In the window of an attached image (see [Images](tickets.md#images)):
 
 In dialogs, Return is usually the default button and Escape cancels.
 
+## Text size
+
+In every text (ticket comments and details, diffs, file contents,
+wiki pages, forum posts, the windows of command output, this manual),
+the size of the text can be changed: in all of them at once,
+from 50% to 300%, and kept for the next time.
+
+| Key | Action |
+|---|---|
+| Ctrl+plus, Ctrl+minus (also on the keypad), Ctrl+Wheel | larger, smaller |
+| Ctrl+0 | 100% (outside a text, Ctrl+0 is the Search tab) |
+
+The keys work in the text that has the focus (click it first);
+the wheel over the text.
+
 ## Completion in the search boxes
 
 The search boxes of Timeline, Tickets, Branches and Stash

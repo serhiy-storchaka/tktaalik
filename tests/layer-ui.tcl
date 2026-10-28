@@ -179,4 +179,75 @@ check "entry paste of lines: [.pentry get]" {[.pentry get] eq "x y"}
 event generate .ptext2 <<Paste>>
 check "text paste keeps lines" {[.ptext2 get 1.0 end-1c] eq [.ptext get 4.0 end]}
 destroy .ptext .pentry .pcombo .ptext2
+
+# The text size: Ctrl+plus, Ctrl+minus, Ctrl+Wheel in a text, of all the
+# texts (fonts of the widget and of its tags, tabs and margins; text
+# filled later too); Ctrl+0 100%, the originals again, and not the key
+# of the window.
+proc px {font} { expr {abs([font metrics $font -linespace])} }
+text .z1 -font TkFixedFont -tabs {100 left} -height 5
+text .z2 -height 5
+pack .z1 .z2
+.z1 tag configure big -font {Helvetica -20} -lmargin1 10
+.z1 insert end "a\tb\n" big
+update
+set fixed [px TkFixedFont]
+set ::key0 0
+bind . <Control-0> {set ::key0 1}
+focus -force .z1; update
+event generate .z1 <Control-plus>; update
+event generate .z1 <Control-plus>; update
+check "Ctrl+plus twice: [ui::textSize]" {[ui::textSize] == 1.25}
+check "the widget's font: [.z1 cget -font]" {[px [.z1 cget -font]] > $fixed}
+proc scaled {font by} { expr {round(abs([font actual $font -size]) * $by)} }
+check "a tag's font: [.z1 tag cget big -font]" {[font actual [.z1 tag cget big -font] -size] == [scaled {Helvetica -20} 1.25]}
+check "tabs and margins: [.z1 cget -tabs], [.z1 tag cget big -lmargin1]" {[.z1 cget -tabs] eq {125 left} && [.z1 tag cget big -lmargin1] == 13}
+check "another text too" {[px [.z2 cget -font]] > [px TkFixedFont]}
+.z1 tag configure later -font {Helvetica -16}
+.z1 insert end "later\n" later
+waitUntil {[.z1 tag cget later -font] ne {Helvetica -16}}
+check "a tag made later: [.z1 tag cget later -font]" {[font actual [.z1 tag cget later -font] -size] == [scaled {Helvetica -16} 1.25]}
+text .z3; pack .z3; update
+waitUntil {[px [.z3 cget -font]] > [px TkFixedFont]}
+check "a text made later" 1
+event generate .z1 <Control-minus>; update
+check "Ctrl+minus: [ui::textSize]" {[ui::textSize] == 1.1}
+event generate .z1 <Control-MouseWheel> -delta 60; update
+check "half a notch: not yet" {[ui::textSize] == 1.1}
+event generate .z1 <Control-MouseWheel> -delta 60; update
+check "a notch: [ui::textSize]" {[ui::textSize] == 1.25}
+if {![package vsatisfies [package provide Tk] 9] && [tk windowingsystem] eq "x11"} {
+    event generate .z1 <Control-Button-5>; update
+    check "Ctrl+wheel down (Tk 8.6, X11): [ui::textSize]" {[ui::textSize] == 1.1}
+}
+# A real Ctrl+Wheel (XTEST on Xvfb): Control held, button 4 (up).
+if {[realInput]} {
+    set before [ui::textSize]
+    raise .; focus -force .z1; update
+    event generate .z1 <Motion> -warp 1 -x 20 -y 20; update; after 200; update
+    exec $T(xbutton) 4 Control_L
+    after 300; update; update
+    check "a real Ctrl+Wheel: [ui::textSize]" {[ui::textSize] > $before}
+} else {
+    puts "note: no real wheel (no XTEST helper or not on Xvfb)"
+}
+event generate .z1 <Control-0>; update
+check "Ctrl+0: 100%" {[ui::textSize] == 1}
+check "the originals again" {[.z1 cget -font] eq "TkFixedFont" && [.z1 tag cget big -font] eq {Helvetica -20}
+    && [.z1 cget -tabs] eq {100 left} && [.z1 tag cget big -lmargin1] eq 10 && [.z1 tag cget later -font] eq {Helvetica -16}}
+check "Ctrl+0 not the window's key" {!$::key0}
+for {set i 0} {$i < 20} {incr i} { ui::zoomText 1 }
+check "not past the largest: [ui::textSize]" {[ui::textSize] == 3}
+ui::textSize 7
+check "an unknown size: 100%" {[ui::textSize] == 1}
+# Kept in the settings for the next time.
+ui::textSize 1.1
+tktaalik::saveConfig
+ui::textSize 1
+tktaalik::loadConfig
+check "kept in the settings: [ui::textSize]" {[ui::textSize] == 1.1 && [dict get [config::get $tktaalik::configFile tktaalik] textsize] == 1.1}
+ui::textSize 1
+bind . <Control-0> {}
+destroy .z1 .z2 .z3
+check "forgotten when destroyed" {![array size ui::zoomed]}
 done
