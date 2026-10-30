@@ -106,13 +106,18 @@ set stored [lindex [dict get $charts::spec($s.total) -series] 1 end]
 check "stored in all: [charts::bytes $stored]" {$stored > 0 && $stored == [total $s.growth]}
 
 # The last year, by week.
+# (The year moves on while the chart is drawn: an event at its start may
+# leave it, so the events counted before and after are the bounds.)
+proc lastYear {} { lindex [sql "SELECT count(*) FROM event WHERE mtime >= julianday('now', '-1 year')"] 0 0 }
+set before [lastYear]
 .stats.top.p set "The last year"
 tkstats::choose period
 .stats.nb select .stats.nb.activity; update
 waitUntil {[llength [dict get $charts::spec($a.time) -categories]] < 60}
 set weeks [dict get $charts::spec($a.time) -categories]
-set since [lindex [sql "SELECT count(*) FROM event WHERE mtime >= julianday('now', '-1 year')"] 0 0]
-check "a year in weeks: [llength $weeks], [total $a.time] events" {[llength $weeks] >= 52 && [llength $weeks] <= 54 && [total $a.time] == $since}
+set after [lastYear]
+check "a year in weeks: [llength $weeks], [total $a.time] events ($after..$before)" {[llength $weeks] >= 52 && [llength $weeks] <= 54
+    && [total $a.time] <= $before && [total $a.time] >= $after}
 tkstats::showEvents [lindex $weeks 1] ""; update
 check "a week: [list $tktimeline::query]" {[regexp {^date:\d{4}-\d\d-\d\d\.\.\d{4}-\d\d-\d\d$} $tktimeline::query]}
 .stats.top.b set Month
