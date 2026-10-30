@@ -2,7 +2,8 @@
 
 The Repository menu, in every tab, opens windows about the repository shown:
 its information, settings, users,
-remotes and unversioned files. They stay open beside the main window and follow
+remotes, unversioned files and [statistics](statistics.md).
+They stay open beside the main window and follow
 it: open another repository and they show that one.
 Close one with **Close** or Escape; F5 reads it again.
 
@@ -198,6 +199,13 @@ Changes to unversioned files cannot be undone: they have no history,
 and replacing a file loses its old content.
 They stay in the local repository:
 they reach the server only with `fossil uv sync`, which is never run here.
+
+## Statistics
+
+Charts of the repository: its activity, its contributors, its tickets,
+its forum and its size, for a period;
+a click on a bar searches what it counts.
+See [Statistics](statistics.md).
 
 ## Repository operations
 

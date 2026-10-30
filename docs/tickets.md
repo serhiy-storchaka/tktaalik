@@ -515,6 +515,15 @@ Choose one on the left to run it.
   Tickets tab.
 - Ctrl+C copies the row selected, its cells separated by tabs;
   right-click a cell for **Only rows with** its value and **Copy** it.
+- **Chart by** a column of the report: instead of the table,
+  how many rows have each of its values (the 30 most frequent).
+  Only the columns where that tells something are offered:
+  those with 2 to 100 values, each in two rows or more on average,
+  not dates, and numbers only with at most 10 values (priorities);
+  so not the ticket ids, the titles,
+  the times of change, nor a status or type that the report has only one of.
+  A report that counts (its SQL has `GROUP BY`) has none.
+  Click a bar to filter the report by that value, as a table again.
 - **Open in browser** opens the report on the server.
   F5 runs it again.
 - **Save as…** writes the results

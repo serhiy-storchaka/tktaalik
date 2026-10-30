@@ -15,7 +15,8 @@ set required {
     wiki {pages-and-technotes versions-and-changes editing attachments}
     forum {threads posts}
     search {search-syntax results}
-    repository {information settings users remotes unversioned-files}
+    repository {information settings users remotes unversioned-files statistics}
+    statistics {activity contributors tickets forum size charts}
     goto {what-it-accepts several-matches}
     diffs {the-diff-window diff-options}
     keys {global-keys keys-in-the-tabs mouse}

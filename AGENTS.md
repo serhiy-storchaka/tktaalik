@@ -15,7 +15,8 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   settings (called on quit); `here` and `goTo` for Back and Forward
   (`tktaalik::location`, `tktaalik::navigate`).
 - `lib/tkinfo.tcl`, `lib/tksettings.tcl`, `lib/tkusers.tcl`,
-  `lib/tkremotes.tcl`, `lib/tkuv.tcl`: the windows of the Repository menu (listed in
+  `lib/tkremotes.tcl`, `lib/tkuv.tcl`, `lib/tkstats.tcl` (Statistics):
+  the windows of the Repository menu (listed in
   `tktaalik::dialogs`): `window` opens one (made by `tktaalik::dialogWindow`
   the first time), `setRepository` follows the repository shown.
 - `lib/tablecols.tcl`: sortable, movable, hideable `ttk::treeview` columns
@@ -44,6 +45,11 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   `lib/config.tcl` (settings files),
   `lib/web.tcl` (a server's web forms and single sync requests through
   curl, for what has no command: forum posts),
+  `lib/charts.tcl` (bars, lines and grids on a canvas, sparklines and
+  diffstat bars: use it for any new chart; its tooltips, clicks, copying
+  and saving, the size of the text),
+  `lib/graph.tcl` (the graph of the check-ins beside the Timeline's rows,
+  an image in the tree column of each),
   `lib/icons.tcl` (icons and tooltips).
 - `lib/fossil.tcl` and `lib/ui.tcl`: the layer every window uses.  New
   code runs Fossil only through `fossil::` (`run ?-dir? ?-input?`,

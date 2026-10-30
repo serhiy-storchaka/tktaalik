@@ -389,6 +389,53 @@ proc tkfiles::loadHistory {} {
     if {[llength [lsort -unique [dict values $names]]] > 1} { set cols {date hash fhash user branch how name comment} }
     $h configure -displaycolumns $cols
     .files.main.right.nb tab .files.main.right.nb.history -text "History ([llength $rows])"
+    historyChart [lsort -real -increasing -index 0 $rows]
+}
+
+# The versions of the file per year (per month in fewer than three years),
+# from its first to now; a click selects the newest of a bar.
+proc tkfiles::historyChart {rows} {
+    set chart .files.main.right.nb.history.chart
+    if {![llength $rows]} {
+        charts::message $chart "No versions."
+        return
+    }
+    set first [lindex $rows 0 1]
+    set now [clock format [clock seconds] -format %Y-%m -timezone :UTC]
+    set monthly [expr {[string range $now 0 3] - [string range $first 0 3] < 3}]
+    set counts {}
+    foreach row $rows {
+        set key [string range [lindex $row 1] 0 [expr {$monthly ? 6 : 3}]]
+        dict incr counts $key
+    }
+    set periods {}
+    if {$monthly} {
+        scan $first %d-%d y m
+        scan $now %d-%d ly lm
+        while {$y < $ly || ($y == $ly && $m <= $lm)} {
+            lappend periods [format %04d-%02d $y $m]
+            if {[incr m] > 12} { set m 1; incr y }
+        }
+    } else {
+        for {set y [string range $first 0 3]} {$y <= [string range $now 0 3]} {incr y} { lappend periods $y }
+    }
+    charts::bars $chart -title "Versions per [expr {$monthly ? "month" : "year"}]" \
+        -categories $periods -series [list Versions [lmap p $periods {
+            if {[dict exists $counts $p]} { dict get $counts $p } else { expr 0 } }]] \
+        -command tkfiles::historyAt
+}
+
+proc tkfiles::historyAt {period series} {
+    set h .files.main.right.nb.history.t
+    foreach item [$h children {}] {
+        if {[string match $period* [$h set $item date]]} {
+            $h selection set $item
+            $h focus $item
+            $h see $item
+            focus $h
+            return
+        }
+    }
 }
 
 # --------------------------------------------------------- find in history
@@ -1052,9 +1099,13 @@ proc tkfiles::build {} {
         $f.t heading $col -text $heading -anchor w
         $f.t column $col -width [expr {$width * $char}] -stretch [expr {$col eq "comment"}]
     }
+    # Above the versions: how many there are per year or month.
+    charts::message $f.chart ""
+    $f.chart configure -height [expr {[font metrics TkDefaultFont -linespace] * 8}]
+    grid $f.chart - -sticky news
     grid $f.t $f.y -sticky news
     grid columnconfigure $f 0 -weight 1
-    grid rowconfigure $f 0 -weight 1
+    grid rowconfigure $f 1 -weight 1
     bind $f.t <Double-1> {tkfiles::diffCheckin [.files.main.right.nb.history.t identify item %x %y]}
     bind $f.t <Return> {tkfiles::diffCheckin [lindex [.files.main.right.nb.history.t selection] 0]}
     bind $f.t <ButtonPress-3> {tkfiles::historyMenu %x %y %X %Y}

@@ -24,6 +24,7 @@ namespace eval tkbranches {
     variable current ""         ;# the branch of the checkout
     variable squash 0           ;# rebase: cherry-pick the check-ins, not merge
     variable detailJobs {}      ;# the queries of the details (sqlAsync)
+    variable activity           ;# array: branch -> its activity as an image (Tk 9)
     variable me ""              ;# the default user
     variable remote ""          ;# the server, for the browser
     variable targets {}         ;# the branches merges into are shown
@@ -295,6 +296,11 @@ proc tkbranches::branchQuery {} {
        SELECT DISTINCT ci.name, substr(t.tkt_uuid,1,10) AS id FROM ci
        CROSS JOIN backlink b ON b.srcid=ci.rid AND b.srctype=0
        CROSS JOIN ticket t ON t.tkt_uuid>=b.target AND t.tkt_uuid<b.target||'g')
+      GROUP BY name),
+     activity(name, list) AS MATERIALIZED (
+      SELECT name, group_concat(age || ':' || n, ' ') FROM (
+       SELECT name, CAST((julianday('now') - mtime) / 28 AS INTEGER) AS age, count(*) AS n
+       FROM ci WHERE mtime > julianday('now', '-364 days') GROUP BY 1, 2)
       GROUP BY name)
     SELECT [fossil::outcol tip.name], strftime('%Y-%m-%d %H:%M',tip.mtime),
      strftime('%Y-%m-%d %H:%M',first.mtime), tip.n,
@@ -308,10 +314,10 @@ proc tkbranches::branchQuery {} {
      coalesce(tickets.list,''),
      (SELECT uuid FROM tiphash WHERE rid=tip.rid),
      [fossil::outcol "(SELECT coalesce(ecomment,comment) FROM event WHERE objid=tip.rid)"],
-     coalesce([fossil::outcol comments.text],'')
+     coalesce([fossil::outcol comments.text],''), coalesce(activity.list,'')
     FROM tip JOIN first USING(name) JOIN users USING(name)
      LEFT JOIN leaves USING(name) LEFT JOIN core USING(name) LEFT JOIN tickets USING(name)
-     LEFT JOIN comments USING(name), tg"
+     LEFT JOIN comments USING(name) LEFT JOIN activity USING(name), tg"
 }
 
 # Read all branches, then show them.
@@ -342,17 +348,28 @@ proc tkbranches::reload {} {
         ui::busyRelease $busy
     }
     array unset branches
+    # (The images of the activity: made again when shown.)
+    variable activity
+    foreach name [array names activity] { image delete $activity($name) }
+    array unset activity
     variable currentMergedOf ""
     foreach row $rows {
         lassign $row name updated created checkins users closed hidden private \
-            base forks ci citags tickets tip comment comments
+            base forks ci citags tickets tip comment comments recent
+        # The check-ins of the last year: 13 periods of four weeks, the
+        # oldest first.
+        set weeks [lrepeat 13 0]
+        foreach pair $recent {
+            lassign [split $pair :] age n
+            if {$age < 13} { lset weeks [expr {12 - $age}] $n }
+        }
         set merged [lmap t $targets {
             expr {[info exists mstate($t,$name)] ? $mstate($t,$name) : 0}
         }]
         set b [dict create name $name updated $updated created $created checkins $checkins \
             users [split $users \x02] closed $closed hidden $hidden private $private \
             base $base forks $forks ci $ci citags [split $citags \x02] \
-            tickets [split $tickets \x02] tip $tip comment $comment]
+            tickets [split $tickets \x02] tip $tip comment $comment activity $weeks]
         # For the search: lower case, all check-in comments.
         dict set b lname [string tolower $name]
         dict set b lusers [string tolower [dict get $b users]]
@@ -409,9 +426,11 @@ proc tkbranches::setupColumns {{newTargets 0}} {
     dict set cols ci {heading CI width 5 type integer dir desc anchor center
         tip "A core-* tag (built by CI):\n\u2713 on the last check-in\n\u25d0 only on an earlier one"}
     dict set cols state {heading State width 10}
+    dict set cols activity {heading Activity width 7 type integer dir desc
+        tip "Check-ins in the last year, four weeks a bar, the newest on the right"}
     dict set cols tip {heading Tip width 11 tip "The last check-in"}
     dict set cols comment {heading "Last comment" width 40 stretch 1}
-    set defaults [list updated checkins base \
+    set defaults [list updated checkins activity base \
         {*}[lmap k [dict keys $cols] { if {![string match m* $k]} continue; set k }] \
         forks tickets ci comment]
     # The columns as they are now, else as saved.
@@ -869,6 +888,40 @@ proc tkbranches::cellTip {name key} {
     return ""
 }
 
+# The activity of each branch listed as a small image in its cell, made
+# the first time it is shown.
+proc tkbranches::activityImages {t} {
+    variable branches
+    variable activity
+    set height [expr {max(6, [font metrics TkDefaultFont -linespace] - 6)}]
+    set width [expr {[font measure TkDefaultFont 0] * 6}]
+    foreach name [$t children {}] {
+        if {![info exists branches($name)]} continue
+        if {![info exists activity($name)]} {
+            set activity($name) [charts::spark [dict get $branches($name) activity] $width $height]
+            $t tag configure activity:$activity($name) -image $activity($name) -imageanchor w
+        }
+        $t tag cell add activity:$activity($name) [list $name activity]
+    }
+}
+
+# The activity in characters: a block as high as its share, each for
+# eight weeks to fit the column (Tk 8.6).
+proc tkbranches::spark {values} {
+    set pairs {}
+    for {set i [expr {[llength $values] - 1}]} {$i >= 0} {incr i -2} {
+        set pairs [linsert $pairs 0 [expr {[lindex $values $i] + ($i > 0 ? [lindex $values $i-1] : 0)}]]
+    }
+    set values $pairs
+    set max [tcl::mathfunc::max 0 {*}$values]
+    if {!$max} { return "" }
+    join [lmap v $values {
+        if {!$v} { string cat " " } else {
+            format %c [expr {0x2581 + min(7, int(ceil($v * 8.0 / $max)) - 1)}]
+        }
+    }] ""
+}
+
 # A merge or CI state as a cell.
 proc tkbranches::mark {state} {
     lindex {"" \u25d0 \u2713} $state
@@ -890,6 +943,8 @@ proc tkbranches::showList {} {
     if {![llength $keep] && $selected ne ""} { set keep [list $selected] }
     set counts [dict create open 0 unmerged 0 mine 0 closed 0 all 0]
     set rows {}
+    # (Images in cells: Tk 9; Tk 8.6 shows the activity in characters.)
+    set images [expr {![catch {$t tag cell has {}}]}]
     foreach name [array names branches] {
         set b $branches($name)
         if {![matches $b]} continue
@@ -908,7 +963,9 @@ proc tkbranches::showList {} {
                 if {![dict get $b $k]} continue; set label }] ", "] \
             tip [string range [dict get $b tip] 0 9] comment [dict get $b comment]]
         set sorts [dict create name $name forks [dict get $b forks] \
-            tickets [llength [dict get $b tickets]] ci [dict get $b ci]]
+            tickets [llength [dict get $b tickets]] ci [dict get $b ci] \
+            activity [tcl::mathop::+ {*}[dict get $b activity]]]
+        dict set cells activity [if {!$images} { spark [dict get $b activity] }]
         set i 0
         foreach target $targets {
             dict set cells m$i [mark [dict get $b merged $target]]
@@ -921,6 +978,7 @@ proc tkbranches::showList {} {
         lappend rows [list $name $cells $sorts $tags]
     }
     tablecols::fill $t $rows
+    if {$images} { activityImages $t }
     foreach v [dict keys $counts] {
         .branches.tabs.$v configure -text "[string totitle $v] ([dict get $counts $v])"
     }

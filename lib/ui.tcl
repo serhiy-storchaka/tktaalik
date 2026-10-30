@@ -38,6 +38,8 @@
 #   ui::zoomText STEP           the size of the text in every text widget:
 #                               a step larger (1), smaller (-1), 100% (0)
 #   ui::textSize ?FACTOR?       that size (1 is 100%): to keep in settings
+#   ui::whenTextSize SCRIPT     SCRIPT run when that size changes (what is
+#                               drawn in that size, as charts)
 
 namespace eval ui {
     variable f                  ;# array: the fields of a form (by default)
@@ -48,6 +50,9 @@ namespace eval ui {
     variable textSize 1         ;# of the text widgets (one of textSizes)
     variable zoomed             ;# array: text -> dict {TAG OPTION} -> {ORIGINAL SET}
     variable wheel 0            ;# Ctrl+Wheel turned short of a step
+    variable sizeScripts        ;# run when the text size changes
+    # (Kept when this file is sourced again, as lib/refpick.tcl does.)
+    if {![info exists sizeScripts]} { set sizeScripts {} }
 }
 
 # A line selected in a text ends in its newline, and an entry pasted it
@@ -487,8 +492,14 @@ proc ui::textSize {args} {
             if {![winfo exists $w]} { unset zoomed($w) }
         }
         foreach w [TextWidgets .] { ZoomIn $w }
+        foreach script $::ui::sizeScripts { uplevel #0 $script }
     }
     return $textSize
+}
+
+proc ui::whenTextSize {script} {
+    variable sizeScripts
+    if {$script ni $sizeScripts} { lappend sizeScripts $script }
 }
 
 proc ui::TextWidgets {w} {

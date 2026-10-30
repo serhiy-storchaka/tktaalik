@@ -222,6 +222,8 @@ they hold nothing of the repository.
 - [Wiki](wiki.md) — wiki pages and technotes
 - [Forum](forum.md) — forum threads and posts
 - [Search](search.md) — full-text search over everything
+- [Statistics](statistics.md) — charts of the activity, contributors, tickets,
+  forum and size of the repository
 - [Repository windows](repository.md) — information, settings, users, remotes,
   unversioned files
 - [Go to](goto.md) — going to a hash, ticket, tag or branch

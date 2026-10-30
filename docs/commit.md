@@ -43,6 +43,9 @@ as `fossil changes` classifies them:
 | UNCHANGED | not changed (only with "Show unchanged files") |
 
 The first column is a check box: the checked files are committed.
+The **Lines** column counts the lines each file adds and deletes
+(`+12 −3`, with bars of them in Tk 9), counted after the list is shown
+(`fossil diff --numstat`: not with Fossil 2.21 and older).
 Click it, or select files and press Space, to check or uncheck them.
 Several files can be selected (Shift-click, Control-click): Remove, Revert,
 Undo and Redo for files, Add,

@@ -46,6 +46,9 @@ proc tktimeline::bisectShow {title text {failed 0}} {
         ttk::frame $w.f -padding 6
         pack $w.f -fill both -expand 1
         ttk::label $w.f.title -font TkHeadingFont
+        # The check-ins between the good and the bad ones, in colours.
+        charts::message $w.f.strip ""
+        $w.f.strip configure -height [expr {[font metrics TkDefaultFont -linespace] * 5}]
         text $w.f.t -width 90 -height 20 -font TkFixedFont -wrap none \
             -yscrollcommand [list $w.f.y set]
         ttk::scrollbar $w.f.y -command [list $w.f.t yview]
@@ -66,16 +69,78 @@ proc tktimeline::bisectShow {title text {failed 0}} {
         ttk::button $w.f.b.close -text Close -command [list wm withdraw $w]
         pack $w.f.b.close -side right
         grid $w.f.title - -sticky w -pady {0 4}
+        grid $w.f.strip - -sticky ew -pady {0 4}
         grid $w.f.t $w.f.y -sticky news
         grid $w.f.b - -sticky ew -pady {6 0}
         grid columnconfigure $w.f 0 -weight 1
-        grid rowconfigure $w.f 1 -weight 1
+        grid rowconfigure $w.f 2 -weight 1
     }
     $w.f.title configure -text $title -foreground [expr {$failed ? "red3" : ""}]
     $w.f.t configure -state normal
     $w.f.t delete 1.0 end
     $w.f.t insert end [string trim $text]
     $w.f.t configure -state disabled
+    bisectStrip
+}
+
+# The strip of the bisect window: each check-in from the good to the bad
+# one ("bisect status --all", oldest on the left), good, bad, skipped (the
+# bisect log, tktimeline::checkoutState), not tested, or the checkout.
+proc tktimeline::bisectStrip {} {
+    variable bisect
+    set w .timeline.bisect.f.strip
+    lassign [bisectRun bisect status --all] code out
+    set entries {}
+    foreach line [split $out \n] {
+        if {[regexp {(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) ([0-9a-f]{8,})(.*)$} $line -> date hash words]} {
+            lappend entries [list $date $hash $words [string range $line 0 [string first $date $line]]]
+        }
+    }
+    if {$code || ![llength $entries]} {
+        charts::message $w "No bisect in progress."
+        return
+    }
+    set skipped [if {[dict size $bisect]} {
+        concat {*}[sql "SELECT uuid FROM blob WHERE rid IN ([join [list 0 {*}[dict keys [dict filter $bisect value skip]]] ,])"]
+    }]
+    set cells {}; set columns {}; set j 0; set untested 0
+    foreach entry [lreverse $entries] {
+        lassign $entry date hash words before
+        set all "$before $words"
+        set state "not tested"
+        if {[string match *BAD* $all]} {
+            set state bad
+        } elseif {[string match *GOOD* $all]} {
+            set state good
+        } elseif {[lsearch -glob $skipped $hash*] >= 0} {
+            set state skipped
+        }
+        set tip "$date [string range $hash 0 9]: $state"
+        if {[string match *CURRENT* $all]} {
+            append tip ", the checkout"
+            if {$state eq "not tested"} { set state checkout }
+        }
+        if {$state eq "not tested"} { incr untested }
+        lappend cells 0 $j $state $hash $tip
+        lappend columns ""
+        incr j
+    }
+    charts::grid $w -title "[llength $entries] check-ins from the good to the bad one, $untested not tested" \
+        -rows {""} -columns $columns -cells $cells -command tktimeline::bisectSelect \
+        -colormap {good #3fb950 bad #f47067 skipped #bdbdbd "not tested" #ebedf0 checkout #0072b2}
+}
+
+# A check-in of the strip: selected in the list if it is there.
+proc tktimeline::bisectSelect {hash} {
+    variable rows
+    set t .timeline.main.list.t
+    foreach rid [$t children {}] {
+        if {[string match $hash* [dict get $rows($rid) uuid]]} {
+            $t selection set $rid
+            $t see $rid
+            return
+        }
+    }
 }
 
 # Show "bisect status" (with --all: all the check-ins), "log" or "chart".

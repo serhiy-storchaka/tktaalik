@@ -28,6 +28,7 @@ how many artifacts are not pushed yet, and the repository file.
 | Updated | The time of the last check-in |
 | Created | The time of the first check-in (hidden at first) |
 | Check-ins | How many check-ins it has |
+| Activity | Its check-ins of the last year, the newest on the right: a bar for each four weeks in Tk 9, a block character for each eight weeks in Tk 8.6; sorts by how many |
 | Users | Who has check-ins on it (hidden at first) |
 | Base | The branch it was made from |
 | main, 9.0, 8.6, … | Its [merge state](#merge-state) into each target branch |

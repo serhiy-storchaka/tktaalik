@@ -46,6 +46,18 @@ Click a heading to sort by it, drag it to move the column,
 and right-click a heading to choose the columns. Date and Comment are always
 shown.
 
+### The graph
+
+Left of the columns, a graph of the check-ins, as on Fossil's web timeline:
+a dot for each check-in, in the colour of its branch,
+a line down to its parent, a thin grey line to each check-in it merged;
+a ring around the checkout's check-in.
+A parent that is not listed (further down than the rows shown,
+or left out by the search) gets a short line only.
+The graph is shown while the list is sorted by date, newest first;
+**File ▸ Graph of the check-ins** turns it off and on.
+Its column shows at most 12 lanes at first: drag its edge for more.
+
 ### Colours
 
 | Look | Meaning |
@@ -238,7 +250,10 @@ Then, by kind:
   (`TAG-N-HASH`, as `fossil describe`, also without a checkout;
   the hash as long as the `hash-digits` setting says),
   and the nearest tag matching a pattern (release tags) if that is another one;
-  then its files, each marked added, changed or deleted.
+  then its files, each marked added, changed or deleted,
+  with the lines it adds and deletes in each (`+54 −0` and bars of them)
+  and in all, counted after the details are shown
+  (`fossil diff --numstat`: not with Fossil 2.21 and older).
   Buttons: **Diff**, **Show branch**, **Open in browser**.
 - **A ticket change**: the fields it set,
   as the change records them (a field written `+field` was appended to).
@@ -403,6 +418,9 @@ The options are Fossil's (`fossil bisect options`), kept in the checkout.
 Each bisect command shows its output in the Bisect window,
 with buttons **Good**, **Bad**, **Skip**, **Next**, **Undo**, **Status**,
 **Log** and **Chart**.
+Above it, a strip of the check-ins from the good to the bad one,
+the oldest on the left: good, bad, skipped, not tested, and the checkout;
+click one to select it in the list.
 Status lists the check-ins between the innermost good and bad ones;
 with **All** it lists them all, not shortened.
 

@@ -6,7 +6,10 @@
 # colours (the "bgcolor" column) and fails on reports for the user ($login,
 # here the default user, as the web pages do for the one logged in).
 # Columns whose name starts with "_" are shown under the table, for the
-# row selected, as on the web pages.  Nothing is changed.
+# row selected, as on the web pages.  "Chart by" shows how many rows have
+# each value of a column instead (lib/charts.tcl), for the columns where
+# that tells something; a click on a bar filters the report by it.
+# Nothing is changed.
 
 namespace eval ticketreports {
     variable repo ""
@@ -17,6 +20,7 @@ namespace eval ticketreports {
     variable columns {}       ;# the columns of the report shown
     variable rows {}          ;# its rows
     variable details {}       ;# row id -> {name value} of the "_" columns
+    variable chartBy ""       ;# the column of the chart, "" for the table
 }
 
 proc ticketreports::window {} {
@@ -40,8 +44,14 @@ proc ticketreports::build {} {
     icons::tooltip $f.top.filter "An SQL condition on the columns of the report,\
         \ne.g. \"Status\" = 'Open' (Return to run)"
     ttk::button $f.top.run -text Run -command ticketreports::run
+    ttk::label $f.top.cl -text "Chart by:"
+    ttk::combobox $f.top.chart -state readonly -width 16 -values [list "(the table)"]
+    $f.top.chart set "(the table)"
+    bind $f.top.chart <<ComboboxSelected>> ticketreports::chooseChart
+    icons::tooltip $f.top.chart "How many rows have each value of a column:\na click on a bar filters the report by it"
     pack $f.top.l -side left
     pack $f.top.run -side right -padx {4 0}
+    pack $f.top.chart $f.top.cl -side right -padx {8 0}
     pack $f.top.filter -side left -fill x -expand 1 -padx {4 0}
     ttk::treeview $f.t -show headings -selectmode browse \
         -yscrollcommand [list $f.y set] -xscrollcommand [list $f.x set]
@@ -51,6 +61,9 @@ proc ticketreports::build {} {
     grid $f.top - -sticky ew
     grid $f.t $f.y -sticky news
     grid $f.x -sticky ew
+    charts::message $f.chart ""
+    grid $f.chart -row 1 -column 0 -columnspan 2 -rowspan 2 -sticky news
+    grid remove $f.chart
     grid $f.more - -sticky ew -pady {4 0}
     grid columnconfigure $f 0 -weight 1
     grid rowconfigure $f 1 -weight 1
@@ -233,6 +246,84 @@ proc ticketreports::run {} {
     set status "$title: [llength $rows] rows"
     if {$owner ne ""} { append status " (by $owner)" }
     if {[lsearch -exact $names #] >= 0} { append status "; double-click: the ticket" }
+    # (A report that counts, GROUP BY: its rows are already a count each.)
+    set chartable [lmap c $shown {
+        set name [$t heading $c -text]
+        if {[regexp -nocase {\mgroup\s+by\M} $sql] || ![chartable [lsearch -exact $names $name]]} continue
+        set name
+    }]
+    .reports.main.out.top.chart configure -values [list "(the table)" {*}$chartable] \
+        -state [if {[llength $chartable]} {string cat readonly} else {string cat disabled}]
+    showChart
+}
+
+# Whether the column I is worth a chart of the rows by its values: some
+# values, each in several rows (not the ids, the titles); not one value
+# for all (a report of open bugs by status or type); not dates; numbers
+# only as levels (priorities 1 to 9), not the counts of a report that
+# counts.
+proc ticketreports::chartable {i} {
+    variable rows
+    set n [llength $rows]
+    set counts {}
+    set dates 0
+    set numbers 0
+    foreach row $rows {
+        set v [lindex $row $i]
+        dict incr counts $v
+        if {[regexp {^\d{4}-\d\d-\d\d} $v]} { incr dates }
+        if {[string is double -strict $v]} { incr numbers }
+    }
+    set distinct [dict size $counts]
+    expr {$distinct >= 2 && $distinct <= 100 && $distinct * 2 <= $n
+        && $dates * 2 < $n && ($numbers * 2 < $n || $distinct <= 10)}
+}
+
+proc ticketreports::chooseChart {} {
+    variable chartBy
+    set chosen [.reports.main.out.top.chart get]
+    set chartBy [if {$chosen ne "(the table)"} {set chosen}]
+    showChart
+}
+
+# The chart of the column chosen instead of the table: the rows by its
+# values (the 30 most frequent).
+proc ticketreports::showChart {} {
+    variable chartBy
+    variable columns
+    variable rows
+    set f .reports.main.out
+    set i [lsearch -exact $columns $chartBy]
+    if {$chartBy eq "" || $chartBy ni [$f.top.chart cget -values]} {
+        set chartBy ""
+        $f.top.chart set "(the table)"
+        grid remove $f.chart
+        grid $f.t $f.y
+        grid $f.x
+        return
+    }
+    $f.top.chart set $chartBy
+    set counts {}
+    foreach row $rows { dict incr counts [lindex $row $i] }
+    set sorted [lrange [lsort -stride 2 -index 1 -integer -decreasing $counts] 0 59]
+    grid remove $f.t $f.y $f.x
+    grid $f.chart
+    set title "Rows by $chartBy"
+    if {[dict size $counts] > 30} { append title " (the 30 most frequent of [dict size $counts])" }
+    charts::bars $f.chart -title $title -horizontal 1 \
+        -categories [lmap {v n} $sorted { if {$v eq ""} { string cat (none) } else { set v } }] \
+        -keys [dict keys $sorted] -series [list Rows [dict values $sorted]] \
+        -command ticketreports::chartFilter -message "No rows."
+}
+
+# A bar of the chart: the report filtered by its value, as a table.
+proc ticketreports::chartFilter {value series} {
+    variable chartBy
+    variable filter
+    set column [string map {{"} {""}} $chartBy]
+    set filter "\"$column\" = '[string map {' ''} $value]'"
+    set chartBy ""
+    run
 }
 
 proc ticketreports::showMore {} {

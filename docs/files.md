@@ -143,6 +143,9 @@ Right-click the Content or the Blame for:
 The **History** tab lists the check-ins, on all branches, that changed the file,
 newest first.
 The tab's label counts them, for example `History (452)`.
+Above the list, a chart of the versions per year
+(per month for a file younger than three years);
+click a bar to select the newest version of it in the list.
 
 | Column | Meaning |
 |---|---|

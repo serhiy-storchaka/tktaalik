@@ -95,6 +95,7 @@ from 50% to 300%, and kept for the next time.
 
 The keys work in the text that has the focus (click it first);
 the wheel over the text.
+[Charts](statistics.md#charts) follow the same size.
 
 ## Completion in the search boxes
 

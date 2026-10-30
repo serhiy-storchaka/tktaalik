@@ -44,13 +44,15 @@ namespace eval tktaalik {
         forum    {tkforum Forum}
         search   {tkfulltext Search}
     }
-    # The windows of the Repository menu: name -> {namespace label}.
+    # The windows of the Repository menu: name -> {namespace label
+    # ?underline?} (the window is .name).
     variable dialogs {
         info     {tkinfo Information}
         settings {tksettings Settings}
         users    {tkusers Users}
         remotes  {tkremotes Remotes}
         uv       {tkuv "Unversioned files"}
+        stats    {tkstats Statistics 1}
     }
     variable built {}           ;# the tabs built
     variable stale {}           ;# those that have not read the repository
@@ -71,6 +73,7 @@ namespace eval tktaalik {
 set tktaalik::lib [file join [file dirname [file normalize [info script]]] lib]
 source [file join $tktaalik::lib fossil.tcl]
 source [file join $tktaalik::lib ui.tcl]
+source [file join $tktaalik::lib charts.tcl]
 source [file join $tktaalik::lib complete.tcl]
 source [file join $tktaalik::lib diffview.tcl]
 source [file join $tktaalik::lib htmltext.tcl]
@@ -88,6 +91,7 @@ source [file join $tktaalik::lib tksettings.tcl]
 source [file join $tktaalik::lib tkusers.tcl]
 source [file join $tktaalik::lib tkremotes.tcl]
 source [file join $tktaalik::lib tkuv.tcl]
+source [file join $tktaalik::lib tkstats.tcl]
 source [file join $tktaalik::lib tktags.tcl]
 source [file join $tktaalik::lib tkwiki.tcl]
 source [file join $tktaalik::lib tkforum.tcl]
@@ -470,8 +474,9 @@ proc tktaalik::repositoryMenu {} {
     if {![winfo exists $m]} {
         menu $m
         dict for {name spec} $dialogs {
-            lassign $spec ns label
-            $m add command -label "$label\u2026" -underline 0 -command ${ns}::window
+            lassign $spec ns label underline
+            if {$underline eq ""} { set underline 0 }
+            $m add command -label "$label\u2026" -underline $underline -command ${ns}::window
         }
         $m add separator
         $m add command -label "Back up repository\u2026" -underline 0 -command repoops::backup

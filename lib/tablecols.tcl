@@ -401,7 +401,7 @@ proc tablecols::fit {t} {
         if {[$t identify column $x 10] ne ""} { set inset $x; break }
     }
     set display [$t cget -displaycolumns]
-    set total 0
+    set total [TreeWidth $t]
     set stretch {}
     foreach c $display {
         incr total [$t column $c -width]
@@ -495,10 +495,12 @@ proc tablecols::columnEdges {t} {
     set cols [$t cget -displaycolumns]
     set total 0
     foreach c $cols { incr total [$t column $c -width] }
-    # Where the first column starts: after the border, minus the scrolling.
+    # Where the first column starts: after the border (and the tree column
+    # if shown), minus the scrolling.
     set x0 0
-    while {$x0 < 10 && [$t identify column $x0 1] ne "#1"} { incr x0 }
-    set x [expr {$x0 - round([lindex [$t xview] 0] * $total)}]
+    while {$x0 < 10 && [$t identify column $x0 1] eq ""} { incr x0 }
+    set tree [TreeWidth $t]
+    set x [expr {$x0 + $tree - round([lindex [$t xview] 0] * ($total + $tree))}]
     set edges {}
     foreach c $cols {
         lappend edges $c $x
@@ -518,6 +520,11 @@ proc tablecols::dropTarget {t x} {
         incr pos
     }
     list $pos [dict get $edges ""]
+}
+
+# The width of the tree column (#0) if it is shown (the Timeline's graph).
+proc tablecols::TreeWidth {t} {
+    expr {"tree" in [$t cget -show] ? [$t column #0 -width] : 0}
 }
 
 proc tablecols::headingKey {t x y} {

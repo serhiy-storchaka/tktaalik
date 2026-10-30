@@ -33,6 +33,7 @@ namespace eval help {
         .users                      repository#users
         .remotes                    repository#remotes
         .uv                         repository#unversioned-files
+        .stats                      statistics
         .diffview                   diffs
         .help                       index
         .tablecolsPopup             configuration#columns-and-sorting

@@ -38,6 +38,9 @@ namespace eval tktimeline {
     variable kinds {ci check-in t ticket g tag w wiki f forum e technote}
     variable root ""            ;# the checkout, or ""
     variable current ""         ;# the rid of the checkout's check-in
+    variable statJob ""         ;# the diff --numstat of the check-in shown
+    variable showGraph 1        ;# the graph of the check-ins (lib/graph.tcl)
+    variable graphImages {}     ;# its images, a row each
     variable bisect {}          ;# rid -> good, bad or skip
     variable bisectAll 0        ;# the bisect status of all check-ins
     variable bisectOpt          ;# array: the bisect options
@@ -54,6 +57,7 @@ proc tktimeline::loadConfig {} {
     variable configFile
     variable config
     set config [config::get $configFile timeline tktimeline.conf]
+    variable showGraph [getdef $config graph 1]
 }
 
 proc tktimeline::saveConfig {} {
@@ -66,6 +70,8 @@ proc tktimeline::saveConfig {} {
     dict set config query $query
     dict set config history $history
     dict set config view $view
+    variable showGraph
+    dict set config graph $showGraph
     config::put $configFile $config table
 }
 
@@ -438,6 +444,7 @@ proc tktimeline::search {{remember 0}} {
         $t tag configure icon:$icon -image [icons::get $icon row] -imageanchor center
         $t tag cell add icon:$icon $cells
     }
+    drawGraph $result
     set keep [lmap id $keep { if {![$t exists $id]} continue; set id }]
     if {![llength $keep]} { set keep [lrange [$t children {}] 0 0] }
     if {[llength $keep]} {
@@ -462,6 +469,67 @@ proc tktimeline::search {{remember 0}} {
         pack .timeline.more -in .timeline.bottom -side right
     } else {
         pack forget .timeline.more
+    }
+}
+
+# The graph of the check-ins listed (lib/graph.tcl): an image in the tree
+# column of each row.  Only while the rows are newest first: sorted
+# otherwise, the lines would join what is not related.
+proc tktimeline::drawGraph {result} {
+    variable graphImages
+    variable showGraph
+    variable current
+    set t .timeline.main.list.t
+    foreach image $graphImages { image delete $image }
+    set graphImages {}
+    foreach item [$t children {}] { $t item $item -image "" }
+    if {!$showGraph || ![llength $result]} {
+        graphShown
+        return
+    }
+    set checkins [lmap row $result { if {[lindex $row 1] ne "ci"} continue; lindex $row 0 }]
+    set parents {}
+    if {[llength $checkins]} {
+        # (Primary parents first.)
+        foreach row [sql "SELECT cid, pid, isprim FROM plink
+                WHERE cid IN ([join $checkins ,]) ORDER BY cid, isprim DESC"] {
+            lassign $row cid pid primary
+            dict lappend parents $cid [list $pid $primary]
+        }
+    }
+    set rows {}
+    foreach row $result {
+        lassign $row rid type - - - - branch
+        set colour [if {$branch eq ""} {string cat gray50} else {charts::colour $branch}]
+        lappend rows [list $rid [expr {$type eq "ci"}] $colour \
+            [if {[dict exists $parents $rid]} {dict get $parents $rid}]]
+    }
+    lassign [graph::layout $rows] lanes drawing
+    set height [ttk::style lookup Treeview -rowheight]
+    if {![string is integer -strict $height]} { set height [expr {[font metrics TkDefaultFont -linespace] + 4}] }
+    set width [expr {max(8, $height * 3 / 5)}]
+    dict for {rid parts} $drawing {
+        if {![$t exists $rid]} continue
+        set image [graph::rowImage $parts $lanes $width $height [expr {$rid eq $current}]]
+        lappend graphImages $image
+        $t item $rid -image $image
+    }
+    # (At most 12 lanes at first: the column can be widened for more.)
+    $t column #0 -width [expr {min(max($lanes, 1), 12) * $width + 4}]
+    graphShown
+}
+
+# The graph's column shown only with the graph and the rows newest first.
+proc tktimeline::graphShown {} {
+    variable showGraph
+    variable graphImages
+    set t .timeline.main.list.t
+    set show [expr {$showGraph && [llength $graphImages]
+        && [dict get [tablecols::state $t] sort] eq {date desc}}]
+    set want [if {$show} {list tree headings} else {list headings}]
+    if {[$t cget -show] ne $want} {
+        $t configure -show $want
+        tablecols::fit $t
     }
 }
 
@@ -550,6 +618,7 @@ proc tktimeline::showDetails {rid} {
     set d .timeline.main.details.text
     $d configure -state normal
     $d delete 1.0 end
+    $d mark unset {*}[lsearch -all -inline -glob [$d mark names] stat:*]
     foreach b [winfo children .timeline.main.details.buttons] { destroy $b }
     destroy $d.copyhash
     if {$rid eq "" || ![info exists rows($rid)]} {
@@ -600,11 +669,24 @@ proc tktimeline::showDetails {rid} {
                 CASE WHEN m.pid=0 THEN 'added' WHEN m.fid=0 THEN 'deleted' ELSE 'changed' END
                 FROM mlink m JOIN filename f ON f.fnid=m.fnid
                 WHERE m.mid=$rid AND NOT m.isaux ORDER BY f.name"]
-            $d insert end "[llength $files] file[expr {[llength $files] == 1 ? "" : "s"}]\n" label
+            $d insert end "[llength $files] file[expr {[llength $files] == 1 ? "" : "s"}]" label
+            # (Where the lines added and deleted go, when counted.)
+            $d mark set stat:total insert
+            $d mark set stat:total "end - 1 char"
+            $d mark gravity stat:total left
+            $d insert end \n
+            # In columns at tab stops (the font is not monospaced): what
+            # happened, the name, then the lines and their bars.
+            set names [lmap row $files {lindex $row 0}]
+            $d tag configure files -tabs [fileTabs $d {added changed deleted} $names]
             foreach row $files {
                 lassign $row name how
-                $d insert end [format "%-8s " $how] $how $name\n
+                $d insert end $how [list $how files] \t files $name files
+                $d mark set stat:$name "end - 1 char"
+                $d mark gravity stat:$name left
+                $d insert end \n files
             }
+            countLines $rid $uuid
             lappend buttons Diff [list tktimeline::diff $uuid] \
                 "Show branch" [list tktimeline::showBranch [dict get $r branch]]
         }
@@ -648,6 +730,64 @@ proc tktimeline::showDetails {rid} {
 }
 
 # The fields a ticket change sets: {field value ...}; "+field" appends.
+# The lines each file of the check-in adds and deletes, and bars of them,
+# after its files in the details: "fossil diff --numstat" in the
+# background (Fossil 2.21 and older have none).
+proc tktimeline::countLines {rid uuid} {
+    variable repo
+    variable statJob
+    if {$statJob ne ""} { fossil::stop $statJob }
+    set statJob ""
+    if {![fossil::helpMatches diff *--numstat*]} return
+    set statJob [fossil::start -onDone [list tktimeline::showLines $rid] \
+        diff -R $repo --checkin $uuid --numstat]
+}
+
+proc tktimeline::showLines {rid code text stopped msg} {
+    variable statJob ""
+    set d .timeline.main.details.text
+    if {$code || $stopped || [lindex [.timeline.main.list.t selection] 0] ne $rid} return
+    set stats [charts::numstat $text]
+    set max 0; set added 0; set deleted 0
+    foreach {file a r} $stats {
+        set max [expr {max($max, $a + $r)}]
+        incr added $a
+        incr deleted $r
+    }
+    if {![llength $stats]} return
+    $d configure -state normal
+    set names {}; set counts {}
+    foreach {file a r} $stats {
+        lappend names $file
+        lappend counts "+$a \u2212$r"
+    }
+    $d tag configure files -tabs [fileTabs $d {added changed deleted} $names $counts]
+    foreach {file a r} $stats {
+        if {"stat:$file" in [$d mark names]} { charts::stat $d stat:$file $a $r $max files }
+    }
+    if {"stat:total" in [$d mark names]} {
+        $d insert stat:total "  " "" +$added statadd " " "" \u2212$deleted statdel " lines" label
+    }
+    $d configure -state disabled
+}
+
+# The tab stops of the files of the details: after the widest of each
+# column of texts.  (Measured in the font as zoomed, given as at 100%:
+# lib/ui.tcl scales the tabs of the texts to the size of the text.)
+proc tktimeline::fileTabs {d args} {
+    set font [$d cget -font]
+    set gap [font measure $font "    "]
+    set x 0
+    set tabs {}
+    foreach texts $args {
+        set widest 0
+        foreach text $texts { set widest [expr {max($widest, [font measure $font $text])}] }
+        set x [expr {$x + $widest + $gap}]
+        lappend tabs [expr {round($x / [ui::textSize])}]
+    }
+    return $tabs
+}
+
 proc tktimeline::ticketFields {uuid} {
     variable repo
     lassign [fossil::run artifact -R $repo $uuid] code out
@@ -1042,6 +1182,8 @@ proc tktimeline::build {} {
         -command tktimeline::compareReleases
     .timeline.menu.file add command -label "Changelog of the search\u2026" -underline 1 \
         -command tktimeline::changelog
+    .timeline.menu.file add checkbutton -label "Graph of the check-ins" -underline 0 \
+        -variable tktimeline::showGraph -command tktimeline::search
     .timeline.menu.file add command -label Refresh -underline 0 -accelerator F5 \
         -command tktimeline::search
     tktaalik::quitEntry .timeline.menu.file
@@ -1099,8 +1241,13 @@ proc tktimeline::build {} {
     ui::splitByWeights .timeline.main
     ttk::frame .timeline.main.list
     set t .timeline.main.list.t
-    ttk::treeview $t -show headings -selectmode browse \
+    # (The tree column: the graph, without the indicator of children.)
+    ttk::style layout Graph.Treeview.Item {Treeitem.padding -sticky nswe -children {
+        Treeitem.image -side left -sticky {} Treeitem.text -sticky nswe}}
+    ttk::treeview $t -show headings -selectmode browse -style Graph.Treeview \
         -yscrollcommand {.timeline.main.list.y set} -xscrollcommand {.timeline.main.list.x set}
+    $t column #0 -width 0 -minwidth 0 -stretch 0
+    $t heading #0 -text ""
     ttk::scrollbar .timeline.main.list.y -command [list $t yview]
     ttk::scrollbar .timeline.main.list.x -orient horizontal -command [list $t xview]
     grid $t .timeline.main.list.y -sticky news
@@ -1139,6 +1286,7 @@ proc tktimeline::build {} {
     $d tag configure added -foreground darkgreen
     $d tag configure deleted -foreground darkred
     $d tag configure changed -foreground gray40
+    charts::statTags $d
     .timeline.main add .timeline.main.list -weight 3
     .timeline.main add .timeline.main.details -weight 2
 
@@ -1189,7 +1337,7 @@ proc tktimeline::build {} {
         hash    {heading Hash width 11} \
         comment {heading Comment width 60 stretch 1} \
     ] -fixed {date comment} -defaults {date kind user branch comment} \
-        -celltip tktimeline::cellTip \
+        -celltip tktimeline::cellTip -command tktimeline::graphShown \
         -shown [getdef $table shown {}] \
         -order [getdef $table order {date kind user branch ticket hash comment}] \
         -sort [getdef $table sort {date desc}]
@@ -1287,6 +1435,7 @@ proc tktimeline::activate {} {
 }
 
 source [file join [file dirname [file normalize [info script]]] bisect.tcl]
+source [file join [file dirname [file normalize [info script]]] graph.tcl]
 source [file join [file dirname [file normalize [info script]]] pull.tcl]
 source [file join [file dirname [file normalize [info script]]] changelog.tcl]
 

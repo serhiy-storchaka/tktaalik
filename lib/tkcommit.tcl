@@ -28,6 +28,8 @@ namespace eval tkcommit {
     variable squashed ""        ;#   squashed: its old tip, to close then
     variable noWarnings 0       ;# --no-warnings --no-verify-comment
     variable info ""            ;# the line at the top
+    variable statJob ""         ;# diff --numstat of the changes listed
+    variable statImages {}      ;# their bars (Tk 9)
     variable status ""          ;# the status line
     variable current ""         ;# the file whose diff is shown
     variable forks 0            ;# open leaves of the checkout's branch
@@ -296,6 +298,7 @@ proc tkcommit::refresh {} {
     } else {
         showDiff ""
     }
+    countLines
     variable mergedWith
     set with [join [lmap m $mergedWith {
         lassign $m what hash
@@ -311,6 +314,44 @@ proc tkcommit::refresh {} {
         pack forget .commit.bottom.buttons.merge
     }
     updateStatus
+}
+
+# The lines each changed file adds and deletes ("fossil diff --numstat",
+# in the background; not with Fossil 2.21 and older): "+12 -3" in the
+# Lines column, with a bar of them on Tk 9 (images in cells).
+proc tkcommit::countLines {} {
+    variable root
+    variable statJob
+    if {$statJob ne ""} { fossil::stop $statJob }
+    set statJob ""
+    if {$root eq "" || ![fossil::helpMatches diff *--numstat*]} return
+    set statJob [fossil::start -dir $root -onDone tkcommit::showLines diff --numstat]
+}
+
+proc tkcommit::showLines {code text stopped msg} {
+    variable statJob ""
+    variable statImages
+    set t .commit.main.files.t
+    if {$code || $stopped || ![winfo exists $t]} return
+    foreach image $statImages { image delete $image }
+    set statImages {}
+    set stats [charts::numstat $text]
+    set max 0
+    foreach {file a r} $stats { set max [expr {max($max, $a + $r)}] }
+    # (Images in cells: Tk 9.)
+    set images [expr {![catch {$t tag cell has {}}]}]
+    set width [expr {[font measure TkDefaultFont 0] * 5}]
+    set height [expr {max(4, [font metrics TkDefaultFont -linespace] / 2)}]
+    foreach {file a r} $stats {
+        if {![$t exists $file]} continue
+        $t set $file stat "+$a \u2212$r"
+        if {$images && $max > 0} {
+            set image [charts::statImage $a $r $max $width $height]
+            lappend statImages $image
+            $t tag configure stat:$image -image $image -imageanchor e
+            $t tag cell add stat:$image [list $file stat]
+        }
+    }
 }
 
 proc tkcommit::mark {path} {
@@ -756,7 +797,7 @@ proc tkcommit::build {} {
     ttk::panedwindow .commit.main -orient horizontal
     ui::splitByWeights .commit.main
     ttk::frame .commit.main.files
-    ttk::treeview .commit.main.files.t -columns {check status path} -show headings \
+    ttk::treeview .commit.main.files.t -columns {check status path stat} -show headings \
         -selectmode extended -yscrollcommand {.commit.main.files.y set}
     ttk::scrollbar .commit.main.files.y -command {.commit.main.files.t yview}
     .commit.main.files.t heading check -text ""
@@ -765,6 +806,8 @@ proc tkcommit::build {} {
     .commit.main.files.t column check -width [expr {$char * 3}] -stretch 0 -anchor center
     .commit.main.files.t column status -width [expr {$char * 10}] -stretch 0
     .commit.main.files.t column path -width [expr {$char * 30}] -stretch 1
+    .commit.main.files.t heading stat -text Lines -anchor w
+    .commit.main.files.t column stat -width [expr {$char * 14}] -stretch 0
     foreach {tag colour} {missing red3 extra gray45 conflict red3} {
         .commit.main.files.t tag configure $tag -foreground $colour
     }
