@@ -42,10 +42,12 @@ proc visible {key} {
 }
 check "fitted when shown: [total] in [inside], xview [$t xview]" {[total] == [inside]}
 set min [$t column comment -minwidth]
+set wide [$t column comment -width]
 check1 created base
 set d [$t cget -displaycolumns]
 check "shown after base: $d" {[lindex $d [expr {[lsearch $d base] + 1}]] eq "created"}
-check "the comment column shrunk: [$t column comment -width] (min $min)" {[$t column comment -width] < 320}
+# (Shrunk from what it was: by how much depends on the font.)
+check "the comment column shrunk: [$t column comment -width] from $wide (min $min)" {[$t column comment -width] < $wide}
 check "the new column in view" {[visible created]}
 check1 created base
 check "hidden: fitted again, [total] in [inside]" {"created" ni [$t cget -displaycolumns] && [total] == [inside]}
