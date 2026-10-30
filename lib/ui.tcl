@@ -33,6 +33,8 @@
 #   ui::formBusy                1 if a form is open (then it is raised)
 #   ui::textWindow W TITLE TEXT a text to read (and copy), with Close
 #   ui::helpFor W TARGET        F1 in W: TARGET (page#anchor) of the manual
+#   ui::size W COLUMNS LINES    the window W that many characters and lines
+#                               of the default font, at most 90% of the screen
 #   ui::zoomText STEP           the size of the text in every text widget:
 #                               a step larger (1), smaller (-1), 100% (0)
 #   ui::textSize ?FACTOR?       that size (1 is 100%): to keep in settings
@@ -278,6 +280,16 @@ proc ui::helpFor {w target} {
         if {$prefix eq $w} return
     }
     lappend ::help::contexts $w $target
+}
+
+# A size in pixels fits one font size only: with large fonts or a large
+# scaling the window was too small for what is in it.
+proc ui::size {w columns lines} {
+    set width [expr {$columns * [font measure TkDefaultFont 0]}]
+    set height [expr {$lines * [font metrics TkDefaultFont -linespace]}]
+    set width [expr {min($width, [winfo screenwidth $w] * 9 / 10)}]
+    set height [expr {min($height, [winfo screenheight $w] * 9 / 10)}]
+    wm geometry $w ${width}x$height
 }
 
 proc ui::textWindow {w title text} {

@@ -488,7 +488,7 @@ proc tkfulltext::helpTopic {name} {
     set w .search.fossilhelp
     if {![winfo exists $w]} {
         toplevel $w
-        wm geometry $w 760x560
+        ui::size $w 95 28
         text $w.t -wrap none -font TkFixedFont -padx 8 -pady 6 -yscrollcommand [list $w.y set] \
             -xscrollcommand [list $w.x set]
         ttk::scrollbar $w.y -command [list $w.t yview]

@@ -250,4 +250,19 @@ ui::textSize 1
 bind . <Control-0> {}
 destroy .z1 .z2 .z3
 check "forgotten when destroyed" {![array size ui::zoomed]}
+# ui::size: a window's size in characters and lines of the default font,
+# so larger with larger fonts, and never beyond the screen.
+toplevel .sized
+ui::size .sized 50 10; update
+set char [font measure TkDefaultFont 0]
+set line [font metrics TkDefaultFont -linespace]
+check "ui::size: [wm geometry .sized]" {[string match "[expr {50 * $char}]x[expr {10 * $line}]*" [wm geometry .sized]]}
+set size [font configure TkDefaultFont -size]
+font configure TkDefaultFont -size [expr {2 * [font actual TkDefaultFont -size]}]
+ui::size .sized 50 10; update
+check "ui::size, larger fonts: [wm geometry .sized]" {[string match "[expr {50 * [font measure TkDefaultFont 0]}]x*" [wm geometry .sized]] && [font measure TkDefaultFont 0] > $char}
+font configure TkDefaultFont -size $size
+ui::size .sized 10000 10000; update
+check "ui::size, at most 90% of the screen: [wm geometry .sized]" {[string match "[expr {[winfo screenwidth .] * 9 / 10}]x[expr {[winfo screenheight .] * 9 / 10}]*" [wm geometry .sized]]}
+destroy .sized
 done

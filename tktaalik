@@ -766,7 +766,11 @@ proc tktaalik::main {tab argv} {
     buildWindow
     icons::appIcon
     wm title . Tktaalik
-    wm geometry . [getdef $config geometry 1200x800]
+    if {[dict exists $config geometry]} {
+        wm geometry . [dict get $config geometry]
+    } else {
+        ui::size . 150 40
+    }
 
     lassign $argv path query
     # The argument, else the checkout here, else the last one.

@@ -1030,7 +1030,7 @@ proc tkcommit::threeWay {path} {
     destroy $w
     toplevel $w
     wm title $w "Three ways: $path"
-    wm geometry $w 1200x600
+    ui::size $w 150 30
     ttk::frame $w.bar -padding 4
     foreach {b label pair} {d12 "Baseline \u2192 local" {0 1} d13 "Baseline \u2192 merged in" {0 2}
             d23 "Local \u2192 merged in" {1 2}} {

@@ -608,7 +608,7 @@ proc tkfiles::findLocal {{path ""}} {
     set w .files.found
     if {![winfo exists $w]} {
         toplevel $w
-        wm geometry $w 900x360
+        ui::size $w 112 18
         wm protocol $w WM_DELETE_WINDOW [list destroy $w]
         bind $w <Escape> [list destroy $w]
         ttk::label $w.l -padding {8 6} -anchor w

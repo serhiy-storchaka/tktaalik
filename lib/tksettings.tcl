@@ -272,7 +272,7 @@ proc tksettings::window {} {
 }
 
 proc tksettings::build {} {
-    wm geometry .settings 1000x600
+    ui::size .settings 125 30
     ttk::frame .settings.top -padding {6 6 6 2}
     ttk::label .settings.top.fl -text "Find:"
     ttk::entry .settings.top.filter -textvariable tksettings::filter -width 30

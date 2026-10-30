@@ -27,7 +27,7 @@ proc tkuv::window {} {
 }
 
 proc tkuv::build {} {
-    wm geometry .uv 900x420
+    ui::size .uv 112 21
     ttk::frame .uv.top -padding {6 6 6 2}
     ttk::label .uv.top.fl -text "Find:"
     ttk::entry .uv.top.filter -textvariable tkuv::filter -width 30
@@ -443,7 +443,7 @@ proc tkuv::edit {} {
     toplevel $w
     wm title $w "Edit $name"
     wm transient $w .uv
-    wm geometry $w 800x600
+    ui::size $w 100 30
     ttk::frame $w.f -padding 8
     ::text $w.f.t -wrap none -undo 1 -font TkFixedFont \
         -yscrollcommand [list $w.f.y set] -xscrollcommand [list $w.f.x set]

@@ -100,7 +100,7 @@ proc diffview::newWindow {title mode} {
     set w .diffview[incr count]
     toplevel $w
     wm title $w $title
-    wm geometry $w 1200x800
+    ui::size $w 150 40
     panel $w -title $title -mode $mode
     ttk::button $w.bar.close -text Close -command [list destroy $w]
     pack $w.bar.close -side right -padx {4 0} -before $w.bar.sidebyside

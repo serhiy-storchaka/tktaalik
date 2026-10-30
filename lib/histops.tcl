@@ -515,7 +515,7 @@ proc histops::graveyard {repo {done ""}} {
     bind $w <Escape> [list destroy $w]
     popup::attach $w.f.t histops::graveMenu
     popup::copyKey $w.f.t histops::graveHash
-    wm geometry $w 760x420
+    ui::size $w 95 21
     graveFill $repo
 }
 

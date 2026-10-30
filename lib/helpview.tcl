@@ -157,7 +157,7 @@ proc help::show {{name index} {anchor ""}} {
 proc help::build {} {
     toplevel .help
     wm title .help "Tktaalik manual"
-    wm geometry .help 1000x750
+    ui::size .help 125 38
     wm protocol .help WM_DELETE_WINDOW {wm withdraw .help}
     ttk::frame .help.bar -padding 4
     ttk::button .help.bar.back -text "\u2190 Back" -command help::goBack -state disabled

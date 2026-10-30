@@ -406,7 +406,8 @@ proc goto::window {} {
 }
 
 proc goto::build {} {
-    wm geometry .goto 720x300
+    # (No size in pixels: the window as wide as 40 characters of the entry
+    # and the list's columns need, in any font size and scaling.)
     ttk::frame .goto.top -padding {8 8 8 4}
     ttk::label .goto.top.l -text "Hash, ticket id, tag or branch:"
     ttk::combobox .goto.top.e -textvariable goto::text -font TkFixedFont -width 40

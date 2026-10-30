@@ -974,7 +974,7 @@ proc tkwiki::editor {mode} {
     toplevel $w
     wm title $w [dict get {edit "Edit" newpage "New page" newnote "New technote"} $mode]
     wm transient $w .
-    wm geometry $w 800x600
+    ui::size $w 100 30
     set f $w.f
     ttk::frame $f -padding 8
     set row 0

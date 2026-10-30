@@ -25,7 +25,7 @@ proc tkremotes::window {} {
 }
 
 proc tkremotes::build {} {
-    wm geometry .remotes 900x320
+    ui::size .remotes 112 16
     ttk::frame .remotes.list
     set t .remotes.list.t
     ttk::treeview $t -columns {name url} -show headings -selectmode browse \

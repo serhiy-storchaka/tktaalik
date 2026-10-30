@@ -27,7 +27,7 @@ proc ticketreports::window {} {
 }
 
 proc ticketreports::build {} {
-    wm geometry .reports 1000x600
+    ui::size .reports 125 30
     ttk::panedwindow .reports.main -orient horizontal
     ui::splitByWeights .reports.main
     listbox .reports.main.list -width 34 -exportselection 0 -activestyle none

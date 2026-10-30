@@ -16,9 +16,18 @@ for {set i 0} {$i <= [$m index end]} {incr i} {
     if {[$m type $i] eq "command"} { lappend labels [$m entrycget $i -label] }
 }
 check "in the File menu" {"Go to…" in $labels}
+# Opened with large fonts (as with a large scaling): the window was 720
+# pixels wide, with room for a few characters in the entry.
+set sizes {}
+foreach f {TkDefaultFont TkFixedFont} {
+    lappend sizes $f [font configure $f -size]
+    font configure $f -size [expr {2 * [font actual $f -size]}]
+}
 focus -force .tickets.top.q; update
 event generate .tickets.top.q <Control-g>; update
 check "Ctrl+G opens it" {[winfo exists .goto] && [winfo ismapped .goto]}
+check "large fonts: room for 40 characters: [winfo width .goto.top.e] px" {[winfo width .goto.top.e] >= 40 * [font measure TkFixedFont 0]}
+dict for {f size} $sizes { font configure $f -size $size }
 wm withdraw .goto
 
 # A check-in (a prefix of it): the Timeline.

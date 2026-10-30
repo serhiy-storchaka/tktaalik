@@ -22,7 +22,7 @@ proc tkinfo::window {} {
 }
 
 proc tkinfo::build {} {
-    wm geometry .info 640x560
+    ui::size .info 80 28
     set d .info.text
     text $d -wrap word -width 70 -height 30 -padx 10 -pady 8 -font TkTextFont \
         -state disabled -yscrollcommand {.info.y set}
