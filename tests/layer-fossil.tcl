@@ -53,6 +53,17 @@ fossil::stop $h
 waitUntil {[info exists ::job]} 10000
 check "stop: stopped ($::job)" {[lindex $::job 1] == 1 && ![file exists /proc/[lindex $p 0]]}
 unset ::job
+# A job started with -finish: done, all its output read, before
+# fossil::run runs a command (no event loop between): a job with more
+# output than a pipe holds waits for a reader, holding the database, and a
+# command that writes would wait for it.
+set ::finished ""
+fossil::start -finish 1 -onDone {::apply {{code text stopped msg} { set ::finished [list $code [string length $text]] }}} \
+    sql -R $T(repo) --readonly "SELECT printf('%.200c', 'x') FROM blob LIMIT 2000"
+set before $::finished
+fossil::run version
+check "-finish: done before fossil::run: [list $before] then [list $::finished]" {$before eq ""
+    && [lindex $::finished 0] == 0 && [lindex $::finished 1] > 2000 * 200}
 set a [fossil::start -command [list sleep 30]]
 set b [fossil::start -command [list sleep 30] -onDone {::apply {args { set ::job 1 }}}]
 set pids [concat [pid $a] [pid $b]]

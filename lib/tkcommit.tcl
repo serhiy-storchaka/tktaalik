@@ -325,7 +325,8 @@ proc tkcommit::countLines {} {
     if {$statJob ne ""} { fossil::stop $statJob }
     set statJob ""
     if {$root eq "" || ![fossil::helpMatches diff *--numstat*]} return
-    set statJob [fossil::start -dir $root -onDone tkcommit::showLines diff --numstat]
+    # (-finish: else a revert or commit could wait for it, see fossil::Finish.)
+    set statJob [fossil::start -dir $root -finish 1 -onDone tkcommit::showLines diff --numstat]
 }
 
 proc tkcommit::showLines {code text stopped msg} {

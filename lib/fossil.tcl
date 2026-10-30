@@ -209,13 +209,16 @@ proc fossil::arg {text} {
 #   fossil::inDir DIR BODY      BODY evaluated in the caller with DIR as the
 #                               cwd (restored; "": the cwd as it is)
 #   fossil::start ?-dir DIR? ?-encoding ENC? ?-input TEXT? ?-onOutput CMD?
-#           ?-onDone CMD? ?-command LIST? ARG...
+#           ?-onDone CMD? ?-command LIST? ?-finish 0|1? ARG...
 #                               fossil ARG... (or the program LIST, whole)
 #                               in the background: a handle (a channel:
 #                               pid works).
 #                               CMD of -onOutput gets each chunk read;
 #                               CMD of -onDone gets {code text stopped msg}
-#                               (code 0 or 1; stopped 1 if fossil::stop)
+#                               (code 0 or 1; stopped 1 if fossil::stop).
+#                               With -finish 1, finished (its output read
+#                               to the end) before fossil::run runs a
+#                               command: see fossil::Finish
 #   fossil::runEvents ?-dir DIR? ARG...
 #                               as fossil::run (stdin empty), the events
 #                               handled while it runs: {exit-code output}
@@ -274,6 +277,7 @@ proc fossil::Options {argsVar names} {
 }
 
 proc fossil::Exec {input argv} {
+    Finish
     set cmd [command [list fossil {*}$argv]]
     set code [catch {
         exec {*}$cmd << $input 2>@1
@@ -289,6 +293,7 @@ proc fossil::Exec {input argv} {
 # without an output option of their own in older Fossils): {exit-code
 # error-output}.
 proc fossil::runTo {path args} {
+    Finish
     set cmd [command [list fossil {*}$args]]
     if {![catch {exec {*}$cmd > $path << ""} msg opts]} { return [list 0 ""] }
     # (Only an exit status other than 0 is a failure; else output on stderr.)
@@ -319,7 +324,7 @@ proc fossil::inDir {dir body} {
 
 proc fossil::start {args} {
     variable jobs
-    set opts [Options args {-dir -encoding -input -onOutput -onDone -command}]
+    set opts [Options args {-dir -encoding -input -onOutput -onDone -command -finish}]
     set command [if {[dict exists $opts -command]} {dict get $opts -command} else {list fossil {*}$args}]
     set dir [if {[dict exists $opts -dir]} {dict get $opts -dir}]
     set here [pwd]
@@ -337,6 +342,7 @@ proc fossil::start {args} {
     dict set jobs $chan [dict create \
         onOutput [if {[dict exists $opts -onOutput]} {dict get $opts -onOutput}] \
         onDone [if {[dict exists $opts -onDone]} {dict get $opts -onDone}] \
+        finish [expr {[dict exists $opts -finish] && [dict get $opts -finish]}] \
         text "" stopped 0]
     fileevent $chan readable [list fossil::JobRead $chan]
     return $chan
@@ -382,6 +388,22 @@ proc fossil::stop {handle} {
     if {![dict exists $jobs $handle]} return
     dict set jobs $handle stopped 1
     kill [pid $handle]
+}
+
+# The jobs started with -finish run to their end, their output read here,
+# before a command runs in the foreground.  Their output is read only by
+# the event loop, which waits while the command runs: a job with more
+# output than the pipe holds (4 KB on Windows) waits for it, holding the
+# database, and a command that writes to it waits for the job (a diff
+# --numstat of 300 changed files and a revert in the checkout, for ever).
+proc fossil::Finish {} {
+    variable jobs
+    foreach handle [dict keys $jobs] {
+        if {![dict exists $jobs $handle] || ![dict get $jobs $handle finish]} continue
+        # (Read to the end: JobRead closes it and runs its -onDone.)
+        fconfigure $handle -blocking 1
+        JobRead $handle
+    }
 }
 
 proc fossil::stopAll {} {

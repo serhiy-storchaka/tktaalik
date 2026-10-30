@@ -739,7 +739,8 @@ proc tktimeline::countLines {rid uuid} {
     if {$statJob ne ""} { fossil::stop $statJob }
     set statJob ""
     if {![fossil::helpMatches diff *--numstat*]} return
-    set statJob [fossil::start -onDone [list tktimeline::showLines $rid] \
+    # (-finish: else a commit could wait for it, see fossil::Finish.)
+    set statJob [fossil::start -finish 1 -onDone [list tktimeline::showLines $rid] \
         diff -R $repo --checkin $uuid --numstat]
 }
 
