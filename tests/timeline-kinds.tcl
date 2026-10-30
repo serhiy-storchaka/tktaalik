@@ -24,7 +24,11 @@ proc hover {item col} {
 }
 proc hoverHead {col} {
     global t
-    lassign [$t bbox [lindex [$t children {}] 0] $col] x y w h
+    # (The first row in view: hover may have scrolled to a later one.)
+    set first [lindex [$t children {}] 0]
+    $t see $first; update
+    waitUntil {[llength [$t bbox $first $col]]}
+    lassign [$t bbox $first $col] x y w h
     hoverAt [expr {$x + $w/2}] 6
 }
 set w [$t column kind -width]
