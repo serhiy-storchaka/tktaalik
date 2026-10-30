@@ -245,8 +245,17 @@ if {![fossil::hasCommand merge-info]} {
     done
 }
 
-# --- Bug 6: the three-way view as Fossil's own.
-fossilco merge {*}[fossil::nosync merge] core-9-0-branch
+# --- Bug 6: the three-way view as Fossil's own.  A file changed on both
+# sides: two branches from the checkout's version, each changing README.md
+# at one end, merged.  (Not a merge of the repository's own branches:
+# whether one has such a file depends on what was committed since.)
+regexp -line {^checkout:\s+([0-9a-f]+)} [fossilco info] -> base
+set f [open $co/README.md a]; puts $f "an added last line"; close $f
+fossilco commit --nosync -m "The end of README" --branch zz-both-a
+fossilco update --nosync $base
+write README.md "an added first line\n[slurp $co/README.md]"
+fossilco commit --nosync -m "The start of README" --branch zz-both-b
+fossilco merge {*}[fossil::nosync merge] zz-both-a
 tkcommit::mergeInfo; update
 set mi [.commit.merge.t get 1.0 end]
 set files {}
