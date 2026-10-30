@@ -23,7 +23,7 @@ It works on a checkout or on a repository file alone.
 ## Requirements
 
 - Linux or another Unix desktop, or Windows; not tested on macOS
-- Tcl/Tk 8.6 or 9.0
+- Tcl/Tk 8.6, 9.0 or 9.1
 - Fossil 2.x on the `PATH`,
   or the one the `FOSSIL` environment variable names
   (`FOSSIL=/opt/fossil/bin/fossil ./tktaalik`;

@@ -14,7 +14,7 @@ brought out of the command line.
 ## Getting started
 
 It runs on Linux and other Unix desktops and on Windows (not tested on macOS).
-You need Tcl/Tk 8.6 or 9.0 and the `fossil` executable on your `PATH`
+You need Tcl/Tk 8.6, 9.0 or 9.1 and the `fossil` executable on your `PATH`
 (or another one, named by the `FOSSIL` environment variable: a path,
 or a name on the `PATH`). Start Tktaalik from a checkout:
 

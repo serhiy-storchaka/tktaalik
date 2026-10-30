@@ -87,7 +87,7 @@ On macOS, Control-click opens the pop-up too.
 
 Requirements:
 
-- Tcl/Tk 8.6 or 9.0 (the `wish` program);
+- Tcl/Tk 8.6, 9.0 or 9.1 (the `wish` program);
 - the `fossil` executable on the `PATH`,
   or the one `FOSSIL` names
   (see [Environment variables](#environment-variables)); a recent version:
