@@ -149,6 +149,12 @@ is:open version:8.6 -version:>=8.6.13
 One row per ticket found, newest change first by default;
 the status line counts them.
 Tickets that are not open (pending, closed, deleted) are shown in grey.
+A ticket whose submission is not in the repository
+has "(awaiting moderation)" in grey for its title.
+A ticket submitted anonymously waits for a moderator on the server;
+a pull brings the changes made to it since (a moderator closing it, a comment),
+but the ticket as submitted, with its title and description,
+only once it is approved.
 
 Columns (which ones exist depends on the fields of the repository's tickets):
 Ticket id, Title, TIP, Type, Status, Subsystem, Priority, Severity, Found in,
@@ -199,6 +205,8 @@ or if it is empty, as for a ticket made with `fossil ticket add`,
 who made its first change, not a link then).
 The copy buttons after the title and after the id
 copy them to the clipboard (the id all of it).
+A ticket awaiting moderation has "Awaiting moderation" for its title,
+and when it was first changed and by whom instead of when it was opened.
 
 The values are links (in blue): click one to search the tickets with that value,
 for example **Bug** searches `type:bug`, the submitter `author:NAME`,

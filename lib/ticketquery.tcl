@@ -233,6 +233,21 @@ proc tickets::field {name} {
     expr {$name in $have ? $name : "''"}
 }
 
+# A ticket whose submission is not in this repository: a moderator's
+# changes have come with a pull, but the submission itself is still
+# awaiting moderation on the server (or was rejected).  It has neither a
+# title nor a description.  As an SQL expression, and for the values.
+proc tickets::unsubmittedExpr {} {
+    variable have
+    if {"title" ni $have} { return 0 }
+    return "(trim(coalesce(title,''))='' AND trim(coalesce([field comment],''))='')"
+}
+
+proc tickets::unsubmitted {title comment} {
+    variable have
+    expr {"title" in $have && [string trim $title] eq "" && [string trim $comment] eq ""}
+}
+
 proc tickets::getdef {dict key default} {
     if {[dict exists $dict $key]} { dict get $dict $key } else { return $default }
 }

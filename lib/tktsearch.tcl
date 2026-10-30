@@ -33,6 +33,10 @@ namespace eval tktsearch {
         "Fossil wiki" text/x-fossil-wiki  Markdown text/x-markdown
         {Plain text} text/plain  HTML text/html
     }
+    # A ticket whose submission has not come with a pull
+    # (tickets::unsubmitted).
+    variable unsubmittedTip "The ticket as submitted is not in this repository:\nit is probably\
+awaiting a moderator's approval on the server,\nand comes with a pull once approved."
     variable configFile [config::path tickets]
 
 }
@@ -116,7 +120,7 @@ proc tktsearch::search {} {
             }
         }
         set result [::tickets::sql "SELECT tkt_uuid, [fossil::outcol title],\
-            [::tickets::stateExpr], [join $exprs {, }] FROM ticket\
+            [::tickets::stateExpr], [::tickets::unsubmittedExpr], [join $exprs {, }] FROM ticket\
             WHERE $where ORDER BY [::tickets::orderBy]"]
     } trap {TICKETS QUERY} msg {
         showError $msg
@@ -197,9 +201,15 @@ proc tktsearch::fillTable {result} {
     array unset rows
     set items {}
     foreach row $result {
-        set values [lassign $row uuid title status]
+        set values [lassign $row uuid title status unsubmitted]
         set data [dict create id $uuid title $title]
         set cells [dict create title $title id [string range $uuid 0 9]]
+        set tags [expr {$status eq "open" ? "" : "inactive"}]
+        if {$unsubmitted} {
+            dict set cells title "(awaiting moderation)"
+            dict set data tip:title $::tktsearch::unsubmittedTip
+            lappend tags unsubmitted
+        }
         foreach key $::tickets::shown {
             set values [lassign $values value]
             dict set data $key $value
@@ -227,7 +237,7 @@ proc tktsearch::fillTable {result} {
             dict set cells $key $text
         }
         set rows($uuid) $data
-        lappend items [list $uuid $cells {} [expr {$status eq "open" ? "" : "inactive"}]]
+        lappend items [list $uuid $cells {} $tags]
     }
     # In the order of the query.
     tablecols::setSort $t $::tickets::sortkey $::tickets::sortdir
@@ -572,6 +582,7 @@ proc tktsearch::build {} {
     grid columnconfigure .tickets.main.list 0 -weight 1
     grid rowconfigure .tickets.main.list 0 -weight 1
     .tickets.main.list.t tag configure inactive -foreground gray45
+    .tickets.main.list.t tag configure unsubmitted -foreground gray45
 
     # The details: a header with the fields, above tabs for the comments,
     # the check-ins and the attachments.

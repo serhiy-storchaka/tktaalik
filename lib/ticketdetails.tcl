@@ -362,8 +362,13 @@ proc tktsearch::showDetails {uuid} {
     if {$uuid eq ""} return
 
     # The header, above the tabs: the title, the fields, then who and when.
-    $h insert end $title title
-    copyButton $h.copytitle $title "Copy the title"
+    set unsubmitted [::tickets::unsubmitted $title $comment]
+    if {$unsubmitted} {
+        $h insert end "Awaiting moderation" {title meta}
+    } else {
+        $h insert end $title title
+        copyButton $h.copytitle $title "Copy the title"
+    }
     # Edit and Close: buttons with a frame, after the title.
     if {[canWrite]} {
         $h insert end "   " title
@@ -418,13 +423,19 @@ proc tktsearch::showDetails {uuid} {
     # "by ..." only where the tickets record who.
     $h insert end [string range $uuid 0 9] {meta when}
     copyButton $h.copyid $uuid "Copy the ticket id (all of it)"
-    $h insert end "  \u00b7  opened $created" {meta when}
-    if {$submitter ne ""} {
-        $h insert end " by " {meta when}
-        fieldLink $h author $submitter $submitter {meta when}
-    } elseif {$opener ne ""} {
-        # (No link: author: searches the Submitter field.)
-        $h insert end " by $opener" {meta when}
+    if {$unsubmitted} {
+        # (Who opened it is not known: the first change here is a later one.)
+        $h insert end "  \u00b7  first changed $created" {meta when}
+        if {$opener ne ""} { $h insert end " by $opener" {meta when} }
+    } else {
+        $h insert end "  \u00b7  opened $created" {meta when}
+        if {$submitter ne ""} {
+            $h insert end " by " {meta when}
+            fieldLink $h author $submitter $submitter {meta when}
+        } elseif {$opener ne ""} {
+            # (No link: author: searches the Submitter field.)
+            $h insert end " by $opener" {meta when}
+        }
     }
     $h insert end ", updated $updated" {meta when}
     if {$closed ne ""} {
@@ -440,7 +451,10 @@ proc tktsearch::showDetails {uuid} {
     # The Comments tab: the description and each comment in panels, then
     # the box for a new one.
     findHashes [list $comment {*}[lmap remark $remarks {lindex $remark 2}]]
-    if {[string trim $comment] ne ""} {
+    if {$unsubmitted} {
+        card $d "Awaiting moderation" "" \
+            "<p>[string map {\n " "} $::tktsearch::unsubmittedTip]</p>" text/html
+    } elseif {[string trim $comment] ne ""} {
         set by [if {$submitter ne ""} {set submitter} else {set opener}]
         card $d [if {$by ne ""} {set by} else {string cat "Description"}] "opened $created" \
             $comment $cmimetype
