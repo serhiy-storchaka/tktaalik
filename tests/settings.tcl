@@ -12,6 +12,8 @@ proc co {args} { fossilIn $::W/co {*}$args }
 # a global value and a local multi-line one, set with the command line
 co settings --global proxy http://example.invalid:3128
 co settings ignore-glob "*.o\n*.so"
+# a value that looks like a number (octal, to expr)
+co settings pgp-command 0644
 tktaalik::main tickets [list $W/co]
 tksettings::window
 wm geometry . 1200x800+0+0
@@ -29,6 +31,9 @@ set tksettings::onlySet 0; set tksettings::filter glob; after 400 {set ::w 1}; v
 check "filter: [llength [$t children {}]]" {[llength [$t children {}]] > 3 && [llength [lsearch -all -inline -not [$t children {}] *glob*]] == 0}
 set tksettings::filter ""; after 400 {set ::w 1}; vwait ::w
 # details
+$t selection set pgp-command; update
+set d [.settings.main.details.help get 1.0 end]
+check "a value like a number, as it is: [string map {\n |} $d]" {[string match "*This repository: 0644\n*" $d]}
 $t selection set autosync; update
 set h [.settings.main.details.help get 1.0 end]
 check "help shown: [string range [string map {\n |} $h] 0 100]" {[string match "autosync*In effect: the value for this repository*This setting determines when autosync occurs*" $h]}

@@ -74,6 +74,11 @@ q {kind:ticket ticket:4eef1fa86e}
 $t selection set [lindex [$t children {}] end]; update
 set text [.timeline.main.details.text get 1.0 end]
 check "ticket change details: [string range [string map {\n |} $text] 0 120]" {[string match "*title:*" $text] || [string match "*icomment:*" $text] || [string match "*status:*" $text]}
+# A field that looks like a number, then the next one on a line of its own.
+q {kind:ticket hash:67c4539f7e}
+$t selection set [lindex [$t children {}] 0]; update
+set text [.timeline.main.details.text get 1.0 end]
+check "a number, then a line break: [string map {\n |} [lsearch -inline -all -glob [split $text \n] close*]]" {[string match "*\nclosedate: 2461326.9798543635\ncloser: kevin_walzer\n*" $text]}
 q kind:tag
 $t selection set [lindex [$t children {}] 0]; update
 puts "  tag details: [string range [string map {\n |} [.timeline.main.details.text get 1.0 end]] 0 160]"

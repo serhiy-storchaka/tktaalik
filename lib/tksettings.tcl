@@ -178,7 +178,8 @@ proc tksettings::showDetails {name} {
     foreach {label key} {"This repository" local "Global" global} {
         set v [dict get $s $key]
         if {$v eq "" && ![dict get $s is[string totitle $key]]} continue
-        $d insert end "$label: " label [expr {[string first \n $v] >= 0 ? "\n$v" : $v}] value \n
+        if {[string first \n $v] >= 0} { set v \n$v }
+        $d insert end "$label: " label $v value \n
     }
     if {[dict get $s file] ne ""} {
         $d insert end "Versioned: " label "[dict get $s file] in the checkout, which overrides the\

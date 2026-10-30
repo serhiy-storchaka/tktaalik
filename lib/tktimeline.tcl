@@ -612,7 +612,10 @@ proc tktimeline::showDetails {rid} {
             # The fields of the change: the J cards of the artifact.
             foreach {field value} [ticketFields $uuid] {
                 $d insert end "$field: " label
-                $d insert end [expr {[string first \n $value] >= 0 ? "\n$value\n" : "$value\n"}]
+                # (Not with ?: a value such as a closedate is a number to
+                # expr, which drops the newline after it.)
+                if {[string first \n $value] >= 0} { set value \n$value }
+                $d insert end $value\n
             }
             lappend buttons "Show ticket" [list tktimeline::showTicket [dict get $r ticket]]
         }

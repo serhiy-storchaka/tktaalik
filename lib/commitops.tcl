@@ -710,7 +710,9 @@ proc tkcommit::revertFiles {{all 0}} {
 # file, only for it.
 proc tkcommit::undo {{which undo} {paths ""}} {
     set files [lmap p $paths { filearg $p }]
-    set path [expr {[llength $paths] == 1 ? [lindex $paths 0] : [llength $paths] ? "[llength $paths] files" : ""}]
+    set path [if {[llength $paths] == 1} {lindex $paths 0} elseif {[llength $paths]} {
+        string cat [llength $paths] " files"
+    }]
     lassign [fossil $which -n {*}$files] code out
     set Which [string totitle $which]
     # (With only an undo, "redo -n" describes the undo, and the other way.)
