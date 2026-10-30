@@ -50,9 +50,7 @@ namespace eval ui {
     variable textSize 1         ;# of the text widgets (one of textSizes)
     variable zoomed             ;# array: text -> dict {TAG OPTION} -> {ORIGINAL SET}
     variable wheel 0            ;# Ctrl+Wheel turned short of a step
-    variable sizeScripts        ;# run when the text size changes
-    # (Kept when this file is sourced again, as lib/refpick.tcl does.)
-    if {![info exists sizeScripts]} { set sizeScripts {} }
+    variable sizeScripts {}     ;# run when the text size changes
 }
 
 # A line selected in a text ends in its newline, and an entry pasted it

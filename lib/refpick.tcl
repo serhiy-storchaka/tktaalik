@@ -14,7 +14,6 @@
 #       most)
 
 source [file join [file dirname [file normalize [info script]]] fossil.tcl]
-source [file join [file dirname [file normalize [info script]]] ui.tcl]
 source [file join [file dirname [file normalize [info script]]] tablecols.tcl]
 
 namespace eval refpick {
