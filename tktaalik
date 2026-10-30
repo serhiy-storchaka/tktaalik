@@ -482,6 +482,8 @@ proc tktaalik::repositoryMenu {} {
         $m add separator
         $m add command -label "Open locally in browser" -underline 5 -command repoops::openLocally
         $m add command -label "Open chat in browser" -underline 6 -command repoops::openChat
+        $m add command -label "Open moderation requests in browser" -underline 6 \
+            -command repoops::openModeration
         $m add command -label "Download chat archive\u2026" -underline 0 -command repoops::chatArchive
     }
     return $m

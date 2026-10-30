@@ -212,6 +212,7 @@ The **Repository** menu has, below its windows:
 | Reset configuration… | an area's configuration back to Fossil's defaults (`fossil configuration reset`), exported to a file first if wanted |
 | Open locally in browser | the repository served on this computer only (`fossil ui`), in the browser, at what is shown (the check-in, ticket, branch, wiki page or forum thread selected); stopped when another repository is shown and when Tktaalik quits |
 | Open chat in browser | the chat of the default remote (`/chat`) |
+| Open moderation requests in browser | the tickets, wiki pages and forum posts awaiting a moderator on the default remote (`/modreq`), to approve or delete them; only for moderators (a ticket awaiting moderation is [marked in Tickets](tickets.md#the-list)) |
 | Download chat archive… | the chat's messages into a file of their own (`fossil chat pull --out`, all of them or the new ones); the server allows it only to users with Setup privilege |
 
 The **File** menu: **Known repositories** lists the repositories this computer

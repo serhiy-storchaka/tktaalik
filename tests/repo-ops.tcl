@@ -87,4 +87,15 @@ check "stopped" {$::repoops::uiChan eq ""}
 set ::boxes {}
 repoops::openChat
 check "chat without a web remote: [lindex $::boxes end]" {[string match "*no remote with a chat*" [lindex $::boxes end]]}
+# The moderation requests: on the server only.
+set ::boxes {}
+repoops::openModeration
+check "moderation without a web remote: [lindex $::boxes end]" {[string match "*no web remote*" [lindex $::boxes end]]}
+rename fossil::remoteUrl fossil::realRemoteUrl
+proc fossil::remoteUrl {repo} { return https://example.invalid/tk }
+repoops::openModeration
+check "moderation requests: [lindex $::browsed end]" {[lindex $::browsed end] eq "https://example.invalid/tk/modreq"}
+rename fossil::remoteUrl ""
+rename fossil::realRemoteUrl fossil::remoteUrl
+check "in the menu" {"Open moderation requests in browser" in [labels .menubar.repository]}
 done

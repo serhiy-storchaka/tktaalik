@@ -686,6 +686,20 @@ proc repoops::openChat {} {
     fossil::browse $url/chat
 }
 
+# The requests awaiting moderation on the server (/modreq), where a
+# moderator approves or deletes them.  Only there: Fossil has no command
+# for it, and a repository pulled from it has none of them (they are not
+# sent before they are approved).
+proc repoops::openModeration {} {
+    set url [fossil::remoteUrl $::tktaalik::repo]
+    if {$url eq ""} {
+        ui::infoBox -title "Moderation requests" "This repository has no web remote." \
+            "Add one in Repository \u25b8 Remotes."
+        return
+    }
+    fossil::browse $url/modreq
+}
+
 # The chat's messages from the server, as an archive in a file of its own
 # ("fossil chat pull --out": download only; the server must allow it:
 # Setup privilege).
