@@ -361,7 +361,8 @@ proc goto::wiki {tag uuid} {
 
 # Diffs (/vdiff links): in the diff window.
 proc goto::diffBranch {name} {
-    diffview::run "Branch $name" -- -R $::tktaalik::repo -N --branch [fossil::arg $name]
+    diffview::run "Branch $name" -- -R $::tktaalik::repo -N --from [fossil::arg merge-in:$name] \
+        --to [fossil::arg $name]
 }
 
 proc goto::diffVersions {from to} {

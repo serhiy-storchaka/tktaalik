@@ -77,7 +77,7 @@ check "tip to tip: [marked conflict], [marked warn]" {[marked conflict] eq {a.tx
     && [string match "2 files conflict*1 file changed*" [$line cget -text]]}
 set tkbranches::tips 0
 # None: compared with itself's start, and with a check-in it contains.
-compare "where it started"
+compare $tkbranches::ownChanges
 check "where it started again: no line, nothing red, no tooltip" {[$line cget -text] eq "" && [marked conflict] eq "" && [bind $line <Enter>] eq ""}
 set first [lindex [sql "SELECT uuid FROM blob b JOIN event e ON e.objid=b.rid WHERE e.type='ci' AND e.comment='the files'" $D/c.fossil] 0 0]
 compare [string range $first 0 9]
@@ -98,4 +98,29 @@ tkbranches::clearFiles
 tkbranches::loadFiles
 waitUntil {![dict exists $diffview::data($p) chan] && $tkbranches::conflictJob eq ""}
 check "again: straight to the result: [list $texts]" {[llength $texts] == 1 && [string match "2 files conflict*" [lindex $texts 0]]}
+# Its own changes: without what a merge of its base brought in.
+fossilIn $D/co revert
+fossilIn $D/co update trunk --nosync
+fossilIn $D/co branch new yy trunk {*}[fossil::nosync branch]
+fossilIn $D/co update yy --nosync
+put g.txt [lines "g on yy" ""]
+fossilIn $D/co add g.txt
+fossilIn $D/co commit -m "yy, first" --no-warnings --nosync
+fossilIn $D/co update trunk --nosync
+put h.txt [lines "h on trunk" ""]
+fossilIn $D/co add h.txt
+fossilIn $D/co commit -m "trunk again" --no-warnings --nosync
+fossilIn $D/co update yy --nosync
+fossilIn $D/co merge trunk {*}[fossil::nosync merge]
+fossilIn $D/co commit -m "merge trunk" --no-warnings --nosync
+put i.txt [lines "i on yy" ""]
+fossilIn $D/co add i.txt
+fossilIn $D/co commit -m "yy, last" --no-warnings --nosync
+tkbranches::reload; update
+waitUntil {[$t exists yy]}
+compare $tkbranches::ownChanges
+$t selection set [list yy]; $t focus yy; update
+waitUntil {![dict exists $diffview::data($p) chan] && [llength [$f children {}]] && [diffview::listedName $p [lindex [$f children {}] 0]] ne "a.txt"}
+set files [lsort [lmap item [$f children {}] {diffview::listedName $p $item}]]
+check "its own changes: $files" {$files eq {g.txt i.txt}}
 done

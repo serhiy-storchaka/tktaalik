@@ -202,7 +202,10 @@ that hangs sooner.
   2.26, `cat -o` and `settings --value` 2.23, `whatis -q` 2.23; 2.23
   ignores `diff -c 0` and takes minutes for `describe` on the Tk
   repository; before 2.26 `title()` of wiki pages and technotes is empty
-  and `fossil settings` writes a multi-line value unindented; `fossil::run` (exec) turns CRLF into LF and drops the trailing
+  and `fossil settings` writes a multi-line value unindented; `diff
+  --branch` is from `root:` up to 2.28 (with what merges brought in),
+  from `merge-in:` later and on the web: name `merge-in:` itself;
+  `fossil::run` (exec) turns CRLF into LF and drops the trailing
   newline, so byte-exact checks export to a file and read it in binary;
   unversioned names cannot contain white space, `uv rm` leaves a row with a
   NULL hash, and `unversioned.mtime` is in Unix seconds; attachment targets

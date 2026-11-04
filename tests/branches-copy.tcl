@@ -86,6 +86,8 @@ check "ticket menu: no Copy ticket id: [commands $m]" {![string match *Copy* [co
 set small [lindex [lmap n [$t children {}] {
     if {[dict get $tkbranches::branches($n) checkins] in {2 3}} { set n } else continue
 }] 0]
+# (From where it started: of its own, a branch of merges has no changes.)
+set tkbranches::compared root
 $t selection set [list $small]; $t focus $small; update
 $nb select $nb.files; update
 set p $nb.files
@@ -104,7 +106,7 @@ $t selection set [list $other]; $t focus $other; update
 check "another branch: emptied" {[llength [$f children {}]] == 0 && [$nb tab $nb.files -text] eq "Files"}
 $nb select $nb.files; update
 waitUntil {![dict exists $diffview::data($p) chan] && [llength [$f children {}]]}
-check "its diff: [$p.status cget -text]" {[dict get $diffview::data($p) args] eq [list -R $tkbranches::repo -N --branch [fossil::arg $other]]}
+check "its diff: [$p.status cget -text]" {[dict get $diffview::data($p) args] eq [list -R $tkbranches::repo -N --from root:$other --to $other]}
 # Compared with: its base, a target, a name typed; kept for the others.
 set c $p.bar.compared
 proc choose {text} {
@@ -114,7 +116,7 @@ proc choose {text} {
     update
 }
 set base [dict get $tkbranches::branches($other) base]
-check "the choices name the base: [$c cget -values]" {$base ne "" && [lindex [$c cget -values] 0] eq "where it started" && "$base (its base)" in [$c cget -values]}
+check "the choices name the base: [$c cget -values]" {$base ne "" && [lrange [$c cget -values] 0 1] eq [list $tkbranches::ownChanges $tkbranches::fromStart] && "$base (its base)" in [$c cget -values]}
 choose "$base (its base)"
 # (From where they parted, as git diff BASE...BRANCH.)
 set pivot [histops::mergeBase $tkbranches::repo "" $base $other]
@@ -147,8 +149,8 @@ waitUntil {![dict exists $diffview::data($p) chan]}
 check "no common ancestor: the tag's tip: [dict get $diffview::data($p) args]" {[lrange [dict get $diffview::data($p) args] 3 4] eq {--from core-8-6-2}}
 rename histops::mergeBase ""
 rename histops::realMergeBase histops::mergeBase
-choose "where it started"
-check "where it started: the branch's diff, Tip to tip disabled" {"--branch" in [dict get $diffview::data($p) args] && [$how instate disabled]}
+choose $tkbranches::ownChanges
+check "its own changes: from the last merge-in, Tip to tip disabled" {"merge-in:$small" in [dict get $diffview::data($p) args] && [$how instate disabled]}
 # A branch made from no other (the first): no base to choose.
 set root [lindex [lmap b [$t children {}] { if {[tkbranches::baseOf $b] eq ""} { set b } else continue }] 0]
 $t selection set [list $root]; $t focus $root; update

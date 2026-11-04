@@ -45,8 +45,10 @@ namespace eval tkbranches {
     variable filesShown ""      ;# the branch whose diff is in the Files tab
     variable resolutionOf       ;# array: repository -> whether its tickets
                                 ;# have a resolution
-    variable compared own       ;# Files: the diff from where the branch
-                                ;# started (own), from its base's tip
+    variable ownChanges "its own changes (no merge-ins)"
+    variable fromStart "where it started"
+    variable compared own       ;# Files: the branch's own changes (own), all
+                                ;# from where it started (root), from its base's tip
                                 ;# (base), or {name NAME}
     variable tips 0             ;# Files, compared with another: from its
                                 ;# tip (1) or where they parted (0)
@@ -1192,7 +1194,7 @@ proc tkbranches::clearFiles {} {
     .branches.main.details.nb tab 1 -text Files
     set name $::tkbranches::selected
     set base [baseOf $name]
-    set values [list "where it started"]
+    set values [list $::tkbranches::ownChanges $::tkbranches::fromStart]
     if {$base ne ""} { lappend values "$base (its base)" }
     foreach t $targets { if {$t ne $name && $t ne $base} { lappend values $t } }
     set c .branches.main.details.nb.files.bar.compared
@@ -1204,7 +1206,7 @@ proc tkbranches::clearFiles {} {
 # Tip to tip: only when compared with another.
 proc tkbranches::howState {} {
     .branches.main.details.nb.files.bar.how state \
-        [expr {[comparedText] eq "where it started" ? "disabled" : "!disabled"}]
+        [expr {$::tkbranches::compared in {own root} ? "disabled" : "!disabled"}]
 }
 
 # What the diff of the Files tab compares the branch with, as said in its
@@ -1214,15 +1216,18 @@ proc tkbranches::comparedText {} {
     set base [baseOf $::tkbranches::selected]
     if {$compared eq "base" && $base ne ""} { return "$base (its base)" }
     if {[lindex $compared 0] eq "name"} { return [lindex $compared 1] }
-    return "where it started"
+    if {$compared eq "root"} { return $::tkbranches::fromStart }
+    return $::tkbranches::ownChanges
 }
 
 # The box of the Files tab chosen from or typed in.
 proc tkbranches::compareWith {} {
     variable compared
     set text [string trim [.branches.main.details.nb.files.bar.compared get]]
-    if {$text eq "" || $text eq "where it started"} {
+    if {$text eq "" || $text eq $::tkbranches::ownChanges} {
         set compared own
+    } elseif {$text eq $::tkbranches::fromStart} {
+        set compared root
     } elseif {[regexp {^(.*) \(its base\)$} $text]} {
         set compared base
     } else {
@@ -1254,13 +1259,16 @@ proc tkbranches::loadFiles {} {
     }
     if {$from eq $selected} { set from "" }
     variable tips
-    if {$filesShown eq [list $selected $from $tips]} return
-    set filesShown [list $selected $from $tips]
+    if {$filesShown eq [list $selected $compared $from $tips]} return
+    set filesShown [list $selected $compared $from $tips]
     stopConflicts
     set ::tkbranches::conflictsWith {}
     if {$from eq ""} {
         showConflicts ""
-        set args [list --branch [fossil::arg $selected]]
+        # (Not --branch: it is from root: to Fossil 2.28, from merge-in:
+        # later.)
+        set args [list --from [fossil::arg [expr {$compared eq "root" ? "root" : "merge-in"}]:$selected] \
+            --to [fossil::arg $selected]]
     } else {
         # By default from where the two parted (as git diff
         # OTHER...BRANCH): what the branch changed, not also what the other
@@ -1545,7 +1553,7 @@ proc tkbranches::build {} {
     set b .branches.main.details.nb.files.bar
     pack forget $b.title
     ttk::label $b.comparedl -text "Compared with:"
-    ttk::combobox $b.compared -width 24
+    ttk::combobox $b.compared -width 30
     pack $b.comparedl -side left
     ttk::checkbutton $b.how -text "Tip to tip" -variable tkbranches::tips -command tkbranches::loadFiles
     pack $b.compared -side left -padx {4 0}
@@ -1555,7 +1563,7 @@ proc tkbranches::build {} {
     bind $b.compared <<ComboboxSelected>> tkbranches::compareWith
     bind $b.compared <Return> tkbranches::compareWith
     bind $b.compared <KP_Enter> tkbranches::compareWith
-    icons::tooltip $b.compared "Where it started: what the branch changed (fossil diff --branch).\nAnother branch (its base, a merge target), or any branch, tag or\ncheck-in typed and Return: from their common ancestor to the\nbranch's tip (fossil diff --from ANCESTOR --to BRANCH), what the\nbranch changed since they parted, as git diff OTHER...BRANCH."
+    icons::tooltip $b.compared "Its own changes: from the last merge of its base into it, or from\nwhere it started, to its tip, without what merges brought in\n(fossil diff --from merge-in:BRANCH, /vdiff?branch= on the web).\nWhere it started: all from there, with what merges brought in\n(--from root:BRANCH).\nAnother branch (its base, a merge target), or any branch, tag or\ncheck-in typed and Return: from their common ancestor to the\nbranch's tip (fossil diff --from ANCESTOR --to BRANCH), what the\nbranch changed since they parted, as git diff OTHER...BRANCH."
     icons::tooltip $b.how "Checked: from the other's tip (fossil diff --from OTHER --to\nBRANCH, as git diff OTHER BRANCH), with what the other changed\nsince they parted as well, reverted.\nUnchecked: from their common ancestor (git diff OTHER...BRANCH)."
     howState
     tree .branches.main.details.nb.tickets {id {Ticket 11} status {Status 18} type {Type 10} title {Title 60 1}}
