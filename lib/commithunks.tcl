@@ -126,7 +126,8 @@ proc tkcommit::showHunks {d path out} {
         $d insert end $line [concat $tag $tags]
         if {$tag eq "hunk" && [llength [hunks::parts [lindex $shownHunks $n]]] > 1
                 && !([info exists hunksSplit($path)] && [dict get [lindex $shownHunks $n] key] in $hunksSplit($path))} {
-            $d insert end "  " hk$n "\u2702" [list split split$n hk$n]
+            $d insert end "  " hk$n "\u2702" [list split splitmark split$n hk$n] \
+                " split" [list split split$n hk$n]
         }
         $d insert end \n [concat $tag $tags]
         incr i
@@ -254,6 +255,27 @@ proc tkcommit::splitAt {idx} {
     }
     Redraw
     updateStatus
+}
+
+# The pointer over the box or the mark (TAG) at IDX: what it is for.
+proc tkcommit::markEnter {tag idx X Y} {
+    set d .commit.main.diff.text
+    lassign [$d tag prevrange $tag "$idx + 1 char"] first last
+    if {$first eq ""} return
+    $d tag add markhover $first $last
+    $d configure -cursor hand2
+    icons::tipLater $d [if {$tag eq "box"} {
+        string cat "Tick to commit or stash this change, untick to leave it (Space)"
+    } else {
+        string cat "Split this hunk into its changes, each with a box of its own (S)"
+    }] $X $Y
+}
+
+proc tkcommit::markLeave {} {
+    set d .commit.main.diff.text
+    $d tag remove markhover 1.0 end
+    $d configure -cursor xterm
+    icons::tipHide
 }
 
 # The hunk at the index IDX of the diff text: its number, -1 if none.

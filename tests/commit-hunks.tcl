@@ -153,6 +153,30 @@ tkcommit::refresh; update
 set tkcommit::checked(hk-s.txt) 1
 show hk-s.txt
 check "one hunk, its split mark: [boxes]" {[boxes] eq "\u2611" && [llength [$d tag ranges split]]}
+# The box and the mark look like what they are: larger than the text, a
+# link, lit under the pointer with a tooltip.
+proc over {tag} {
+    global d
+    icons::tipHide
+    set i [lindex [$d tag ranges $tag] 0]
+    $d see $i; update
+    waitUntil {[llength [$d bbox $i]]}
+    lassign [$d bbox $i] x y
+    event generate $d <Motion> -x [expr {$x + 1}] -y [expr {$y + 1}]; update
+    waitUntil {[winfo exists .iconsTip]}
+    set r [list [$d get {*}[$d tag ranges markhover]] [$d cget -cursor] [.iconsTip.l cget -text]]
+    event generate $d <Motion> -x 2 -y [expr {[winfo height $d] - 2}]; update
+    lappend r [expr {![llength [$d tag ranges markhover]] && ![winfo exists .iconsTip]}] [$d cget -cursor]
+}
+check "larger than the text" {[font metrics [$d tag cget box -font] -linespace] > [font metrics TkFixedFont -linespace]
+    && [font metrics [$d tag cget splitmark -font] -linespace] > [font metrics TkFixedFont -linespace]}
+check "the mark is a link" {[$d get {*}[$d tag ranges split]] eq "\u2702 split" && [$d tag cget split -underline]}
+lassign [over box] lit cursor tip gone back
+check "over the box: lit, a hand, its tooltip" {$lit eq "\u2611" && $cursor eq "hand2" && [string match *Space* $tip]}
+check "and away" {$gone && $back eq "xterm"}
+lassign [over split] lit cursor tip gone back
+check "over the mark: lit, a hand, its tooltip" {$lit eq "\u2702 split" && $cursor eq "hand2" && [string match "*(S)*" $tip]}
+check "and away" {$gone && $back eq "xterm"}
 $d mark set insert [lindex [$d tag ranges hk0] 0]
 focus -force $d; update
 event generate $d <Key-S>; update

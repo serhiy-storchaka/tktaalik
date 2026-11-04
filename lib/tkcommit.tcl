@@ -835,17 +835,25 @@ proc tkcommit::build {} {
     $d tag configure heading -font TkHeadingFont
     # A hunk not ticked: greyed, over the colours of its lines.
     $d tag configure off -foreground gray60 -background [$d cget -background]
-    $d tag configure box -font TkTextFont
-    $d tag bind box <ButtonPress-1> {tkcommit::toggleAt @%x,%y; break}
+    # The boxes and the marks to split are for clicking, and look it: larger
+    # than the text, in the colour of links, lit under the pointer.
+    if {"TktaalikHunkMark" ni [font names]} {
+        font create TktaalikHunkMark {*}[font actual TkTextFont]
+        font configure TktaalikHunkMark -size [expr {round([font actual TkTextFont -size] * 1.5)}]
+    }
+    $d tag configure box -font TktaalikHunkMark -foreground #0b57d0
+    $d tag bind box <ButtonPress-1> {tkcommit::toggleAt @%x,%y; icons::tipHide; break}
     # A hunk of several runs of changes: split into them (each a box).
-    $d tag configure split -foreground blue4
-    $d tag bind split <ButtonPress-1> {tkcommit::splitAt @%x,%y; break}
-    $d tag bind split <Enter> {.commit.main.diff.text configure -cursor hand2}
-    $d tag bind split <Leave> {.commit.main.diff.text configure -cursor xterm}
+    $d tag configure split -font TkTextFont -foreground #0b57d0 -underline 1
+    $d tag configure splitmark -font TktaalikHunkMark
+    $d tag configure markhover -background #d3e3fd
+    $d tag bind split <ButtonPress-1> {tkcommit::splitAt @%x,%y; icons::tipHide; break}
+    $d tag bind split <Enter> {tkcommit::markEnter split @%x,%y %X %Y}
+    $d tag bind split <Leave> tkcommit::markLeave
     bind $d <Key-s> {tkcommit::splitAt insert; break}
     bind $d <Key-S> {tkcommit::splitAt insert; break}
-    $d tag bind box <Enter> {.commit.main.diff.text configure -cursor hand2}
-    $d tag bind box <Leave> {.commit.main.diff.text configure -cursor xterm}
+    $d tag bind box <Enter> {tkcommit::markEnter box @%x,%y %X %Y}
+    $d tag bind box <Leave> tkcommit::markLeave
     bind $d <space> {tkcommit::toggleAt insert; break}
     # The selection over the colours: tags made later are above it.
     $d tag raise sel

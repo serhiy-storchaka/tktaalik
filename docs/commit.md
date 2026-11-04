@@ -128,7 +128,7 @@ ticking a hunk of an unchecked file checks it with only that hunk.
 Checking or unchecking the file itself takes the whole file again.
 
 A hunk can hold several changes with a few unchanged lines between them.
-Such a hunk has a ✂ after its `@@` line:
+Such a hunk has a ✂ split link after its `@@` line:
 click it (or put the cursor in the hunk and press S)
 to split the hunk into its changes, each with a check box of its own
 at its first line.
