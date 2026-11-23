@@ -28,6 +28,7 @@ set same {
     "Redo for these files…" "Redo for the selected files…"
     Content "Content of the file"
     Blame "Blame of the file"
+    Preview "Preview of the file"
     "Open in browser" "Open the file in browser"
     "Find in its history…" "Find in the file's history…"
     "View in external program" "View the file in external program"

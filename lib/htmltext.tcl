@@ -28,7 +28,8 @@
 #
 # Paragraphs, headings, b/strong, i/em, u, s/del, code/tt/kbd, pre,
 # ul/ol/li, dl, blockquote, table rows, a, br, hr and img (its alt text)
-# are shown; other tags are ignored, their content is not.
+# are shown; other tags are ignored, their content is not (but that of
+# script, style and title).
 
 namespace eval htmltext {
     variable links           ;# W,N -> href
@@ -402,9 +403,9 @@ proc htmltext::linkTag {stVar href} {
 
 proc htmltext::element {stVar close name rest} {
     upvar 1 $stVar st
-    if {[dict get $st skip] && !($close && $name in {script style})} return
+    if {[dict get $st skip] && !($close && $name in {script style title})} return
     switch -- $name {
-        script - style {
+        script - style - title {
             dict set st skip [expr {!$close}]
         }
         p - div {

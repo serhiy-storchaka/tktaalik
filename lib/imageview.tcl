@@ -39,6 +39,12 @@
 #                               zoomed with Ctrl+Wheel, Ctrl+plus and
 #                               Ctrl+minus (Ctrl+0: 100%), scrolled with
 #                               the wheel (Shift: sideways)
+#   imageview::pane W IMAGE     the same in the frame W (made, or remade),
+#                               fitted to it at first; the keys work when
+#                               its canvas W.c has the focus (a click)
+#   imageview::photo NAME PATH  the image of the file PATH, of the format
+#                               the name NAME tells (an error if it cannot
+#                               be read)
 
 namespace eval imageview {
     variable fit                ;# array: window -> fitted to the window
@@ -167,7 +173,7 @@ proc imageview::Show {w name parent write} {
             ui::errorBox -parent $parent -title Image "Cannot read $name:" $out
             return
         }
-        if {[catch {image create photo -format [lindex [Format $name] 0] -file $path} image]} {
+        if {[catch {photo $name $path} image]} {
             ui::errorBox -parent $parent -title Image "$name cannot be shown." $image
             return
         }
@@ -176,6 +182,10 @@ proc imageview::Show {w name parent write} {
     }
     window $w "$name \u2014 [image width $image] \u00d7 [image height $image]" $image \
         [winfo toplevel $parent]
+}
+
+proc imageview::photo {name path} {
+    image create photo -format [lindex [Format $name] 0] -file $path
 }
 
 proc imageview::WriteBytes {data path} {
@@ -190,24 +200,47 @@ proc imageview::WriteBytes {data path} {
 }
 
 proc imageview::window {w title image {over .}} {
-    variable fit
-    variable shown
-    variable zoom
     destroy $w
     toplevel $w
     wm title $w $title
     wm transient $w $over
+    Build $w $image $w 0
+    ttk::button $w.b.close -text Close -command [list destroy $w]
+    pack $w.b.close -side right
+    # (As large as the image, up to most of the screen.)
+    $w.c configure -width [expr {min([image width $image], [winfo screenwidth $w] * 3 / 4)}] \
+        -height [expr {min([image height $image], [winfo screenheight $w] * 3 / 4)}]
+    bind $w <Escape> [list destroy $w]
+    Layout $w
+    focus $w.c
+    return $w
+}
+
+proc imageview::pane {w image} {
+    destroy $w
+    ttk::frame $w
+    Build $w $image $w.c 1
+    $w.c configure -width 1 -height 1
+    bind $w.c <ButtonPress-1> [list focus $w.c]
+    return $w
+}
+
+# The bar and the canvas of IMAGE in W (a toplevel or a frame); the keys
+# bound in KEYS; fitted (FIT 1) or at 100%.
+proc imageview::Build {w image keys fit1} {
+    variable fit
+    variable shown
+    variable zoom
     set shown($w) $image
-    set fit($w) 0
+    set fit($w) $fit1
     set zoom($w) {1 1}
     ttk::frame $w.b -padding 6
     ttk::checkbutton $w.b.fit -text "Fit to the window" -variable imageview::fit($w) \
         -command [list imageview::Layout $w]
     ttk::label $w.b.zoom -width 6 -anchor e
     icons::tooltip $w.b.zoom "Ctrl+Wheel, Ctrl+plus, Ctrl+minus: zoom; Ctrl+0: 100%"
-    ttk::button $w.b.close -text Close -command [list destroy $w]
-    pack $w.b.fit $w.b.zoom -side left
-    pack $w.b.close -side right
+    ttk::label $w.b.size -text "[image width $image] \u00d7 [image height $image]"
+    pack $w.b.fit $w.b.zoom $w.b.size -side left -padx {0 6}
     pack $w.b -side bottom -fill x
     ttk::frame $w.f
     # (A unit of scrolling: 10 pixels, a notch of the wheel 3 of them.)
@@ -220,20 +253,16 @@ proc imageview::window {w title image {over .}} {
     grid columnconfigure $w.f 0 -weight 1
     grid rowconfigure $w.f 0 -weight 1
     pack $w.f -fill both -expand 1
-    # (As large as the image, up to most of the screen.)
-    $w.c configure -width [expr {min([image width $image], [winfo screenwidth $w] * 3 / 4)}] \
-        -height [expr {min([image height $image], [winfo screenheight $w] * 3 / 4)}]
     bind $w.c <Configure> [list imageview::Layout $w]
-    bind $w <Escape> [list destroy $w]
     bind $w.c <Destroy> [list imageview::Forget $w]
     # Zoom: the wheel at the pointer, the keys at the middle.
     foreach key {Control-plus Control-equal Control-KP_Add} {
-        bind $w <$key> [list imageview::Zoom $w 1]
+        bind $keys <$key> [list imageview::Zoom $w 1]
     }
     foreach key {Control-minus Control-KP_Subtract} {
-        bind $w <$key> [list imageview::Zoom $w -1]
+        bind $keys <$key> [list imageview::Zoom $w -1]
     }
-    bind $w <Control-0> [list imageview::Zoom $w 0]
+    bind $keys <Control-0> [list imageview::Zoom $w 0]
     bind $w.c <Control-MouseWheel> [list imageview::Zoom $w %D %x %y]
     # Scrolling: the wheel, Shift+Wheel sideways.
     bind $w.c <MouseWheel> [list imageview::Wheel $w.c y %D]
@@ -248,9 +277,6 @@ proc imageview::window {w title image {over .}} {
         bind $w.c <Shift-Button-4> [list $w.c xview scroll -3 units]
         bind $w.c <Shift-Button-5> [list $w.c xview scroll 3 units]
     }
-    Layout $w
-    focus $w.c
-    return $w
 }
 
 # Scroll the canvas C along AXIS (x, y) by the wheel's DELTA, as Tk's

@@ -1,14 +1,14 @@
 # Files
 
 The Files tab shows the files of the repository as they were at any version,
-and for one file its history, its blame and its content.
+and for one file its history, its blame, its content and a preview.
 It only reads the repository:
 nothing here changes the checkout or the repository.
 
 The tab has three parts: the **Version** and **Find file** boxes at the top,
 the tree of files on the left,
-and on the right the selected file with four tabs of its own: **History**,
-**Blame**, **Content** and **Find in history**.
+and on the right the selected file with five tabs of its own: **History**,
+**Blame**, **Content**, **Preview** and **Find in history**.
 The status line at the bottom says how many files are shown and at which
 check-in.
 
@@ -64,6 +64,7 @@ Right-click a file for its context menu:
 | History of FILE | the History tab of the file |
 | Content | the Content tab |
 | Blame | the Blame tab |
+| Preview | the Preview tab (only for the kinds of files it shows) |
 | Find in its history… | the Find in history tab, see [Find in history](#find-in-history) |
 | Open in browser | the file's history page on the remote's web site (only when the repository has a remote) |
 | View in external program | the file as it is in the version shown, in the program your desktop opens its kind of file with: a read-only copy (see [External programs](#external-programs)) |
@@ -89,7 +90,8 @@ Save such a file (**Save this version…**) and run it yourself if you mean to.
 The **File** menu has more for the version and the file:
 
 - **History of the file**, **Find in the file's history…**,
-  **Content of the file**, **Blame of the file**, **Open the file in browser**,
+  **Content of the file**, **Blame of the file**, **Preview of the file**,
+  **Open the file in browser**,
   **View the file in external program**, **Open the checkout's file in external program**,
   **Open the checkout's folder of the file**:
   the entries of the file's context menu;
@@ -108,6 +110,29 @@ version: then the title says which,
 for example `README.md at 8922a99ffb` (with the name the file had then).
 Selecting another file in the tree, or **History of the file**,
 goes back to the version of the tree.
+
+## Preview
+
+The **Preview** tab shows the file as it is meant to be seen,
+at the version of the tree or at one chosen in the [History](#file-history):
+
+- images (PNG, GIF, PPM; SVG with Tk 9; JPEG, BMP, TIFF and others with the Img extension),
+  fitted to the tab at first;
+  **Fit to the window** and the zoom are as in [an image's window](tickets.md#images):
+  Ctrl+Wheel, Ctrl+plus, Ctrl+minus, Ctrl+0 for 100% (click the image first for the keys);
+- Markdown (`.md`, `.markdown`) and Fossil wiki (`.wiki`), rendered by Fossil;
+- HTML (`.html`, `.htm`): text, headings, lists, tables and links,
+  without styles, scripts and images (an image shows its `alt` text);
+- man pages (`.1` to `.9`, `.n`, `.man`), formatted by `groff`, else `mandoc`,
+  for the width of the tab;
+  `.so` requests (such as `man.macros` of Tcl and Tk) read their files from the same version.
+  Without either program the page shows as it is written.
+
+The tab is disabled for other files.
+In Markdown, wiki and HTML a link to another file of the repository
+(a relative link, like `commit.md` or `../README.md`) shows that file's preview;
+links to check-ins and tickets go to their tabs,
+others open in the browser.
 
 ## Blame
 
@@ -196,13 +221,14 @@ Right-click a version for its context menu:
 | Show the check-in in Timeline | the check-in of that version in the [Timeline](timeline.md) |
 | Content of this version | the Content tab at that version |
 | Blame of this version | the Blame tab at that version |
+| Preview of this version | the Preview tab at that version |
 | Save this version… | saves the file as it was in that check-in to a file you choose (`fossil cat -o`) |
 | View this version in external program | that version, a read-only copy, in the program your desktop opens it with (see [External programs](#external-programs)) |
 | Open in browser | the file at that check-in on the remote's web site |
 | Add tag… | a tag on that check-in; see [Adding a tag](timeline.md#adding-a-tag) |
 | Copy file hash | the hash of the file's content in that version |
 
-Content, Blame and Save are disabled for a version that deletes the file.
+Content, Blame, Preview and Save are disabled for a version that deletes the file.
 
 **File ▸ History of the file** returns to the history of the selected file,
 and to the version of the tree for its content and blame.

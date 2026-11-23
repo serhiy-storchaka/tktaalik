@@ -57,7 +57,7 @@ and tells apart the windows of two checkouts of one repository.
 | [Tickets](tickets.md) | a search over the tickets, their details, comments, attachments and history; new tickets and edits; ticket reports |
 | [Branches](branches.md) | all branches with their merge state; update, merge, close, new branch |
 | [Tags](tags.md) | the tags of check-ins and their history; adding and cancelling tags |
-| [Files](files.md) | the files at any version, a file's history, blame and content |
+| [Files](files.md) | the files at any version, a file's history, blame, content and preview |
 | [Commit](commit.md) | the changes in the checkout: diffs, commit, revert, undo, patches |
 | [Stash](stash.md) | the stashes of the checkout |
 | [Wiki](wiki.md) | wiki pages, technotes, their versions; editing and attachments |
@@ -217,7 +217,7 @@ they hold nothing of the repository.
 - [Tickets](tickets.md) — searching, reading and writing tickets, reports
 - [Branches](branches.md) — branches, merge state, update and merge
 - [Tags](tags.md) — tags and their history
-- [Files](files.md) — files at any version, history, blame
+- [Files](files.md) — files at any version, history, blame, preview
 - [Commit](commit.md) — the checkout's changes and committing them
 - [Stash](stash.md) — stashes
 - [Wiki](wiki.md) — wiki pages and technotes

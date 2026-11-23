@@ -1,8 +1,9 @@
 # The Files tab of tktaalik: the files at a version, and for the selected
 # file its history (the check-ins on all branches that changed it, under
 # its earlier names too), the blame (who last changed each line; only with
-# a checkout, as "fossil blame" needs one) and the content, at the version
-# of the tree or at one chosen in the history.
+# a checkout, as "fossil blame" needs one), the content and a preview
+# (preview.tcl: images, Markdown, HTML, man pages...), at the version of
+# the tree or at one chosen in the history.
 
 source [file join [file dirname [file normalize [info script]]] fossil.tcl]
 
@@ -275,6 +276,11 @@ proc tkfiles::showTitle {} {
     }
     .files.main.right.title configure -text $text
     .files.main.right.copy state [expr {$titleName eq "" ? "disabled" : "!disabled"}]
+    # A preview only of what can have one.
+    set nb .files.main.right.nb
+    set can [expr {$titleName ne "" && [preview::kind $titleName] ne ""}]
+    $nb tab $nb.preview -state [expr {$can ? "normal" : "disabled"}]
+    if {!$can && [$nb select] eq "$nb.preview"} { $nb select $nb.content }
 }
 
 # The path of a row of the tree (Ctrl+C): a file's or a directory's.
@@ -290,7 +296,7 @@ proc tkfiles::showAt {uuid tab} {
     if {$uuid eq ""} return
     tktaalik::navigate
     set at [list $uuid [dict get $names $uuid]]
-    set loaded [lsearch -all -inline -not -regexp $loaded {^(content|blame)$}]
+    set loaded [lsearch -all -inline -not -regexp $loaded {^(content|blame|preview)$}]
     showTitle
     .files.main.right.nb select .files.main.right.nb.$tab
     loadShown
@@ -305,7 +311,7 @@ proc tkfiles::showHistory {} {
     tktaalik::navigate
     if {[llength $at]} {
         set at {}
-        set loaded [lsearch -all -inline -not -regexp $loaded {^(content|blame)$}]
+        set loaded [lsearch -all -inline -not -regexp $loaded {^(content|blame|preview)$}]
         showTitle
     }
     .files.main.right.nb select .files.main.right.nb.history
@@ -333,6 +339,7 @@ proc tkfiles::loadShown {} {
         history { loadHistory }
         content { loadContent }
         blame   { loadBlame }
+        preview { loadPreview }
         grep    { clearGrep }
     }
 }
@@ -759,6 +766,79 @@ proc tkfiles::loadContent {} {
     $c configure -state disabled
 }
 
+proc tkfiles::loadPreview {} {
+    variable repo
+    lassign [target] version name
+    preview::show .files.main.right.nb.preview $name [list tkfiles::writeVersion $version $name] \
+        -repo $repo -command [list tkfiles::previewLink $version $name] \
+        -external tkfiles::isExternal -include [list tkfiles::previewInclude $version $name]
+}
+
+# A link of the preview: a file of the same version (a relative link)
+# here; a check-in, a ticket and the like in its tab; a URL in the browser.
+proc tkfiles::previewLink {version name href} {
+    variable remote
+    variable at
+    set path [linkedFile $name $href]
+    if {$path ne ""} {
+        # (Only a file of that version.)
+        if {[catch {sql "SELECT count(*) FROM files_of_checkin([fossil::sqlstr $version])
+                WHERE filename=[fossil::sqlstr $path]"} n] || ![string is integer -strict $n] || !$n} {
+            bell
+            return
+        }
+        tktaalik::navigate
+        goTo [list "" "" $path .files.main.right.nb.preview [if {[llength $at]} {list $version $path}]]
+        return
+    }
+    if {[goto::openLink $href]} return
+    switch -glob -- $href {
+        *://* - mailto:* { fossil::browse $href }
+        "#*"             {}
+        /*               { if {$remote ne ""} { fossil::browse $remote$href } }
+    }
+}
+
+# The file a relative link of the file NAME names (its query and anchor
+# left out), "" for another link.
+proc tkfiles::linkedFile {name href} {
+    if {$href eq "" || [regexp {^[a-zA-Z][a-zA-Z0-9+.-]*:|^[/#?]} $href]} { return "" }
+    regsub {[?#].*} $href "" href
+    set parts [lrange [split $name /] 0 end-1]
+    foreach part [split [fossil::urlDecode $href] /] {
+        switch -- $part {
+            "" - . {}
+            ..      {
+                if {![llength $parts]} { return "" }
+                set parts [lrange $parts 0 end-1]
+            }
+            default { lappend parts $part }
+        }
+    }
+    join $parts /
+}
+
+proc tkfiles::isExternal {href} {
+    if {[regexp {^[a-zA-Z][a-zA-Z0-9+.-]*://|^mailto:} $href]} { return 1 }
+    variable remote
+    expr {[string match /* $href] && $remote ne "" && [goto::linkTarget $href] eq ""}
+}
+
+# The file that a ".so" request of the man page NAME names, from the same
+# version: next to the page, or from the folder above (as "man3/x.3"
+# is), or from the top.
+proc tkfiles::previewInclude {version name other} {
+    variable repo
+    set dir [file dirname $name]
+    foreach path [list [file join $dir $other] [file join [file dirname $dir] $other] $other] {
+        regsub {^\./} $path "" path
+        if {[catch {fossil::arg $path}]} continue
+        lassign [fossil::run cat -R $repo -r $version $path] code out
+        if {!$code} { return [list 0 $out] }
+    }
+    list 1 "not found"
+}
+
 # The blame, in the background (it takes a while for a long history).
 proc tkfiles::loadBlame {} {
     variable root
@@ -892,6 +972,9 @@ proc tkfiles::historyMenu {x y X Y} {
         -command [list tkfiles::showAt $uuid content]
     $m add command -label "Blame of this version" -state $there \
         -command [list tkfiles::showAt $uuid blame]
+    $m add command -label "Preview of this version" \
+        -state [expr {$there eq "normal" && [preview::kind $name] ne "" ? "normal" : "disabled"}] \
+        -command [list tkfiles::showAt $uuid preview]
     $m add command -label "Save this version\u2026" -state $there \
         -command [list tkfiles::saveVersion $uuid]
     $m add command -label "View this version in external program" -state $there \
@@ -936,6 +1019,8 @@ proc tkfiles::treeMenu {x y X Y} {
     $m add command -label "Find in its history\u2026" -command tkfiles::showGrep
     $m add command -label Content -command {tkfiles::showPane content}
     $m add command -label Blame -command {tkfiles::showPane blame}
+    $m add command -label Preview -command {tkfiles::showPane preview} \
+        -state [expr {[preview::kind $file] eq "" ? "disabled" : "normal"}]
     $m add command -label "Open in browser" -state [expr {$remote eq "" ? "disabled" : "normal"}] \
         -command tkfiles::browseFile
     $m add separator
@@ -955,6 +1040,7 @@ proc tkfiles::treeMenu {x y X Y} {
 
 # The content or the blame of the file selected.
 proc tkfiles::showPane {tab} {
+    if {[.files.main.right.nb tab .files.main.right.nb.$tab -state] eq "disabled"} { bell; return }
     tktaalik::navigate
     .files.main.right.nb select .files.main.right.nb.$tab
 }
@@ -1098,6 +1184,7 @@ proc tkfiles::build {} {
     .files.menu.file add command -label "Find in the file's history\u2026" -underline 0 -command tkfiles::showGrep
     .files.menu.file add command -label "Content of the file" -command {tkfiles::showPane content}
     .files.menu.file add command -label "Blame of the file" -command {tkfiles::showPane blame}
+    .files.menu.file add command -label "Preview of the file" -command {tkfiles::showPane preview}
     .files.menu.file add command -label "Open the file in browser" -command tkfiles::browseFile
     .files.menu.file add command -label "View the file in external program" -command tkfiles::viewFile
     .files.menu.file add command -label "Open the checkout's file in external program" \
@@ -1258,6 +1345,8 @@ proc tkfiles::build {} {
     .files.main.right.nb add .files.main.right.nb.history -text History
     .files.main.right.nb add .files.main.right.nb.blame -text Blame
     .files.main.right.nb add .files.main.right.nb.content -text Content
+    preview::create .files.main.right.nb.preview
+    .files.main.right.nb add .files.main.right.nb.preview -text Preview -state disabled
     .files.main.right.nb add .files.main.right.nb.grep -text "Find in history"
     pack .files.main.right.top -fill x
     pack .files.main.right.nb -fill both -expand 1
@@ -1303,13 +1392,16 @@ proc tkfiles::goTo {place} {
     variable loaded
     lassign $place v f path tab shownAt
     if {$path ne $file || $shownAt ne $at} {
-        set loaded [expr {$path eq $file ? [lsearch -all -inline -not -regexp $loaded {^(content|blame)$}] : {}}]
+        set loaded [expr {$path eq $file ? [lsearch -all -inline -not -regexp $loaded {^(content|blame|preview)$}] : {}}]
     }
     set at $shownAt
-    if {$tab ne ""} { .files.main.right.nb select $tab }
     set filter $f
     set file $path
+    # (The tab after the title: Preview is enabled for the file there.)
     showTitle
+    if {$tab ne "" && [.files.main.right.nb tab $tab -state] ne "disabled"} {
+        .files.main.right.nb select $tab
+    }
     if {$v ne "" && $v ne [string trim $version]} {
         set version $v
         showVersion

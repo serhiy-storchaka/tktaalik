@@ -70,6 +70,7 @@ namespace eval help {
         .files.main.right.nb.blame   files#blame
         .files.main.right.nb.history files#file-history
         .files.main.right.nb.content files#content
+        .files.main.right.nb.preview files#preview
         .files.main.right.nb.grep    files#find-in-history
         .files.found                files#a-local-file-in-history
         .files.archive              files#archives
