@@ -45,6 +45,19 @@ check "Close checkout disabled now" {[.menubar.checkout entrycget [.menubar.chec
 answer [list dir $D/co2 version "" setmtime 1]
 repoops::newCheckout; update
 check "new checkout: $tktaalik::root" {$tktaalik::root eq [file normalize $D/co2] && ([file exists $D/co2/.fslckout] || [file exists $D/co2/_FOSSIL_])}
+# The checkouts of the repository: another opened outside, both listed
+# (not the one closed), the one shown marked; choosing the other opens it.
+file mkdir $D/co3
+fossilIn $D/co3 open $D/cl.fossil --nosync
+set m .menubar.checkout.checkouts
+$m configure -postcommand {}
+repoops::checkoutsMenu $m
+set labels {}
+for {set i 0} {$i <= [$m index end]} {incr i} { lappend labels [$m entrycget $i -label] }
+check "checkouts of the repository: $labels" {$labels eq [lsort [list [file normalize $D/co2] [file normalize $D/co3]]]}
+check "the one shown marked: $repoops::shownCheckout" {$repoops::shownCheckout eq [file normalize $D/co2]}
+$m invoke [lsearch -exact $labels [file normalize $D/co3]]; update
+check "the other opened: $tktaalik::root" {$tktaalik::root eq [file normalize $D/co3]}
 # Back up.
 proc tk_getSaveFile {args} { return $::D/backup.fossil }
 repoops::backup; update

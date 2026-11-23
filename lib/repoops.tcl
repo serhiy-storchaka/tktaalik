@@ -10,6 +10,7 @@ namespace eval repoops {
     variable f                  ;# array: the fields of the dialog shown
     variable done ""            ;# ok or cancel: the dialog's answer
     variable uiChan ""          ;# the "fossil ui" serving the repository
+    variable shownCheckout ""   ;# the checkout shown, marked in the Checkout menu
     variable uiRepo ""
     variable uiUrl ""
     variable running ""         ;# the handle (fossil::start) of the command shown running
@@ -377,6 +378,35 @@ proc repoops::known {checkouts} {
         # (Not the DELETE of the dry run, nor what is not there now.)
         if {$l eq "" || ![file exists $l] || [string match "DELETE *" $l]} continue
         set l }]
+}
+
+# The checkouts of the repository shown, in menu M, to open one; the one
+# shown is marked.
+proc repoops::checkoutsMenu {m} {
+    variable shownCheckout
+    $m delete 0 end
+    set shownCheckout [if {$::tktaalik::root ne ""} {file normalize $::tktaalik::root}]
+    foreach dir [checkoutsOf $::tktaalik::repo] {
+        $m add radiobutton -label $dir -variable repoops::shownCheckout -value $dir \
+            -command [list tktaalik::openPath $dir]
+    }
+    if {[$m index end] eq "none"} {
+        $m add command -label "(none)" -state disabled
+    }
+}
+
+# The checkouts of REPO: Fossil keeps one "ckout:" entry in it for each
+# opened; like "fossil info", only those whose folder is still a checkout
+# (the others stay: they were deleted or are on a disk not mounted).
+proc repoops::checkoutsOf {repo} {
+    if {$repo eq "" || [catch {fossil::sql $repo \
+            "SELECT substr(name, 7) FROM config WHERE name GLOB 'ckout:*'"} rows]} {
+        return {}
+    }
+    lsort -unique [lmap row $rows {
+        set dir [string trimright [lindex $row 0] /]
+        if {$dir eq "" || (![file exists $dir/.fslckout] && ![file exists $dir/_FOSSIL_])} continue
+        file normalize $dir }]
 }
 
 # The uncommitted changes of every checkout this computer knows (as

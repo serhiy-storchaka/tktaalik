@@ -434,6 +434,9 @@ proc tktaalik::checkoutMenu {} {
         menu $m
         tabEntries $m {commit stash}
         $m add separator
+        # (The checkouts of the repository shown, when posted.)
+        menu $m.checkouts -postcommand [list repoops::checkoutsMenu $m.checkouts]
+        $m add cascade -label "Checkouts of this repository" -underline 1 -menu $m.checkouts
         $m add command -label "New checkout\u2026" -underline 0 -command repoops::newCheckout
         $m add command -label "Close checkout\u2026" -underline 1 -command repoops::closeCheckout
     }

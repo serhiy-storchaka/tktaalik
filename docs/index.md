@@ -113,7 +113,8 @@ Hover over icons and headings for tooltips.
 - **File ▸ Open repository…** (**Ctrl+O**) opens a repository file
   (`*.fossil`) without a checkout.
 - **File ▸ Known repositories** and **Known checkouts** list the repositories
-  and checkouts this computer knows (`fossil all list`), to open one;
+  and checkouts this computer knows (`fossil all list`), to open one,
+  and **Checkout ▸ Checkouts of this repository** those of the repository shown;
   **Clone repository…** and **New repository…** make one,
   and **Checkout ▸ New checkout…** a checkout of the one shown
   (see [Repository operations](repository.md#repository-operations)).
