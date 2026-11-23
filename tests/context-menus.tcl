@@ -30,6 +30,10 @@ set same {
     Blame "Blame of the file"
     "Open in browser" "Open the file in browser"
     "Find in its history…" "Find in the file's history…"
+    "View in external program" "View the file in external program"
+    "Open the checkout's folder of it" "Open the checkout's folder of the file"
+    "Open in external program" "Open the selected files in external program"
+    "Open the folder" "Open the folder of the selected file"
 }
 start timeline $W/co 1300x900
 foreach {tab w} {timeline .timeline.main.list.t tickets .tickets.main.list.t branches .branches.main.list.t

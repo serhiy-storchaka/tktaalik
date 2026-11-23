@@ -894,6 +894,8 @@ proc tkfiles::historyMenu {x y X Y} {
         -command [list tkfiles::showAt $uuid blame]
     $m add command -label "Save this version\u2026" -state $there \
         -command [list tkfiles::saveVersion $uuid]
+    $m add command -label "View this version in external program" -state $there \
+        -command [list tkfiles::viewExternal $uuid $name]
     $m add command -label "Open in browser" -state [expr {$remote eq "" ? "disabled" : "normal"}] \
         -command [list fossil::browse $remote/file?name=[fossil::urlquery $name /]&ci=$uuid]
     $m add command -label "Add tag\u2026" -command [list tagwrite::addTag $::tkfiles::repo $uuid]
@@ -910,12 +912,25 @@ proc tkfiles::historyMenu {x y X Y} {
 proc tkfiles::treeMenu {x y X Y} {
     variable remote
     variable file
+    variable hash
+    variable root
     set t .files.main.tree.t
     set id [$t identify item $x $y]
+    set m .files.treectx
+    # A folder: the checkout's, in the file manager.
+    if {[string match d:* $id]} {
+        $t selection set [list $id]
+        $m delete 0 end
+        set local [if {$root ne ""} {file join $root [string range $id 2 end]}]
+        $m add command -label "Open the checkout's folder" \
+            -state [expr {$local ne "" && [file isdirectory $local] ? "normal" : "disabled"}] \
+            -command [list ui::openFolder $local -title Files]
+        tk_popup $m $X $Y
+        return
+    }
     if {![string match f:* $id]} return
     $t selection set [list $id]
     selectFile
-    set m .files.treectx
     $m delete 0 end
     $m add command -label "History of [file tail $file]" -command tkfiles::showHistory
     $m add command -label "Find in its history\u2026" -command tkfiles::showGrep
@@ -923,6 +938,18 @@ proc tkfiles::treeMenu {x y X Y} {
     $m add command -label Blame -command {tkfiles::showPane blame}
     $m add command -label "Open in browser" -state [expr {$remote eq "" ? "disabled" : "normal"}] \
         -command tkfiles::browseFile
+    $m add separator
+    # (This version, a read-only copy; the checkout's own file, to edit.)
+    $m add command -label "View in external program" -state [expr {$hash eq "" ? "disabled" : "normal"}] \
+        -command tkfiles::viewFile
+    set local [if {$root ne ""} {file join $root $file}]
+    $m add command -label "Open the checkout's file in external program" \
+        -state [expr {$local ne "" && [file isfile $local] ? "normal" : "disabled"}] \
+        -command tkfiles::openLocal
+    set folder [if {$local ne ""} {file dirname $local}]
+    $m add command -label "Open the checkout's folder of it" \
+        -state [expr {$folder ne "" && [file isdirectory $folder] ? "normal" : "disabled"}] \
+        -command tkfiles::openLocalFolder
     tk_popup $m $X $Y
 }
 
@@ -940,20 +967,55 @@ proc tkfiles::browseFile {} {
     ui::openServer $remote finfo?name=[fossil::urlquery $file /] -title Files
 }
 
+# The file NAME as it was in the check-in VERSION written to PATH:
+# {exit-code output}.
+proc tkfiles::writeVersion {version name path} {
+    variable repo
+    # (Fossil 2.21 and older: no -o, the output into the file.)
+    if {[fossil::helpMatches cat *--out*]} {
+        fossil::run cat -R $repo -r $version -o $path [fossil::arg $name]
+    } else {
+        fossil::runTo $path cat -R $repo -r $version [fossil::arg $name]
+    }
+}
+
+# The file NAME as it was in the check-in VERSION, in the program the
+# desktop opens it with: a read-only copy.
+proc tkfiles::viewExternal {version name} {
+    ui::openCopy [string range $version 0 9] $name [list tkfiles::writeVersion $version $name] \
+        -title Files
+}
+
+# The file selected, as in the version shown (that of its Content).
+proc tkfiles::viewFile {} {
+    lassign [target] version name
+    if {$version eq "" || $name eq ""} { bell; return }
+    viewExternal $version $name
+}
+
+# The checkout's own file of the one selected, to edit; its folder.
+proc tkfiles::openLocal {} {
+    variable root
+    variable file
+    if {$root eq "" || $file eq ""} { bell; return }
+    ui::openFile [file join $root $file] -title Files
+}
+
+proc tkfiles::openLocalFolder {} {
+    variable root
+    variable file
+    if {$root eq "" || $file eq ""} { bell; return }
+    ui::openFolder [file dirname [file join $root $file]] -title Files
+}
+
 # Save the file as it was in a check-in ("fossil cat -o").
 proc tkfiles::saveVersion {uuid} {
-    variable repo
     variable names
     set name [dict get $names $uuid]
     set path [tk_getSaveFile -parent . -title "Save $name at [string range $uuid 0 9]" \
         -initialfile [file tail $name]]
     if {$path eq ""} return
-    # (Fossil 2.21 and older: no -o, the output into the file.)
-    if {[fossil::helpMatches cat *--out*]} {
-        lassign [fossil::run cat -R $repo -r $uuid -o [file normalize $path] [fossil::arg $name]] code out
-    } else {
-        lassign [fossil::runTo [file normalize $path] cat -R $repo -r $uuid [fossil::arg $name]] code out
-    }
+    lassign [writeVersion $uuid $name [file normalize $path]] code out
     if {$code} {
         tk_messageBox -icon error -title Files -message "fossil cat failed:" -detail $out
     }
@@ -1037,6 +1099,11 @@ proc tkfiles::build {} {
     .files.menu.file add command -label "Content of the file" -command {tkfiles::showPane content}
     .files.menu.file add command -label "Blame of the file" -command {tkfiles::showPane blame}
     .files.menu.file add command -label "Open the file in browser" -command tkfiles::browseFile
+    .files.menu.file add command -label "View the file in external program" -command tkfiles::viewFile
+    .files.menu.file add command -label "Open the checkout's file in external program" \
+        -command tkfiles::openLocal
+    .files.menu.file add command -label "Open the checkout's folder of the file" \
+        -command tkfiles::openLocalFolder
     .files.menu.file add command -label "Find a local file in history\u2026" -underline 5 \
         -command tkfiles::findLocal
     .files.menu.file add command -label "Save this version as an archive\u2026" -underline 0 \

@@ -111,6 +111,7 @@ proc done {} {
 #   tk_getSaveFile      $::saveTo ("" if unset)
 #   tk_getOpenFile      $::openFrom ("" if unset)
 #   fossil::browse      no browser: the URL appended to ::browsed
+#   ui::launch          no program started: the path appended to ::launched
 #   start TAB ?PATH? ?SIZE?
 #                       the application on PATH (the repository by default),
 #                       tab TAB shown, the window SIZE (1200x900)
@@ -160,6 +161,8 @@ proc tk_messageBox {args} {
 proc tk_getSaveFile {args} { expr {[info exists ::saveTo] ? $::saveTo : ""} }
 proc tk_getOpenFile {args} { expr {[info exists ::openFrom] ? $::openFrom : ""} }
 proc fossil::browse {url} { lappend ::browsed $url }
+proc ui::launch {path} { lappend ::launched $path }
+set ::launched {}
 
 proc start {tab {path ""} {size 1200x900}} {
     if {$path eq ""} { set path $::T(repo) }

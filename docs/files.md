@@ -66,11 +66,32 @@ Right-click a file for its context menu:
 | Blame | the Blame tab |
 | Find in its history… | the Find in history tab, see [Find in history](#find-in-history) |
 | Open in browser | the file's history page on the remote's web site (only when the repository has a remote) |
+| View in external program | the file as it is in the version shown, in the program your desktop opens its kind of file with: a read-only copy (see [External programs](#external-programs)) |
+| Open the checkout's file in external program | the file in the checkout, to edit it there (only with a checkout that has the file) |
+| Open the checkout's folder of it | its folder in the checkout, in the file manager |
+
+Right-click a directory for **Open the checkout's folder**:
+that directory of the checkout in the file manager.
+
+### External programs
+
+Files and folders open in the programs your desktop chooses for them
+(`xdg-open` on Linux and other X11 systems, `open` on macOS, the file's association on Windows).
+A version that is not the checkout's is a read-only copy,
+in a temporary folder of Tktaalik's own,
+under the file's name so that the program knows its kind;
+changes to it go nowhere, and the copies are deleted when Tktaalik quits.
+Files that the desktop would run instead of opening are not opened:
+programs, scripts and links on Windows (`.exe`, `.bat`, `.js`, `.lnk` and the like),
+applications on macOS, desktop launchers (`.desktop`) elsewhere.
+Save such a file (**Save this version…**) and run it yourself if you mean to.
 
 The **File** menu has more for the version and the file:
 
 - **History of the file**, **Find in the file's history…**,
-  **Content of the file**, **Blame of the file**, **Open the file in browser**:
+  **Content of the file**, **Blame of the file**, **Open the file in browser**,
+  **View the file in external program**, **Open the checkout's file in external program**,
+  **Open the checkout's folder of the file**:
   the entries of the file's context menu;
 - **Find a local file in history…**:
   see [A local file in history](#a-local-file-in-history);
@@ -176,6 +197,7 @@ Right-click a version for its context menu:
 | Content of this version | the Content tab at that version |
 | Blame of this version | the Blame tab at that version |
 | Save this version… | saves the file as it was in that check-in to a file you choose (`fossil cat -o`) |
+| View this version in external program | that version, a read-only copy, in the program your desktop opens it with (see [External programs](#external-programs)) |
 | Open in browser | the file at that check-in on the remote's web site |
 | Add tag… | a tag on that check-in; see [Adding a tag](timeline.md#adding-a-tag) |
 | Copy file hash | the hash of the file's content in that version |

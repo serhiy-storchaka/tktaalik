@@ -184,7 +184,7 @@ check "diff options: [diffopts::args]" {[diffopts::args] eq "-w -c 0"}
 set diffopts::context ""; set diffopts::ignoreSpace 0
 respond {.commit.from 1 {set ::tkcommit::revision core-9-0-branch}}
 tkcommit::compareWith; update
-check "compare with: $tkcommit::info" {[string match "*diffs against core-9-0-branch" $tkcommit::info] && [tkcommit::diffArgs] eq "--from=core-9-0-branch"}
+check "compare with: $tkcommit::info" {[string match "*diffs against core-9-0-branch*" $tkcommit::info] && [tkcommit::diffArgs] eq "--from=core-9-0-branch"}
 set tkcommit::from ""
 tkcommit::refresh
 
@@ -254,5 +254,5 @@ check "an empty check-in" {[lindex [fossil::sql $W/tk.fossil "SELECT count(*) FR
 tkcommit::toggleMore; update
 check "more options shown" {[winfo ismapped .commit.bottom.more]}
 tkcommit::toggleMore; update
-check "file menu: [.commit.ctx index end] entries" {[.commit.ctx index end] == 7}
+check "file menu: [.commit.ctx index end] entries" {[.commit.ctx index end] == 9}
 done

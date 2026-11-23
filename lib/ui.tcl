@@ -40,6 +40,19 @@
 #   ui::textSize ?FACTOR?       that size (1 is 100%): to keep in settings
 #   ui::whenTextSize SCRIPT     SCRIPT run when that size changes (what is
 #                               drawn in that size, as charts)
+#   ui::openFile PATH ?-parent W? ?-title T?
+#                               the file in the program the desktop opens
+#                               its kind with (to edit or view it): 1 if
+#                               it was; not one that would run (a program,
+#                               a launcher): said so
+#   ui::openFolder PATH ?-parent W? ?-title T?
+#                               the folder in the desktop's file manager
+#   ui::openCopy SUB NAME WRITE ?-parent W? ?-title T?
+#                               the same with a read-only copy named NAME
+#                               (as a version SUB of a file), written by
+#                               WRITE (a command: it gets the path and
+#                               returns {exit-code message}); the copies
+#                               are removed on quit (ui::removeCopies)
 
 namespace eval ui {
     variable f                  ;# array: the fields of a form (by default)
@@ -51,6 +64,7 @@ namespace eval ui {
     variable zoomed             ;# array: text -> dict {TAG OPTION} -> {ORIGINAL SET}
     variable wheel 0            ;# Ctrl+Wheel turned short of a step
     variable sizeScripts {}     ;# run when the text size changes
+    variable copies ""          ;# the folder of the copies opened (ui::openCopy)
 }
 
 # A line selected in a text ends in its newline, and an entry pasted it
@@ -596,3 +610,103 @@ bind Text <<WidgetViewSync>> {ui::ZoomIn %W}
 bind Text <Map> {ui::ZoomIn %W}
 bind Text <Destroy> {unset -nocomplain ::ui::zoomed(%W)}
 unset key
+
+# ---------------------------------------------------- external programs
+
+proc ui::openFile {path args} {
+    set parent [if {[dict exists $args -parent]} {dict get $args -parent} else {string cat .}]
+    set title [if {[dict exists $args -title]} {dict get $args -title} else {string cat Tktaalik}]
+    if {![file isfile $path]} {
+        infoBox -parent $parent -title $title "[file tail $path] is not there." $path
+        return 0
+    }
+    if {[runs $path]} {
+        infoBox -parent $parent -title $title "[file tail $path] is not opened: it would run." \
+            "Files of its kind are programs here: opening one runs it.  Run it yourself if you\
+            mean to."
+        return 0
+    }
+    if {[catch {launch [file nativename [file normalize $path]]} msg]} {
+        errorBox -parent $parent -title $title "[file tail $path] cannot be opened:" $msg
+        return 0
+    }
+    return 1
+}
+
+proc ui::openFolder {path args} {
+    set parent [if {[dict exists $args -parent]} {dict get $args -parent} else {string cat .}]
+    set title [if {[dict exists $args -title]} {dict get $args -title} else {string cat Tktaalik}]
+    if {![file isdirectory $path]} {
+        infoBox -parent $parent -title $title "The folder [file tail $path] is not there." $path
+        return 0
+    }
+    if {[catch {launch [file nativename [file normalize $path]]} msg]} {
+        errorBox -parent $parent -title $title "The folder [file tail $path] cannot be opened:" $msg
+        return 0
+    }
+    return 1
+}
+
+# Would the desktop run the file PATH instead of opening it in a program?
+# By its extension: on Windows the programs, scripts and links the shell
+# runs; on macOS applications and Terminal scripts; elsewhere desktop
+# launchers (the others are opened by their type).
+proc ui::runs {path} {
+    set ext [string tolower [file extension $path]]
+    switch -- [tk windowingsystem] {
+        win32 {
+            set exts {.exe .com .bat .cmd .scr .pif .msi .msp .lnk .url .hta .cpl .jar .js .jse
+                .vbs .vbe .wsf .wsh .ps1 .psm1 .reg .scf .inf .application .appref-ms .msc}
+            if {[info exists ::env(PATHEXT)]} {
+                lappend exts {*}[split [string tolower $::env(PATHEXT)] \;]
+            }
+        }
+        aqua { set exts {.app .command .tool .terminal .workflow .action .pkg .mpkg} }
+        default { set exts {.desktop} }
+    }
+    expr {$ext ne "" && $ext in $exts}
+}
+
+# The file or folder PATH (native) opened by the desktop.  (Windows: not through
+# "start", which cmd.exe reads: & or ^ in a name would be its own.)
+proc ui::launch {path} {
+    switch -- [tk windowingsystem] {
+        win32   { exec rundll32 url.dll,FileProtocolHandler $path & }
+        aqua    { exec open $path & }
+        default { exec xdg-open $path & }
+    }
+}
+
+proc ui::openCopy {sub name write args} {
+    variable copies
+    set parent [if {[dict exists $args -parent]} {dict get $args -parent} else {string cat .}]
+    set title [if {[dict exists $args -title]} {dict get $args -title} else {string cat Tktaalik}]
+    if {$copies eq ""} { set copies [fossil::tempDir] }
+    # (A folder for each version: the copy keeps the file's name, which
+    # the program shows and chooses by.)
+    set dir [file join $copies $sub]
+    set path [file join $dir [file tail $name]]
+    if {![file exists $path]} {
+        file mkdir $dir
+        lassign [{*}$write $path] code out
+        if {$code} {
+            file delete -force $path
+            errorBox -parent $parent -title $title "Cannot write a copy of $name:" $out
+            return 0
+        }
+        # (Read-only: changes there would not go anywhere.)
+        if {$::tcl_platform(platform) eq "windows"} {
+            file attributes $path -readonly 1
+        } else {
+            file attributes $path -permissions 0444
+        }
+    }
+    openFile $path -parent $parent -title $title
+}
+
+# On quit: the copies opened go.
+proc ui::removeCopies {} {
+    variable copies
+    if {$copies ne ""} { catch {file delete -force $copies} }
+    set copies ""
+}

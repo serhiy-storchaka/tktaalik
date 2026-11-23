@@ -246,6 +246,7 @@ The **Checkout** menu:
 **Checkouts of this repository** lists the checkouts of the repository shown
 (as `fossil info` does: those whose folder is still a checkout),
 the one shown marked, to open one;
+**Open the checkout's folder** shows the checkout's folder in the file manager;
 **New checkout…** opens a checkout of the repository in a folder
 (`fossil open --workdir`, never syncing: a version or the newest, empty,
 file times as in the repository, keep the files there, nested, force);

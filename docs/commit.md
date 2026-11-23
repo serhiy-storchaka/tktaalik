@@ -80,6 +80,8 @@ Right-click it for:
 | Entry | What it does |
 |---|---|
 | Side-by-side diff | the diff of the file in the diff window |
+| Open in external program | the selected files in the programs your desktop opens them with, to edit them (not the deleted or missing ones; see [External programs](files.md#external-programs)) |
+| Open the folder | the folder of the file in the file manager |
 | Add | adds the checked unmanaged files, or this one |
 | Rename or move… | see [File operations](#file-operations) |
 | Remove… | see [File operations](#file-operations) |
@@ -88,7 +90,8 @@ Right-click it for:
 | Undo for these files…, Redo for these files… | see [Undo and redo](#undo-and-redo) |
 
 The **Commit** menu has them too
-(Undo for the selected files…, Redo for the selected files…).
+(Open the selected files in external program, Open the folder of the selected file,
+Undo for the selected files…, Redo for the selected files…).
 Ctrl+C copies the paths of the selected files.
 
 The list is read again when you come back to the tab, after every operation,

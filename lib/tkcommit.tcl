@@ -483,6 +483,30 @@ proc tkcommit::showDiff {path} {
     $d configure -state disabled
 }
 
+# The files selected in the programs the desktop opens them with, to edit
+# them (not those that are not there: deleted, missing).
+proc tkcommit::openExternal {} {
+    variable root
+    set paths [lmap p [selectedFiles] { file join $root $p }]
+    set there [lmap p $paths { if {![file isfile $p]} continue; set p }]
+    if {![llength $there]} {
+        ui::infoBox -title Commit "The files selected are not in the checkout." [join $paths \n]
+        return
+    }
+    if {[llength $there] > 10 && ![ui::confirm -title Commit "Open [llength $there] files?"]} return
+    foreach p $there {
+        if {![ui::openFile $p -title Commit]} break
+    }
+}
+
+# The folder of the file selected (the first), in the file manager.
+proc tkcommit::openFolder {} {
+    variable root
+    set p [lindex [selectedFiles] 0]
+    if {$p eq ""} return
+    ui::openFolder [file dirname [file join $root $p]] -title Commit
+}
+
 proc tkcommit::sideBySide {} {
     variable current
     variable files
@@ -722,6 +746,8 @@ proc tkcommit::build {} {
     diffopts::menu .commit.menu.commit.diffopts tkcommit::refresh
     foreach {label command accel} {
         "Side-by-side diff"             tkcommit::sideBySide    ""
+        "Open the selected files in external program" tkcommit::openExternal ""
+        "Open the folder of the selected file" tkcommit::openFolder ""
         "Diff of all changes"           tkcommit::diffAll       ""
         "Compare with version\u2026"        tkcommit::compareWith   ""
         "Compare two versions\u2026"        tkcommit::compareTwo    ""
@@ -776,6 +802,8 @@ proc tkcommit::build {} {
     menu .commit.ctx -tearoff 0
     foreach {label command} {
         "Side-by-side diff"     tkcommit::sideBySide
+        "Open in external program" tkcommit::openExternal
+        "Open the folder"       tkcommit::openFolder
         "Add"                   tkcommit::addFiles
         "Rename or move\u2026"      tkcommit::renameFile
         "Remove\u2026"              tkcommit::removeFile
