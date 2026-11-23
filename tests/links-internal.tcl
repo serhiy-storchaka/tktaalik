@@ -30,8 +30,9 @@ set before [llength [lsearch -all -glob [winfo children .] .diffview*]]
 goto::openLink "/vdiff?from=$a&to=$b"; update
 check "a diff window" {[llength [lsearch -all -glob [winfo children .] .diffview*]] == $before + 1}
 foreach w [lsearch -all -inline -glob [winfo children .] .diffview*] { destroy $w }
-# A ticket comment with a link to a branch: the Branches tab.
-set row [lindex [fossil::sql $R "SELECT t.tkt_uuid, substr(c.icomment, instr(c.icomment,'timeline?r=')+11, 40) FROM ticketchng c JOIN ticket t ON t.tkt_id=c.tkt_id WHERE c.icomment LIKE '%timeline?r=%' ORDER BY c.tkt_mtime DESC LIMIT 20"] 0]
+# A ticket comment with a link to a branch: the Branches tab.  (Not a
+# plain text one: its brackets are not links.)
+set row [lindex [fossil::sql $R "SELECT t.tkt_uuid, substr(c.icomment, instr(c.icomment,'timeline?r=')+11, 40) FROM ticketchng c JOIN ticket t ON t.tkt_id=c.tkt_id WHERE c.icomment LIKE '%timeline?r=%' AND coalesce(c.mimetype, '') <> 'text/x-fossil-plain' ORDER BY c.tkt_mtime DESC LIMIT 20"] 0]
 lassign $row btkt btail
 regexp {^[A-Za-z0-9._-]+} $btail branch
 if {[goto::linkTarget /timeline?r=$branch] ne ""} {

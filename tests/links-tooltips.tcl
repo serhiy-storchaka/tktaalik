@@ -21,9 +21,11 @@ check "a long line cut: [list $cut]" {[string length $cut] <= 100 && [string ind
     && [string first [string range $cut 0 end-1] [commentOf $long]] == 0}
 check "its icon: the check-in's" {$image eq [icons::get k-checkin row]}
 check "as /info/HASH too" {[lindex [goto::linkTip /info/[string range $ci 0 9]] 0] eq $tip}
-# A closed ticket with a resolution: its title, the icon of the two.
+# A closed ticket with a resolution: its title (one short enough not to
+# be cut), the icon of the two.
 lassign [lindex [fossil::sql $R "SELECT tkt_uuid, [fossil::outcol title] FROM ticket
-    WHERE title<>'' AND status='Closed' AND resolution='Fixed' ORDER BY tkt_mtime DESC LIMIT 1"] 0] tkt title
+    WHERE title<>'' AND length(title) <= 100 AND status='Closed' AND resolution='Fixed'
+    ORDER BY tkt_mtime DESC LIMIT 1"] 0] tkt title
 lassign [goto::linkTip tkt:$tkt] tip image
 check "a ticket: its title alone: [list $tip]" {$tip eq [fossil::oneLine $title]}
 check "its icon: of its status" {$image eq [icons::get st-fixed row]}
