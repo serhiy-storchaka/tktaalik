@@ -9,7 +9,7 @@ and edit or delete your own posts ([Writing](#writing)).
 A repository has a forum only if it is a forum repository or one where the forum
 is used; otherwise the status line says "No forum in this repository".
 A clone has the forum posts its server sent it:
-pull to get the new ones ([Pull](timeline.md#pull-and-push)).
+pull to get the new ones ([Pull](timeline.md#pull-push-and-sync)).
 
 ## Threads
 

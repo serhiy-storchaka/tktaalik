@@ -10,7 +10,7 @@ brought out of the command line.
 **It never pushes by itself.**
 Everything it changes stays in the local repository or checkout,
 and is confirmed first.
-Only **Push…** sends it to a server,
+Only **Push…** and **Sync…** send it to a server,
 after showing what goes and asking.
 
 ## What it does

@@ -110,7 +110,7 @@ Only Apply changes the repository.
 The change is a new artifact in the local repository,
 written as the repository's default user;
 it reaches the server with your next push
-([File ▸ Push…](timeline.md#pull-and-push)).
+([File ▸ Push…](timeline.md#pull-push-and-sync)).
 
 ### Add…
 

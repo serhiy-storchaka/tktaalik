@@ -8,7 +8,7 @@ and lets you comment on tickets, edit them and create new ones.
 Everything you write here goes into the local repository only,
 as the repository's default user, with `fossil ticket`.
 Nothing is pushed: sending the changes to the server is a separate step
-([File ▸ Push…](timeline.md#pull-and-push),
+([File ▸ Push…](timeline.md#pull-push-and-sync),
 or `fossil push` or `fossil sync` on the command line).
 
 ## The search box

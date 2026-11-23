@@ -548,6 +548,7 @@ proc tktaalik::fileMenu {m} {
     $m add command -label "New repository\u2026" -underline 0 -command repoops::newRepository
     $m add command -label "Pull\u2026" -underline 0 -command {tktaalik::pullPush pull}
     $m add command -label "Push\u2026" -underline 1 -command {tktaalik::pullPush push}
+    $m add command -label "Sync\u2026" -underline 1 -command {tktaalik::pullPush sync}
     $m add separator
     $m add command -label Back -underline 0 -accelerator Alt+Left \
         -command tktaalik::goBack -state disabled
@@ -558,8 +559,8 @@ proc tktaalik::fileMenu {m} {
     lappend historyMenus $m
 }
 
-# Pull or push (KIND), from any tab: in the Timeline, which shows what
-# came (the Last pull view) and what is not pushed yet.
+# Pull, push or sync (KIND), from any tab: in the Timeline, which shows
+# what came (the Last pull view) and what is not pushed yet.
 proc tktaalik::pullPush {kind} {
     if {[show timeline]} { tktimeline::pull $kind }
 }

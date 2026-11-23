@@ -8,9 +8,9 @@ It reads the repository file directly,
 so it works the same on a checkout and on a repository opened without one.
 
 From here you can also edit check-ins, add and cancel tags,
-bisect a regression in the checkout, pull from a remote and push to one.
-All of these but Push change the local repository only:
-**nothing is pushed** until you choose **File ▸ Push…**, which asks first.
+bisect a regression in the checkout, pull from a remote, push to one and sync.
+All of these but Push and Sync change the local repository only:
+**nothing is pushed** until you choose **File ▸ Push…** or **Sync…**, which ask first.
 
 ## The window
 
@@ -109,7 +109,7 @@ but for the Search and Exclude ones.
 | Show artifact | The event's artifact as Fossil stores it (the manifest of a check-in, the control artifact of a tag change, …) in a window |
 | Save artifact… | The same, saved to a file, as `fossil artifact HASH FILE` |
 
-The menu bar has **File** (with Pull…, Push… and Refresh), **Event**,
+The menu bar has **File** (with Pull…, Push…, Sync… and Refresh), **Event**,
 **Bisect** and **Help**
 (Search syntax: this page at [Search syntax](#search-syntax),
 as the help button by the search box).
@@ -544,30 +544,33 @@ edit it, then **Copy** it or **Save…** it to a file.
 Changing an option makes the text again, after asking if you have edited it.
 Nothing is written to the repository.
 
-## Pull and push
+## Pull, push and sync
 
 **File ▸ Pull…** brings new artifacts from a remote into the local repository,
 as `fossil pull`;
-**File ▸ Push…** sends the local ones to a remote, as `fossil push`.
-Both are in the File menu of every tab,
+**File ▸ Push…** sends the local ones to a remote, as `fossil push`;
+**File ▸ Sync…** does both in one exchange with the server, as `fossil sync`
+(what Fossil's autosync does).
+They are in the File menu of every tab,
 and switch to the Timeline, which shows what came and what is not pushed yet.
-Neither syncs: a pull sends nothing, and a push brings nothing.
-Both take the same options:
+A pull sends nothing, and a push brings nothing.
+They take the same options:
 
 | Option | Meaning |
 |---|---|
-| Pull from, Push to | The remote: the default one first, then the named ones (see [Remotes](repository.md#remotes)); its URL is shown below.  Using a named remote does not make it the default (`--once`) |
+| Pull from, Push to, Sync with | The remote: the default one first, then the named ones (see [Remotes](repository.md#remotes)); its URL is shown below.  Using a named remote does not make it the default (`--once`) |
 | Private branches too | Also private branches, if the server lets you (`--private`) |
-| From all the remotes, To all the remotes | Every remote in turn (`--all`) |
+| From all the remotes, To all the remotes, With all the remotes | Every remote in turn (`--all`) |
 | IPv4 only | `--ipv4` |
 | Verily | Make sure nothing is overlooked; slower (`--verily`) |
 | Verbose output | More output (`-v`) |
 | HTTP authentication | `user:password`, if the web server itself asks for it (`--httpauth`) |
+| Unversioned files too | Sync only: the [unversioned files](repository.md#unversioned-files) too, both ways; the newer of each wins (`-u`) |
 
-**Pull** or **Push** runs it in the background and shows Fossil's output in the dialog;
+**Pull**, **Push** or **Sync** runs it in the background and shows Fossil's output in the dialog;
 **Stop** stops it (also quitting Tktaalik does).
 
-**Push** asks first.
+**Push** and **Sync** ask first.
 The question names the remote and what waits to go:
 how many artifacts are not pushed yet and their events,
 as the [Outgoing](#views) view shows them,
@@ -580,17 +583,17 @@ so a remote never pushed to before can get more.
 After a push, the Timeline reads the repository again:
 what went is no longer marked as not pushed.
 
-After a pull,
+After a pull or a sync,
 the Timeline shows the [Last pull](#views) view if something new
 came from a server (else All),
 and the other tabs read the repository again when you open them.
 Back returns to where you were.
 
-If the pull brought a tag change that moved the check-in of the checkout to
+If it brought a tag change that moved the check-in of the checkout to
 another branch (`fossil amend --branch`, as reverting a merge may do),
 the next commit or update would go there.
 Tktaalik then says so, with who moved it and when,
 and offers to update the checkout to the newest check-in of the branch it was on
 (the Commit tab's [Update](commit.md#updating), with its dry run).
 
-Without a remote, Pull and Push tell you to add one in **Repository ▸ Remotes**.
+Without a remote, Pull, Push and Sync tell you to add one in **Repository ▸ Remotes**.

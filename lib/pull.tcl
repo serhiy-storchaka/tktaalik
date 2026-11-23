@@ -1,6 +1,6 @@
-# The Timeline tab (lib/tktimeline.tcl): pull and push -- the check-ins
-# of a remote repository brought in, or ours sent there (only when asked,
-# after a confirmation of what goes; nothing syncs).
+# The Timeline tab (lib/tktimeline.tcl): pull, push and sync -- the
+# check-ins of a remote repository brought in, ours sent there, or both
+# (only when asked, after a confirmation of what goes).
 
 # ------------------------------------------------------------------- pull
 
@@ -20,9 +20,10 @@ proc tktimeline::remotes {} {
 }
 
 # Pull from a remote ("fossil pull"), then show what came: the Last pull
-# view; or push to one ("fossil push"), after a confirmation of what goes
-# (KIND pull or push).  Both take the same options, in the same window.
-# Neither syncs: a pull sends nothing, a push brings nothing.
+# view; push to one ("fossil push"), after a confirmation of what goes; or
+# both in one exchange ("fossil sync"), asked as a push, shown as a pull
+# (KIND pull, push or sync).  They take the same options, in the same
+# window (sync also unversioned files).
 proc tktimeline::pull {{kind pull}} {
     variable repo
     variable pullOpt
@@ -35,7 +36,7 @@ proc tktimeline::pull {{kind pull}} {
             -detail "Add one in Repository \u25b8 Remotes."
         return
     }
-    array set pullOpt {private 0 all 0 ipv4 0 verily 0 verbose 0 auth ""}
+    array set pullOpt {private 0 all 0 ipv4 0 verily 0 verbose 0 unversioned 0 auth ""}
     set pullOpt(kind) $kind
     set pullOpt(remote) [lindex $remotes 0 0]
     set w .timeline.pull
@@ -45,7 +46,7 @@ proc tktimeline::pull {{kind pull}} {
     wm transient $w .
     ttk::frame $w.f -padding 10
     pack $w.f -fill both -expand 1
-    ttk::label $w.f.l -text [dict get {pull "Pull from:" push "Push to:"} $kind]
+    ttk::label $w.f.l -text [dict get {pull "Pull from:" push "Push to:" sync "Sync with:"} $kind]
     ttk::combobox $w.f.r -state readonly -textvariable tktimeline::pullOpt(remote) \
         -values [lmap r $remotes { lindex $r 0 }] -width 20
     ttk::label $w.f.url -foreground gray40
@@ -58,20 +59,23 @@ proc tktimeline::pull {{kind pull}} {
     }} $w $remotes]
     bind $w.f.r <<ComboboxSelected>> $update
     {*}$update
-    if {$kind eq "pull"} {
-        set into "into [file tail $repo].  Nothing is pushed."
-    } else {
-        set into "from [file tail $repo].  Nothing is pulled; what goes is shown first."
+    switch -- $kind {
+        pull { set into "into [file tail $repo].  Nothing is pushed." }
+        push { set into "from [file tail $repo].  Nothing is pulled; what goes is shown first." }
+        sync { set into "and [file tail $repo], both ways.  What goes is shown first." }
     }
     ttk::label $w.f.into -text $into -foreground gray40
     ttk::checkbutton $w.f.private -text "Private branches too" -variable tktimeline::pullOpt(private)
-    ttk::checkbutton $w.f.all -text [dict get {pull "From all the remotes" push "To all the remotes"} $kind] \
-        -variable tktimeline::pullOpt(all)
+    ttk::checkbutton $w.f.all -text [dict get {pull "From all the remotes" push "To all the remotes"
+        sync "With all the remotes"} $kind] -variable tktimeline::pullOpt(all)
     if {[llength $remotes] < 2} { $w.f.all state disabled }
     ttk::checkbutton $w.f.ipv4 -text "IPv4 only" -variable tktimeline::pullOpt(ipv4)
     ttk::checkbutton $w.f.verily -text "Verily: make sure nothing is overlooked (slower)" \
         -variable tktimeline::pullOpt(verily)
     ttk::checkbutton $w.f.verbose -text "Verbose output" -variable tktimeline::pullOpt(verbose)
+    # (Only sync takes it: "fossil pull" and "push" have no -u.)
+    ttk::checkbutton $w.f.unversioned -text "Unversioned files too, both ways (-u)" \
+        -variable tktimeline::pullOpt(unversioned)
     ttk::label $w.f.al -text "HTTP authentication:"
     ttk::entry $w.f.a -textvariable tktimeline::pullOpt(auth) -width 30 -show *
     ttk::label $w.f.an -text "user:password, if the web server asks for it" -foreground gray40
@@ -85,12 +89,13 @@ proc tktimeline::pull {{kind pull}} {
     grid $w.f.url - -sticky w
     grid $w.f.into - -sticky w -pady {0 6}
     foreach c {private all ipv4 verily verbose} { grid $w.f.$c - -sticky w }
+    if {$kind eq "sync"} { grid $w.f.unversioned - -sticky w }
     grid $w.f.al $w.f.a -sticky w -pady {6 0}
     grid $w.f.an - -sticky w
     grid $w.f.out - -sticky news -pady {8 0}
     grid $w.f.b - -sticky e -pady {8 0}
     grid columnconfigure $w.f 1 -weight 1
-    grid rowconfigure $w.f 9 -weight 1
+    grid rowconfigure $w.f [dict get [grid info $w.f.out] -row] -weight 1
     bind $w <Escape> [list destroy $w]
     focus $w.f.b.ok
 }
@@ -119,10 +124,11 @@ proc tktimeline::startPull {} {
     foreach {key option} {private --private ipv4 --ipv4 verily --verily verbose -v} {
         if {$pullOpt($key)} { lappend cmd $option }
     }
+    if {$kind eq "sync" && $pullOpt(unversioned)} { lappend cmd -u }
     # (In one word: the password cannot be taken for anything else.)
     if {$auth ne ""} { lappend cmd --httpauth=$auth }
     lappend cmd -R $repo
-    if {$kind eq "push" && ![confirmPush $w]} return
+    if {$kind in {push sync} && ![confirmPush $w]} return
     variable pullCmd $cmd
     variable ridBefore
     lassign [lindex [fossil::sql $repo "SELECT (SELECT coalesce(max(rcvid),0) FROM rcvfrom),
@@ -219,7 +225,7 @@ proc tktimeline::pullOutput {} {
     }
 }
 
-# Push?  Says where to and what waits to go (as the Outgoing view: the
+# Push (or sync)?  Says where to and what waits to go (as the Outgoing view: the
 # events among the artifacts not pushed yet, private ones only with
 # --private).  Fossil records as unsent only what its commands make for
 # sending (check-ins, branches, wiki, tickets, forum...), not tag
@@ -267,6 +273,13 @@ proc tktimeline::confirmPush {w} {
         append detail "  Private branches stay here."
     } else {
         append detail "  Private branches go too."
+    }
+    if {$pullOpt(kind) eq "sync"} {
+        append detail "\n\nWhat the remote has and this repository has not comes here."
+        if {$pullOpt(unversioned)} {
+            append detail "  Unversioned files go both ways: the newer of each wins, here or there."
+        }
+        return [ui::confirm -parent $w -title Sync "Sync [file tail $repo] with $where?" $detail]
     }
     ui::confirm -parent $w -title Push "Push from [file tail $repo] to $where?" $detail
 }

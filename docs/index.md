@@ -163,7 +163,7 @@ the confirmation shows what Fossil would do or record before anything is done.
 **It never pushes or syncs by itself.**
 Everything goes into the local repository or the checkout;
 sending it to a server is a separate step:
-**File ▸ Push…**, which shows what goes and asks first,
+**File ▸ Push…** or **Sync…**, which show what goes and ask first,
 or `fossil push` or `fossil sync`.
 Commits, updates, merges and new branches are run with `--nosync`,
 so they do not sync even when Fossil's `autosync` setting is on.
@@ -185,7 +185,7 @@ What can be changed, and where:
 | users, the default user | [Users](repository.md#users) | repository |
 | remotes, saved passwords | [Remotes](repository.md#remotes) | repository |
 | unversioned files | [Unversioned files](repository.md#unversioned-files) | repository |
-| pulling from a remote, pushing to one | [Timeline](timeline.md#pull-and-push) | repository |
+| pulling from a remote, pushing to one, syncing | [Timeline](timeline.md#pull-push-and-sync) | repository |
 
 Changes to the repository are recorded as the repository's **default user**
 (see [Users](repository.md#users)).

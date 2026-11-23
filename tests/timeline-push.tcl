@@ -28,7 +28,7 @@ set labels {}
 for {set i 0} {$i <= [.timeline.menu.file index end]} {incr i} {
     if {[.timeline.menu.file type $i] eq "command"} { lappend labels [.timeline.menu.file entrycget $i -label] }
 }
-check "File menu: Pull and Push" {"Pull…" in $labels && "Push…" in $labels}
+check "File menu: Pull, Push and Sync" {"Pull…" in $labels && "Push…" in $labels && "Sync…" in $labels}
 proc remoteHas {tag} { llength [fossil::sql $::up "SELECT 1 FROM tag WHERE tagname='$tag'"] }
 proc unsent {} { lindex [sql "SELECT count(*) FROM unsent"] 0 0 }
 check "waiting to go: [unsent] artifacts" {[unsent] > 0 && ![remoteHas wiki-TkPushed] && ![remoteHas sym-tk-pushed]}
@@ -40,6 +40,7 @@ check "dialog: [wm title $w], [$w.f.l cget -text], [$w.f.b.ok cget -text]" {[wm 
     && [$w.f.l cget -text] eq "Push to:" && [$w.f.b.ok cget -text] eq "Push"
     && [$w.f.all cget -text] eq "To all the remotes" && [string match "*Nothing is pulled*" [$w.f.into cget -text]]}
 check "remotes [$w.f.r cget -values], default first" {[$w.f.r cget -values] eq {default other} && $tktimeline::pullOpt(remote) eq "default"}
+check "no unversioned option for a push" {[grid info $w.f.unversioned] eq ""}
 
 # Refused: nothing run, nothing sent.
 set ::boxes {}; set ::details {}
@@ -82,6 +83,37 @@ set tktimeline::pullOpt(private) 0
 set ::answer no
 $w.f.b.ok invoke; update
 check "nothing waits: [lindex $::details end]" {[string match "*\n\nNo check-ins, wiki pages*" [lindex $::details end]]}
+destroy $w
+
+# Sync: both ways in one, asked first.  The remote has a new tag and an
+# unversioned file, the repository a new wiki page.
+exec fossil tag add tk-synced-up main -R $up 2>@1
+set f [open $T(tmp)/u.txt w]; puts $f "unversioned"; close $f
+exec fossil uv add $T(tmp)/u.txt --as u.txt -R $up 2>@1
+exec fossil wiki create TkSynced $T(tmp)/page.txt -R $R 2>@1
+destroy $w
+tktimeline::pull sync
+update
+check "sync dialog: [wm title $w], [$w.f.l cget -text], [$w.f.b.ok cget -text]" {[wm title $w] eq "Sync"
+    && [$w.f.l cget -text] eq "Sync with:" && [$w.f.b.ok cget -text] eq "Sync"
+    && [$w.f.all cget -text] eq "With all the remotes" && [grid info $w.f.unversioned] ne ""}
+set ::boxes {}; set ::details {}
+set tktimeline::pullCmd ""
+set ::answer no
+$w.f.b.ok invoke; update
+check "sync asked: [lindex $::boxes end]" {[lindex $::boxes end] eq "Sync tk.fossil with default?"
+    && [string match "*wiki: *" [lindex $::details end]] && [string match "*comes here.*" [lindex $::details end]]}
+check "refused: nothing run" {$tktimeline::pullCmd eq "" && ![remoteHas wiki-TkSynced] && [llength [sql "SELECT 1 FROM tag WHERE tagname='sym-tk-synced-up'"]] == 0}
+set ::answer yes
+set tktimeline::pullOpt(unversioned) 1
+$w.f.b.ok invoke
+for {set i 0} {$i < 600 && $tktimeline::pullChan ne ""} {incr i} { after 50; update }
+check "synced: [lrange $tktimeline::pullCmd 0 end-2]" {$tktimeline::pullCmd eq [list fossil sync -u -R $R]}
+check "unversioned said" {[string match "*Unversioned files go both ways*" [lindex $::details end]]}
+check "both ways: the page there, the tag and the unversioned file here" {[remoteHas wiki-TkSynced]
+    && [llength [sql "SELECT 1 FROM tag WHERE tagname='sym-tk-synced-up'"]] == 1
+    && [llength [sql "SELECT 1 FROM unversioned WHERE name='u.txt'"]] == 1 && [unsent] == 0}
+check "shown as a pull: the view $tktimeline::view" {$tktimeline::view eq "all"}
 destroy $w
 
 # From the File menu of another tab: the Timeline shown, the window open.
