@@ -75,8 +75,9 @@ proc tksettings::reload {} {
     set global [expr {$gcode ? {} : [parse $gout [names]]}]
     array unset settings
     dict for {name s} $effective {
-        set g [expr {[dict exists $global $name] && [dict get $global $name scope] eq "global"
-            ? [dict get $global $name value] : ""}]
+        set g [if {[dict exists $global $name] && [dict get $global $name scope] eq "global"} {
+            dict get $global $name value
+        }]
         set l [if {[dict get $s scope] eq "local"} {dict get $s value}]
         set settings($name) [dict create local $l global $g file [dict get $s file] \
             isLocal [expr {[dict get $s scope] eq "local"}] \
@@ -112,7 +113,7 @@ proc tksettings::showList {} {
         set from [origin $s]
         if {$onlySet && $from eq "default"} continue
         if {$f ne "" && [string first $f $name] < 0} continue
-        set value [expr {$from eq "local" ? [dict get $s local] : $from eq "global" ? [dict get $s global] : ""}]
+        set value [switch -- $from { local {dict get $s local} global {dict get $s global} default {string cat ""} }]
         if {$from eq "versioned"} { set value "(file [dict get $s file])" }
         lappend rows [list $name [dict create name $name value [oneLine $value] from $from \
             local [oneLine [dict get $s local]] global [oneLine [dict get $s global]]] {} \

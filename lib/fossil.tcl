@@ -98,9 +98,14 @@ proc fossil::command {command} {
     if {![eqOptions]} {
         # (Not a value that exec or Fossil would take for a redirection or
         # an option as a word of its own: then Fossil refuses the word.)
+        # (Not expr ?: a word like 0644 or a hash like 8413e79232 would
+        # come back as a number.)
         set command [concat {*}[lmap word $command {
-            expr {[regexp {^(--[A-Za-z][-A-Za-z0-9]*)=(.*)$} $word -> name value]
-                && ![catch {arg $value}] ? [list $name $value] : [list $word]}
+            if {[regexp {^(--[A-Za-z][-A-Za-z0-9]*)=(.*)$} $word -> name value] && ![catch {arg $value}]} {
+                list $name $value
+            } else {
+                list $word
+            }
         }]]
     }
     return $command

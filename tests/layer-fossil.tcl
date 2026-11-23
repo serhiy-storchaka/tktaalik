@@ -147,6 +147,16 @@ check "ArgsFile: none without wildcards, nor with --args" {[fossil::ArgsFile {fo
 check "ArgsFile: a word that cannot be a line: unchanged" {[fossil::ArgsFile {fossil grep * {-x y} *}] eq {fossil grep * {-x y} *}}
 
 # (The wrapper is a shell script: not on Windows.)
+# The words as they are, also where --NAME=VALUE is split (Fossil 2.21):
+# not as numbers.
+foreach eq {1 0} {
+    set fossil::eqOptions([fossil::exe]) $eq
+    set got [lrange [fossil::command {fossil settings pgp-command 0644 --from=007 8413e79232 0x10}] 1 end]
+    set want [if {$eq} {list settings pgp-command 0644 --from=007 8413e79232 0x10} else {list settings pgp-command 0644 --from 007 8413e79232 0x10}]
+    check "words kept (--NAME=VALUE [expr {$eq ? "taken" : "split"}]): $got" {$got eq $want}
+}
+unset fossil::eqOptions([fossil::exe])
+
 if {$::tcl_platform(platform) ne "windows"} {
     # FOSSIL: the executable to run, for every way of running it.
     set real [auto_execok fossil]
