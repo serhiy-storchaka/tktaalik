@@ -40,7 +40,8 @@ It has:
   a file added or deleted is there too, its whole text added or removed
   (`fossil diff -N`)
   (Ctrl+C copies the name of the one selected,
-  and its context menu has **Copy its diff**);
+  and its context menu has **Copy its diff**
+  and the entries of [External diff](#external-diff));
 - on the right, the diff;
 - at the bottom, a status line: how many files, and lines added and removed.
 
@@ -72,6 +73,8 @@ Escape or **Close** closes the window.
 
 Text can be selected and copied (Ctrl+C) from the diff.
 
+### External diff
+
 **External diff** shows the same diff, with the same options,
 in your graphical diff program:
 the one the `gdiff-command` setting names
@@ -80,6 +83,23 @@ or without it Fossil's own
 (`fossil gdiff`; for a stash `stash gshow`/`gdiff`,
 for a patch `patch gdiff`). Its tooltip says which.
 The windows that show a fixed text have no such button.
+Fossil opens the program for one file after another:
+the next one when the program is closed.
+
+The context menu of a file in the list has more:
+
+| Entry | What it does |
+|---|---|
+| External diff of this file | that file alone in the graphical diff program (for the diffs of `fossil diff`) |
+| Open its diff in external program | the file's diff as a file `NAME.diff`, in the program your desktop opens such files with (Kompare, an editor...) |
+| Open the whole diff in external program | the same for the whole diff |
+
+The `.diff` files are read-only copies in a temporary folder of Tktaalik's own,
+deleted when Tktaalik quits (as in [External programs](files.md#external-programs)).
+They work in every diff window, also those that show a fixed text (a patch, an attachment).
+
+The Commit tab has **External diff** for the selected files,
+and the history of a file in the Files tab **External diff against the previous version**.
 
 ## Diff options
 

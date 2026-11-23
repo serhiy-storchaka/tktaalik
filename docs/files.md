@@ -218,6 +218,7 @@ Right-click a version for its context menu:
 | Entry | What it does |
 |---|---|
 | Diff against the previous version | the same as a double-click |
+| External diff against the previous version | the same in your graphical diff program (`fossil gdiff`; see [External diff](diffs.md#external-diff)) |
 | Show the check-in in Timeline | the check-in of that version in the [Timeline](timeline.md) |
 | Content of this version | the Content tab at that version |
 | Blame of this version | the Blame tab at that version |

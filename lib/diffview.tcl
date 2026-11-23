@@ -19,6 +19,13 @@
 #       the number of files when shown); diffview::mark W FILES ?TAG?
 #       (TAG hit: bold, conflict: red, warn: orange), diffview::clear W.
 #
+#   diffview::gdiff ?-dir DIR? ?-parent W? -- ARGS...
+#       "fossil gdiff ARGS" in the background: the diff in the external
+#       diff program (the gdiff-command setting, else Fossil's own).
+#   diffview::openText NAME TEXT ?-parent W?
+#       the diff TEXT as a file NAME.diff in the program the desktop opens
+#       such files with (a read-only copy)
+#
 # The windows of diffview::run have Fossil's diff options in their Options
 # menu (-w, -Z, --strip-trailing-cr, --invert, -c N): changing one runs the
 # command again.
@@ -28,6 +35,7 @@
 
 namespace eval diffview {
     variable count 0            ;# windows made
+    variable copies 0           ;# diffs opened in external programs
     variable data               ;# array: window -> dict {files mode title}
     variable maxLines 20000     ;# more: one file at a time
     # Fossil's diff options: variable -> option.  (Context: -c N.)
@@ -291,18 +299,76 @@ proc diffview::gdiffCommand {w} {
     if {[dict exists $map $c]} {dict get $map $c}
 }
 
-proc diffview::external {w} {
+proc diffview::external {w {name ""}} {
     variable data
     set g [gdiffCommand $w]
     if {$g eq ""} return
     # (Not -i: with it Fossil ignores gdiff-command, and prints a diff.)
     set args [lsearch -all -inline -not -exact [dict get $data($w) args] -i]
-    if {[catch {fossil::inDir [dict get $data($w) dir] {
-        set cmd [list {*}[fossil::command $g] {*}[optionArgs $w] {*}$args << "" &]
-        exec {*}$cmd
-    }} msg]} {
-        ui::errorBox -parent $w -title "External diff" "fossil gdiff failed:" $msg
+    # One file: instead of the files and folders named that hold it.
+    if {$name ne ""} {
+        set args [lmap a $args {
+            regsub {^\./} $a "" path
+            if {$path eq $name || [string match $path/* $name]} continue
+            set a
+        }]
+        lappend args [fossil::arg $name]
     }
+    Gdiff [dict get $data($w) dir] $g [concat [optionArgs $w] $args] $w
+}
+
+proc diffview::gdiff {args} {
+    set opts [dict create -dir "" -parent .]
+    while {[llength $args] && [lindex $args 0] ne "--"} {
+        set args [lassign $args opt value]
+        dict set opts $opt $value
+    }
+    Gdiff [dict get $opts -dir] {fossil gdiff} [lrange $args 1 end] [dict get $opts -parent]
+}
+
+# The command G (fossil gdiff, stash gdiff...) with ARGS in DIR, in the
+# background: Fossil waits for the program, file after file.  Not a job of
+# fossil::start: the program stays open when Tktaalik quits.  (What Fossil
+# prints, the "Index:" lines of the files, goes nowhere.)
+proc diffview::Gdiff {dir g arglist parent} {
+    set null [if {$::tcl_platform(platform) eq "windows"} {string cat NUL} else {string cat /dev/null}]
+    if {[catch {fossil::inDir $dir {
+        exec {*}[fossil::command $g] {*}$arglist << "" >& $null &
+    }} msg]} {
+        ui::errorBox -parent $parent -title "External diff" "fossil gdiff failed:" $msg
+    }
+}
+
+proc diffview::openText {name text args} {
+    variable copies
+    set parent [if {[dict exists $args -parent]} {dict get $args -parent} else {string cat .}]
+    # (A name a file can have, anywhere.)
+    regsub -all {[^[:alnum:]._+-]+} $name _ name
+    set name [string trim $name _]
+    if {$name eq ""} { set name diff }
+    ui::openCopy diff[incr copies] $name.diff [list diffview::WriteText $text] \
+        -parent $parent -title "External program"
+}
+
+proc diffview::WriteText {text path} {
+    if {[catch {
+        set f [open $path w]
+        fconfigure $f -encoding utf-8
+        puts -nonewline $f $text
+        close $f
+    } msg]} {
+        return [list 1 $msg]
+    }
+    list 0 ""
+}
+
+# The whole diff of W as text.
+proc diffview::allText {w} {
+    variable data
+    join [lmap f [dict get $data($w) files] {
+        lassign $f name header body
+        join [concat $header $body] \n
+    }] \n
 }
 
 proc diffview::rerun {w} {
@@ -674,4 +740,14 @@ proc diffview::filesMenu {w m item} {
     set file [lindex [dict get $data($w) files] $item]
     lassign $file name header body
     popup::copy $m "Copy its diff" [join [concat $header $body] \n]
+    # In other programs: the external diff of the file (the commands
+    # with a gdiff variant that take file names), the diff as a file.
+    set one [expr {$name ne "" && [dict exists $data($w) command]
+        && [dict get $data($w) command] eq {fossil diff -i}}]
+    $m add command -label "External diff of this file" -state [expr {$one ? "normal" : "disabled"}] \
+        -command [list diffview::external $w $name]
+    $m add command -label "Open its diff in external program" \
+        -command [list diffview::openText [file tail $name] [join [concat $header $body] \n] -parent $w]
+    $m add command -label "Open the whole diff in external program" \
+        -command [list diffview::openText [dict get $data($w) title] [diffview::allText $w] -parent $w]
 }

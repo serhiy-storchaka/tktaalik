@@ -515,6 +515,19 @@ proc tkcommit::sideBySide {} {
     diffview::run $current -dir $root -mode sidebyside -- -N {*}[diffArgs] [filearg $current]
 }
 
+# The selected files in the external diff program (fossil gdiff): those
+# with changes Fossil diffs.
+proc tkcommit::externalDiff {} {
+    variable files
+    variable root
+    set paths [lmap p [selectedFiles] {
+        if {![dict exists $files $p] || [dict get $files $p] in {EXTRA MISSING UNCHANGED}} continue
+        set p
+    }]
+    if {![llength $paths]} { bell; return }
+    diffview::gdiff -dir $root -parent . -- -N {*}[diffArgs] {*}[lmap p $paths { filearg $p }]
+}
+
 # All changes of the checkout.
 proc tkcommit::diffAll {} {
     variable root
@@ -746,6 +759,7 @@ proc tkcommit::build {} {
     diffopts::menu .commit.menu.commit.diffopts tkcommit::refresh
     foreach {label command accel} {
         "Side-by-side diff"             tkcommit::sideBySide    ""
+        "External diff of the selected files" tkcommit::externalDiff ""
         "Open the selected files in external program" tkcommit::openExternal ""
         "Open the folder of the selected file" tkcommit::openFolder ""
         "Diff of all changes"           tkcommit::diffAll       ""
@@ -802,6 +816,7 @@ proc tkcommit::build {} {
     menu .commit.ctx -tearoff 0
     foreach {label command} {
         "Side-by-side diff"     tkcommit::sideBySide
+        "External diff"         tkcommit::externalDiff
         "Open in external program" tkcommit::openExternal
         "Open the folder"       tkcommit::openFolder
         "Add"                   tkcommit::addFiles

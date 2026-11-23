@@ -944,12 +944,16 @@ proc tkfiles::readBlame {chan path text} {
 }
 
 # Double-click: the diff of the check-in for this file.
-proc tkfiles::diffCheckin {uuid} {
+proc tkfiles::diffCheckin {uuid {external 0}} {
     variable repo
     variable file
     variable names
     if {$uuid eq "" || $file eq ""} return
     set name [if {[dict exists $names $uuid]} {dict get $names $uuid} else {set file}]
+    if {$external} {
+        diffview::gdiff -parent . -- -R $repo -N --checkin $uuid [fossil::arg $name]
+        return
+    }
     diffview::run "$name in [string range $uuid 0 9]" -mode sidebyside -- \
         -R $repo -N --checkin $uuid [fossil::arg $name]
 }
@@ -967,6 +971,8 @@ proc tkfiles::historyMenu {x y X Y} {
     set m .files.histctx
     $m delete 0 end
     $m add command -label "Diff against the previous version" -command [list tkfiles::diffCheckin $uuid]
+    $m add command -label "External diff against the previous version" \
+        -command [list tkfiles::diffCheckin $uuid 1]
     $m add command -label "Show the check-in in Timeline" -command [list goto::checkin $uuid]
     $m add command -label "Content of this version" -state $there \
         -command [list tkfiles::showAt $uuid content]

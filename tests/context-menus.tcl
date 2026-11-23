@@ -34,6 +34,7 @@ set same {
     "View in external program" "View the file in external program"
     "Open the checkout's folder of it" "Open the checkout's folder of the file"
     "Open in external program" "Open the selected files in external program"
+    "External diff" "External diff of the selected files"
     "Open the folder" "Open the folder of the selected file"
 }
 start timeline $W/co 1300x900
