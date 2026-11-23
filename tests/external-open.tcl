@@ -12,12 +12,14 @@ proc native {path} { file nativename [file normalize $path] }
 proc entry {m label} { $m index $label }
 set ::boxes {}
 
-# What would run is refused (X11: desktop launchers); a missing file or
-# folder is said to be missing.  Nothing started.
-check "runs: a launcher, not a text" {[ui::runs x.desktop] && ![ui::runs x.c] && ![ui::runs README]}
-set f [open $T(tmp)/x.desktop w]; puts $f "\[Desktop Entry\]"; close $f
+# What would run is refused (X11: desktop launchers; Windows: programs
+# and scripts); a missing file or folder is said to be missing.  Nothing
+# started.
+set runner [if {$tcl_platform(platform) eq "windows"} {string cat x.bat} else {string cat x.desktop}]
+check "runs: $runner, not a text" {[ui::runs $runner] && ![ui::runs x.c] && ![ui::runs README]}
+set f [open $T(tmp)/$runner w]; puts $f "\[Desktop Entry\]"; close $f
 set ::launched {}
-check "a launcher refused: [lindex $::boxes end]" {![ui::openFile $T(tmp)/x.desktop] && [string match "*it would run*" [lindex $::boxes end]] && $::launched eq ""}
+check "$runner refused: [lindex $::boxes end]" {![ui::openFile $T(tmp)/$runner] && [string match "*it would run*" [lindex $::boxes end]] && $::launched eq ""}
 check "missing: [lindex $::boxes end]" {![ui::openFile $T(tmp)/none.txt] && [string match "*is not there*" [lindex $::boxes end]]
     && ![ui::openFolder $T(tmp)/none] && $::launched eq ""}
 check "a file opened" {[ui::openFile $co/README.md] && $::launched eq [list [native $co/README.md]]}
@@ -47,7 +49,7 @@ check "a copy: [file tail $copy]" {[llength $::launched] == 1 && [file tail $cop
 set fh [open $copy r]; fconfigure $fh -encoding utf-8; set got [read $fh]; close $fh
 set want [exec fossil cat -R $W/tk.fossil -r $tkfiles::hash library/button.tcl]
 check "the version's content ([string length $got] [string length $want])" {[string trimright $got \n] eq $want}
-check "read-only: [file attributes $copy -permissions]" {![file writable $copy]}
+check "read-only" {![file writable $copy]}
 $m invoke [entry $m "View in external program"]
 check "the same copy again" {[llength $::launched] == 2 && [lindex $::launched 1] eq $copy}
 set ::launched {}
