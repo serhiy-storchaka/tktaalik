@@ -546,6 +546,8 @@ proc tktaalik::fileMenu {m} {
     $m add cascade -label "Known checkouts" -underline 6 -menu $m.checkouts
     $m add command -label "Clone repository\u2026" -underline 0 -command repoops::clone
     $m add command -label "New repository\u2026" -underline 0 -command repoops::newRepository
+    $m add command -label "Pull\u2026" -underline 0 -command {tktaalik::pullPush pull}
+    $m add command -label "Push\u2026" -underline 1 -command {tktaalik::pullPush push}
     $m add separator
     $m add command -label Back -underline 0 -accelerator Alt+Left \
         -command tktaalik::goBack -state disabled
@@ -554,6 +556,12 @@ proc tktaalik::fileMenu {m} {
     $m add command -label "Go to\u2026" -underline 0 -accelerator Ctrl+G -command goto::window
     $m add separator
     lappend historyMenus $m
+}
+
+# Pull or push (KIND), from any tab: in the Timeline, which shows what
+# came (the Last pull view) and what is not pushed yet.
+proc tktaalik::pullPush {kind} {
+    if {[show timeline]} { tktimeline::pull $kind }
 }
 
 # ---------------------------------------------------------- back, forward

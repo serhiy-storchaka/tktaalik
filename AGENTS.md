@@ -91,7 +91,8 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
   changes a repository or checkout is confirmed first, and nothing syncs:
   `--nosync` on commit, update, merge, branch commands (merge and branch
   through `fossil::nosync`: Fossil 2.25 and older refuse it there); refuse
-  while autosync is on.  Pushing is the user's step.
+  while autosync is on.  Pushing is the user's step: only File > Push
+  (`lib/pull.tcl`) pushes, after a confirmation of what goes.
 - **Tcl 9 namespaces.**  Refer to namespace variables as `::ns::var` or
   through `variable`; relative names resolve differently in Tcl 9
   (`info commands icons::x` inside another namespace finds nothing: use
@@ -127,8 +128,8 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
 - **Fossil's options**: a feature that runs a Fossil command should offer
   what its options do where that makes sense in a window, and say why not
   otherwise.  Anything that writes asks first, with Fossil's dry run (`-n`)
-  in the question where the command has one; nothing is ever pushed or
-  synced.
+  in the question where the command has one; nothing is pushed or synced
+  but by Push.
 
 ## Testing
 

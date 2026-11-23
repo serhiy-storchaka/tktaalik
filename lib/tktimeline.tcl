@@ -1176,7 +1176,6 @@ proc tktimeline::build {} {
     menu .timeline.menu
     .timeline.menu add cascade -label File -underline 0 -menu [menu .timeline.menu.file]
     tktaalik::fileMenu .timeline.menu.file
-    .timeline.menu.file add command -label "Pull\u2026" -underline 0 -command tktimeline::pull
     .timeline.menu.file add command -label "Describe from tags matching\u2026" -underline 0 \
         -command tktimeline::describeMatch
     .timeline.menu.file add command -label "Compare releases\u2026" -underline 2 \

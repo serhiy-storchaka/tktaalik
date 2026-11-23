@@ -7,10 +7,11 @@ The name comes from *Tiktaalik*,
 the fossil fish that came out of the water on its fins: Fossil,
 brought out of the command line.
 
-**It never pushes.**
+**It never pushes by itself.**
 Everything it changes stays in the local repository or checkout,
 and is confirmed first.
-Pushing stays your own step.
+Only **Push…** sends it to a server,
+after showing what goes and asking.
 
 ## What it does
 

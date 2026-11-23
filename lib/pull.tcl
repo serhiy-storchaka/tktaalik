@@ -1,5 +1,6 @@
-# The Timeline tab (lib/tktimeline.tcl): pull -- the check-ins of the
-# remote repository brought in (nothing is pushed).
+# The Timeline tab (lib/tktimeline.tcl): pull and push -- the check-ins
+# of a remote repository brought in, or ours sent there (only when asked,
+# after a confirmation of what goes; nothing syncs).
 
 # ------------------------------------------------------------------- pull
 
@@ -18,29 +19,33 @@ proc tktimeline::remotes {} {
     }}} $list
 }
 
-# Pull from a remote ("fossil pull"; never push or sync), with its
-# options, then show what came: the Last pull view.
-proc tktimeline::pull {} {
+# Pull from a remote ("fossil pull"), then show what came: the Last pull
+# view; or push to one ("fossil push"), after a confirmation of what goes
+# (KIND pull or push).  Both take the same options, in the same window.
+# Neither syncs: a pull sends nothing, a push brings nothing.
+proc tktimeline::pull {{kind pull}} {
     variable repo
     variable pullOpt
     variable pullChan
     if {[info exists pullChan] && $pullChan ne ""} { bell; return }
+    set title [string totitle $kind]
     set remotes [remotes]
     if {![llength $remotes]} {
-        tk_messageBox -icon info -title Pull -message "The repository has no remote." \
+        tk_messageBox -icon info -title $title -message "The repository has no remote." \
             -detail "Add one in Repository \u25b8 Remotes."
         return
     }
     array set pullOpt {private 0 all 0 ipv4 0 verily 0 verbose 0 auth ""}
+    set pullOpt(kind) $kind
     set pullOpt(remote) [lindex $remotes 0 0]
     set w .timeline.pull
     destroy $w
     toplevel $w
-    wm title $w Pull
+    wm title $w $title
     wm transient $w .
     ttk::frame $w.f -padding 10
     pack $w.f -fill both -expand 1
-    ttk::label $w.f.l -text "Pull from:"
+    ttk::label $w.f.l -text [dict get {pull "Pull from:" push "Push to:"} $kind]
     ttk::combobox $w.f.r -state readonly -textvariable tktimeline::pullOpt(remote) \
         -values [lmap r $remotes { lindex $r 0 }] -width 20
     ttk::label $w.f.url -foreground gray40
@@ -53,9 +58,15 @@ proc tktimeline::pull {} {
     }} $w $remotes]
     bind $w.f.r <<ComboboxSelected>> $update
     {*}$update
-    ttk::label $w.f.into -text "into [file tail $repo].  Nothing is pushed." -foreground gray40
+    if {$kind eq "pull"} {
+        set into "into [file tail $repo].  Nothing is pushed."
+    } else {
+        set into "from [file tail $repo].  Nothing is pulled; what goes is shown first."
+    }
+    ttk::label $w.f.into -text $into -foreground gray40
     ttk::checkbutton $w.f.private -text "Private branches too" -variable tktimeline::pullOpt(private)
-    ttk::checkbutton $w.f.all -text "From all the remotes" -variable tktimeline::pullOpt(all)
+    ttk::checkbutton $w.f.all -text [dict get {pull "From all the remotes" push "To all the remotes"} $kind] \
+        -variable tktimeline::pullOpt(all)
     if {[llength $remotes] < 2} { $w.f.all state disabled }
     ttk::checkbutton $w.f.ipv4 -text "IPv4 only" -variable tktimeline::pullOpt(ipv4)
     ttk::checkbutton $w.f.verily -text "Verily: make sure nothing is overlooked (slower)" \
@@ -66,7 +77,7 @@ proc tktimeline::pull {} {
     ttk::label $w.f.an -text "user:password, if the web server asks for it" -foreground gray40
     text $w.f.out -width 80 -height 8 -font TkFixedFont -state disabled -wrap none
     ttk::frame $w.f.b
-    ttk::button $w.f.b.ok -text Pull -default active -command tktimeline::startPull
+    ttk::button $w.f.b.ok -text $title -default active -command tktimeline::startPull
     ttk::button $w.f.b.stop -text Stop -command tktimeline::stopPull -state disabled
     ttk::button $w.f.b.cancel -text Close -command [list destroy $w]
     pack $w.f.b.cancel $w.f.b.stop $w.f.b.ok -side right -padx {4 0}
@@ -90,17 +101,19 @@ proc tktimeline::startPull {} {
     variable pullChan
     variable pullBefore
     set w .timeline.pull
+    set kind $pullOpt(kind)
+    set title [string totitle $kind]
     set auth [string trim $pullOpt(auth)]
     if {$auth ne "" && (![regexp {^[^:\s]+:\S*$} $auth] || [catch {fossil::arg $auth}])} {
-        tk_messageBox -icon info -parent $w -title Pull -message "HTTP authentication: user:password"
+        tk_messageBox -icon info -parent $w -title $title -message "HTTP authentication: user:password"
         return
     }
-    set cmd [list fossil pull]
+    set cmd [list fossil $kind]
     if {$pullOpt(all)} {
         lappend cmd --all
     } elseif {$pullOpt(remote) ne "default"} {
         # Another remote: once, the default stays.
-        if {![fossil::argOk $pullOpt(remote) Pull]} return
+        if {![fossil::argOk $pullOpt(remote) $title]} return
         lappend cmd [fossil::arg $pullOpt(remote)] --once
     }
     foreach {key option} {private --private ipv4 --ipv4 verily --verily verbose -v} {
@@ -109,15 +122,16 @@ proc tktimeline::startPull {} {
     # (In one word: the password cannot be taken for anything else.)
     if {$auth ne ""} { lappend cmd --httpauth=$auth }
     lappend cmd -R $repo
+    if {$kind eq "push" && ![confirmPush $w]} return
     variable pullCmd $cmd
     variable ridBefore
     lassign [lindex [fossil::sql $repo "SELECT (SELECT coalesce(max(rcvid),0) FROM rcvfrom),
         (SELECT coalesce(max(rid),0) FROM blob)"] 0] pullBefore ridBefore
     try {
-        set pullChan [fossil::lenient [open |[list {*}$cmd 2>@1] r+]]
+        set pullChan [fossil::lenient [open |[list {*}[fossil::command $cmd] 2>@1] r+]]
     } on error msg {
         set pullChan ""
-        tk_messageBox -icon error -parent $w -title Pull -message $msg
+        tk_messageBox -icon error -parent $w -title $title -message $msg
         return
     }
     chan close $pullChan write
@@ -161,6 +175,13 @@ proc tktimeline::pullOutput {} {
             $w.f.out configure -state disabled
         }
     }
+    # After a push: the Outgoing view and the marks of what is not pushed
+    # yet, again.
+    variable pullOpt
+    if {$pullOpt(kind) eq "push"} {
+        changedHere
+        return
+    }
     # What came: the Last pull view if it came from a server (the view
     # knows pulls by their address); else everything.  (The new artifacts
     # by their rids: see lastPull.)
@@ -196,4 +217,56 @@ proc tktimeline::pullOutput {} {
             }
         }
     }
+}
+
+# Push?  Says where to and what waits to go (as the Outgoing view: the
+# events among the artifacts not pushed yet, private ones only with
+# --private).  Fossil records as unsent only what its commands make for
+# sending (check-ins, branches, wiki, tickets, forum...), not tag
+# changes; those go all the same, as the remote asks for what it lacks:
+# also everything for a remote never pushed to.
+proc tktimeline::confirmPush {w} {
+    variable repo
+    variable pullOpt
+    # (The remote named in the question, its URL below: a long one would
+    # make the question long.)
+    set urls {}
+    foreach r [remotes] {
+        if {$pullOpt(all) || [lindex $r 0] eq $pullOpt(remote)} { lappend urls "[lindex $r 0]: [lindex $r 1]" }
+    }
+    set where [if {$pullOpt(all)} {string cat "all the remotes"} else {set pullOpt(remote)}]
+    set private [if {!$pullOpt(private)} {string cat "AND rid NOT IN (SELECT rid FROM private)"}]
+    set count [lindex [fossil::sql $repo "SELECT count(*) FROM unsent WHERE 1 $private"] 0 0]
+    set events [fossil::sql $repo "SELECT e.type, date(e.mtime), e.user, [fossil::outcol coalesce(e.comment,'')]
+        FROM event e WHERE e.objid IN (SELECT rid FROM unsent WHERE 1 $private) ORDER BY e.mtime"]
+    set names {ci check-in w wiki t ticket g tag e technote f forum}
+    set lines {}
+    foreach row [lrange $events 0 19] {
+        lassign $row type date user comment
+        set comment [fossil::oneLine $comment]
+        if {[string length $comment] > 70} { set comment "[string range $comment 0 68]\u2026" }
+        set name [if {[dict exists $names $type]} {dict get $names $type} else {set type}]
+        lappend lines "$date  $user  $name: $comment"
+    }
+    if {[llength $events] > 20} { lappend lines "\u2026 and [expr {[llength $events] - 20}] more" }
+    set detail "[join $urls \n]\n\n"
+    if {$count == 0} {
+        append detail "No check-ins, wiki pages, tickets or posts wait to go.  Fossil still sends\
+            tag changes and anything else the remote does not have."
+    } else {
+        append detail "Not pushed yet (the Outgoing view): [expr {$count == 1 ? "1 artifact" : "$count artifacts"}]"
+        if {[llength $events]} {
+            append detail ", with [expr {[llength $events] == 1 ? "this event" : "these [llength $events] events"}]:\n\n[join $lines \n]"
+        } else {
+            append detail "."
+        }
+        append detail "\n\nFossil also sends tag changes (not counted here) and anything else the\
+            remote does not have."
+    }
+    if {!$pullOpt(private)} {
+        append detail "  Private branches stay here."
+    } else {
+        append detail "  Private branches go too."
+    }
+    ui::confirm -parent $w -title Push "Push from [file tail $repo] to $where?" $detail
 }

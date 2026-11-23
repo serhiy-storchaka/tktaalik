@@ -160,14 +160,14 @@ a confirmation names what will change.
 Where Fossil can run a command as a dry run (`-n`, `--dry-run`),
 the confirmation shows what Fossil would do or record before anything is done.
 
-**It never pushes or syncs.**
+**It never pushes or syncs by itself.**
 Everything goes into the local repository or the checkout;
-sending it to a server stays a separate step for you
-(`fossil push` or `fossil sync`).
+sending it to a server is a separate step:
+**File ▸ Push…**, which shows what goes and asks first,
+or `fossil push` or `fossil sync`.
 Commits, updates, merges and new branches are run with `--nosync`,
 so they do not sync even when Fossil's `autosync` setting is on.
-**Pull** (Timeline, File ▸ Pull…) is the one command that talks to a server,
-and it only fetches.
+**File ▸ Pull…** only fetches, and Push only sends.
 
 What can be changed, and where:
 
@@ -185,7 +185,7 @@ What can be changed, and where:
 | users, the default user | [Users](repository.md#users) | repository |
 | remotes, saved passwords | [Remotes](repository.md#remotes) | repository |
 | unversioned files | [Unversioned files](repository.md#unversioned-files) | repository |
-| pulling from a remote | [Timeline](timeline.md#pull) | repository |
+| pulling from a remote, pushing to one | [Timeline](timeline.md#pull-and-push) | repository |
 
 Changes to the repository are recorded as the repository's **default user**
 (see [Users](repository.md#users)).

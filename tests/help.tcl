@@ -5,7 +5,7 @@ start tickets "" 1100x800
 set pages [help::pages]
 set required {
     index {getting-started the-window opening-a-repository back-and-forward what-tktaalik-changes contents}
-    timeline {views search-syntax details editing-check-ins tags-on-check-ins bisect pull}
+    timeline {views search-syntax details editing-check-ins tags-on-check-ins bisect pull-and-push}
     tickets {search-syntax the-list details comments editing-tickets attachments history reports}
     branches {views search-syntax merge-state details update-and-merge managing-branches changes-between-releases}
     tags {the-list history adding-and-cancelling-tags}

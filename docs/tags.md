@@ -109,7 +109,8 @@ would record, with **Apply** and **Cancel**.
 Only Apply changes the repository.
 The change is a new artifact in the local repository,
 written as the repository's default user;
-it reaches the server with your next push, made outside Tktaalik.
+it reaches the server with your next push
+([File ▸ Push…](timeline.md#pull-and-push)).
 
 ### Add…
 

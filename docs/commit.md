@@ -10,9 +10,10 @@ The tab needs a checkout.
 When only a repository file is open, the tab is disabled;
 open a checkout with **File ▸ Open checkout…**.
 
-**Nothing is ever pushed.**
+**A commit pushes nothing.**
 Commits are made with `--nosync`, whatever the `autosync` setting says:
-the new check-in stays in the local repository until you push it yourself.
+the new check-in stays in the local repository until you push it
+([File ▸ Push…](timeline.md#pull-and-push), or `fossil push`).
 The line at the top of the tab shows the checkout's directory, its branch,
 the check-in it is on and the autosync setting
 (as written, for example `on,commit=off`),
