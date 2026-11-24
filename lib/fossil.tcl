@@ -38,8 +38,9 @@
 namespace eval fossil {
     variable rendered {}        ;# format, text -> HTML (fossil::render)
     # A link to an artifact in Fossil wiki, [hash] or [hash|label], which
-    # Fossil renders without a server as it is written (hashLink).
-    variable hashLinkRE {\[([0-9a-fA-F]{4,40})(?:\|([^]|]*))?\]}
+    # Fossil renders without a server as it is written (hashLink); up to
+    # the 64 digits of a SHA3 hash.
+    variable hashLinkRE {\[([0-9a-fA-F]{4,64})(?:\|([^]|]*))?\]}
 }
 
 # Run fossil (in the current directory, or -dir DIR) with stdin empty (or
