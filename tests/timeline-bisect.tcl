@@ -51,7 +51,11 @@ proc cliDescribe {args} {
     if {$code} { return -code error "fossil describe: [lindex [split [string trim $out] \n] 0]" }
     string trim $out
 }
-if {[catch {cliDescribe $uuid} cli]} {
+# (Fossil 2.24 and older follow merges too, for the youngest tag: since
+# 2.25 only the direct ancestors, as Tktaalik does.)
+if {![package vsatisfies [lindex [tktaalik::fossilVersion] 0] 2.25-]} {
+    puts "skipped: the comparisons with fossil describe (Fossil [tktaalik::fossilVersion] follows merges)"
+} elseif {[catch {cliDescribe $uuid} cli]} {
     puts "skipped: the comparisons with fossil describe ($cli)"
 } else {
     check "as fossil describe: $cli" {$tip eq $cli}

@@ -25,17 +25,18 @@ check "docs: [llength $docs] ([lindex $docs 0 1])" {[llength $docs] > 0 && [stri
 tkfulltext::openResult [lsearch -index 0 $tkfulltext::results d]; update
 check "opened: Files, $tkfiles::file" {$tktaalik::active eq "files" && $tkfiles::file eq [lindex $docs 0 1]}
 tktaalik::show search; update
-# More: twice as many of a kind at the limit.
+# More: twice as many of a kind at the limit (10 here, 200 by default).
+set tkfulltext::firstLimit 10
 set tkfulltext::use(d) 0
 set tkfulltext::use(c) 1
 set tkfulltext::query fix
 tkfulltext::search; wait
 set n [llength [lsearch -all -index 0 $tkfulltext::results c]]
-check "check-ins: $n, More enabled" {$n == 200 && [.search.kinds.more instate !disabled]}
+check "check-ins: $n, More enabled" {$n == 10 && [.search.kinds.more instate !disabled]}
 .search.kinds.more invoke; wait
 set n2 [llength [lsearch -all -index 0 $tkfulltext::results c]]
-check "More: $n2" {$n2 > 200 && $tkfulltext::limit == 400}
+check "More: $n2" {$n2 > 10 && $tkfulltext::limit == 20}
 set tkfulltext::query "fix crash"
 tkfulltext::search; wait
-check "another search: 200 again" {$tkfulltext::limit == 200}
+check "another search: 10 again" {$tkfulltext::limit == 10}
 done

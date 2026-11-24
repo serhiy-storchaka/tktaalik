@@ -136,23 +136,35 @@ dependencies beyond Tcl/Tk and the `fossil` executable.
 The tests are in `tests/`, one script per area, run under Xvfb with each
 Tk in `$WISH` (default `wish8.6 wish9.0`):
 
-    TKTAALIK_REPO=~/src/tk.fossil tests/run.sh [-j N] [NAME...]
+    tests/run.sh [-j N] [NAME...]
 
 They run N at a time (default: the processors, at most 8), each with its
 own X display, directory and scratch copy; the results come in order at
 the end, then the slowest tests with their times.  The whole suite takes a
-few minutes.  Keep tests fast: never clone or rebuild the Tk repository in
+minute on Linux.  Keep tests fast: never clone or rebuild the Tk repository in
 a test (a clone takes a minute: clone a small repository made in the
 test), avoid queries that join every comment with every check-in, and
 let a stopped command take its children with it (`fossil::kill`).
 
-`TKTAALIK_REPO` is a copy of the Tk repository: the tests check its
-tickets, branches and comments, and only read it.  The tests that write
-(Settings, Stash, applying attachments) get a scratch copy made by
-`tests/scratch.sh`, and every test has its own `FOSSIL_HOME`.  Optional:
-`TKTAALIK_REPO2` (a repository with another ticket schema),
-`TKTAALIK_FORUM` (a copy of the Fossil forum, for `forum`), the XTEST
-helper `tests/xbutton.c`, which `run.sh` compiles if it can, and the Img
+The tests read a repository in the shape of Tk's (its ticket setup, branch
+and tag names, files; tickets, comments and links of the kinds they look
+for), one of another ticket schema (the TIPs', with a `tip_number`, and a
+technote) and one with a forum.  `tests/make-repos.tcl` makes them in a
+second, small (some 500 KB), in `$TKTAALIK_TMP/repos`: `run.sh` makes them
+again when the script, its data (`tests/data/*.conf`, the ticket setups)
+or the Fossil changes, and each month (a ticket has changes of the last
+year).  `TKTAALIK_REPO`, `TKTAALIK_REPO2` and `TKTAALIK_FORUM` name others
+instead: copies of the Tk repository, of the TIPs' and of the Fossil forum,
+which the tests must pass on as well.  So a test finds what it needs by
+what it is (a query), not by a hash of a check-in or a post (those differ
+between the two), and does not count on the size of the real ones: what a
+test needs that the small repository lacks goes into `make-repos.tcl`, and
+a limit of 1000 rows is tested with a lower one (`tktimeline::firstLimit`,
+`tkbranches::checkinLimit`, `tkfulltext::firstLimit`).  The tests only read
+them; the tests that write (Settings, Stash, applying attachments) get a
+scratch copy made by `tests/scratch.sh`, and every test has its own
+`FOSSIL_HOME`.  Optional: the XTEST helper `tests/xbutton.c`, which
+`run.sh` compiles if it can, and the Img
 extension on the `TCLLIBPATH` (`attach-images` then views a JPEG; without
 it, checks that View is disabled: run it both ways).  See
 `tests/common.tcl`.  `FOSSIL` runs them with another Fossil (the
@@ -177,7 +189,7 @@ that hangs sooner.
   `::boxArgs`, `::browsed`); `start TAB ?PATH? ?SIZE?` opens the
   application; `waitUntil COND` instead of a loop of `after`/`vwait` (it
   fails with a message instead of hanging); `whenOpen W SCRIPT` instead of
-  `after N SCRIPT` to answer a modal dialog; `sql`, `labels`, `fossilIn`.
+  `after N SCRIPT` to answer a modal dialog; `sql`, `labels`, `fossilIn`, `purges`.
   Define your own only for something else.
 - Never run Tk tests on the user's display: their mouse and keyboard
   disturb them, and synthetic input on a real (Xwayland) display can

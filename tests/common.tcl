@@ -2,9 +2,12 @@
 # sourced without starting it, its settings in a temporary directory, and
 # check/done for the results.  The environment:
 #
-#   TKTAALIK_REPO     a copy of the Tk repository (tk.fossil), only read
-#   TKTAALIK_REPO2    optional: a repository with another ticket schema
-#   TKTAALIK_FORUM    optional: a repository with a forum (the Fossil forum)
+#   TKTAALIK_REPO     a repository in the shape of Tk's (tk.fossil), only
+#                     read: made by make-repos.tcl, or a copy of Tk's
+#   TKTAALIK_REPO2    a repository with another ticket schema (the TIPs')
+#   TKTAALIK_FORUM    a repository with a forum (as the Fossil forum's)
+#                     (run.sh sets them; the tests that need the last two
+#                     are skipped without them)
 #   TKTAALIK_SCRATCH  a scratch checkout (tests/scratch.sh), for the tests
 #                     that write; never the real repository
 #   TKTAALIK_TMP      where the tests keep their files
@@ -125,6 +128,7 @@ proc done {} {
 #                       the repository
 #   fossilIn DIR ARG... fossil ARG... run in DIR: its output (an error's
 #                       too), trimmed
+#   purges REPO         the number of purges in the graveyard of REPO
 #   realInput           whether real mouse buttons can be pressed: the
 #                       XTEST helper is there and the display is an Xvfb
 #                       (never the user's display)
@@ -217,6 +221,10 @@ proc sql {q {repo ""}} {
 proc fossilIn {dir args} {
     lassign [fossil::run -dir $dir {*}$args] code out
     string trim $out
+}
+
+proc purges {repo} {
+    regexp -all -line {^\s*\d+ on } [exec fossil purge list -R $repo]
 }
 
 proc realInput {} {

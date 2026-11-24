@@ -17,14 +17,18 @@ fossil::sqlAsync $T(repo) "SELECT nosuchcolumn FROM tag" {::apply {{code rows} {
 waitUntil {[info exists ::async]}
 check "sqlAsync: an error: $::async" {[lindex $::async 0] == 1 || [string match "*no such column*" [lindex $::async 1]]}
 
-# The header at once, the check-ins after.
+# The header at once, the check-ins after: the newest only (some of the
+# small repository's trunk).
+set tkbranches::checkinLimit 10
 tkbranches::showDetails trunk
 check "trunk: the header at once, no check-ins yet" {[string match "trunk *" $tkbranches::header]
     && [llength [$c children {}]] == 0 && [$nb tab 0 -text] eq "Check-ins"}
 waitUntil {[string match "Check-ins (*" [$nb tab 0 -text]]}
-check "then its check-ins: [$nb tab 0 -text]" {[llength [$c children {}]] == 1000}
+set n [dict get $tkbranches::branches(trunk) checkins]
+check "then its check-ins: [$nb tab 0 -text]" {$n > 10 && [llength [$c children {}]] == 10 && [$nb tab 0 -text] eq "Check-ins (10 of $n)"}
 
 # Another branch selected before the first one's lists came: its own.
+set tkbranches::checkinLimit 1000
 tkbranches::showDetails trunk
 tkbranches::showDetails tip-698
 waitUntil {[string match "Check-ins (*" [$nb tab 0 -text]]}

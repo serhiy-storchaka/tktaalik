@@ -59,7 +59,8 @@ unset ::job
 # command that writes would wait for it.
 set ::finished ""
 fossil::start -finish 1 -onDone {::apply {{code text stopped msg} { set ::finished [list $code [string length $text]] }}} \
-    sql -R $T(repo) --readonly "SELECT printf('%.200c', 'x') FROM blob LIMIT 2000"
+    sql -R $T(repo) --readonly "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 2000)\
+        SELECT printf('%.200c', 'x') FROM n"
 set before $::finished
 fossil::run version
 check "-finish: done before fossil::run: [list $before] then [list $::finished]" {$before eq ""

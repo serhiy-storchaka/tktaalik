@@ -54,7 +54,7 @@ check "no changes yet: [llength [$t children {}]] files" {[llength [$t children 
 
 # Unchanged files listed when wanted.
 .commit.bottom.opts.unchanged invoke; update
-check "Show unchanged files: [llength [$t children {}]]" {[llength [$t children {}]] > 500 && [$t set changes.md status] eq "UNCHANGED"}
+check "Show unchanged files: [llength [$t children {}]]" {[llength [$t children {}]] == [llength [split [fossilIn $co ls] \n]] && [$t set changes.md status] eq "UNCHANGED"}
 check "unchanged: not checked" {$tkcommit::checked(changes.md) == 0 && [llength [tkcommit::toCommit]] == 0}
 
 # Rename (on disk too), with its dry run.

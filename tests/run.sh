@@ -2,10 +2,18 @@
 # Runs the tests under Xvfb with each Tk in $WISH (default "wish8.6 wish9.0"),
 # several at a time:
 #
-#   TKTAALIK_REPO=~/src/tk.fossil tests/run.sh [-j N] [NAME...]
+#   tests/run.sh [-j N] [NAME...]
 #
-# TKTAALIK_REPO is a copy of the Tk repository: the tests read it (and
-# expect its tickets and branches), the ones that write use a scratch copy.
+# The tests read a repository in the shape of Tk's (they expect its
+# tickets and branches), the ones that write use a scratch copy of it; some
+# also one of another ticket schema and one with a forum.  They are made by
+# make-repos.tcl (in $TKTAALIK_TMP/repos, again when the script or the
+# Fossil changes, and each month), or TKTAALIK_REPO, TKTAALIK_REPO2 and
+# TKTAALIK_FORUM name others: copies of the Tk repository, of the TIPs' and
+# of the Fossil forum, as
+#
+#   TKTAALIK_REPO=~/src/tk.fossil tests/run.sh
+#
 # See tests/common.tcl for the other settings.  Each test gets its own
 # FOSSIL_HOME, so ~/.fossil is not touched.  FOSSIL, if set, is the Fossil
 # to test with (a path, or a name on PATH): the application uses it, and
@@ -67,10 +75,8 @@ fi
 
 jobs=""
 if [ "${1:-}" = -j ]; then jobs=$2; shift 2; fi
-: "${TKTAALIK_REPO:?set TKTAALIK_REPO to a copy of the Tk repository}"
-TKTAALIK_REPO=$(cd "$(dirname "$TKTAALIK_REPO")" && pwd)/$(basename "$TKTAALIK_REPO")
 TKTAALIK_TMP=${TKTAALIK_TMP:-${TMPDIR:-/tmp}/tktaalik-tests}
-export TKTAALIK_REPO TKTAALIK_TMP
+export TKTAALIK_TMP
 mkdir -p "$TKTAALIK_TMP"
 WISH=${WISH:-wish8.6 wish9.0}
 # Another Fossil: first on PATH, as "fossil".
@@ -83,6 +89,26 @@ if [ -n "${FOSSIL:-}" ]; then
     export FOSSIL PATH
     echo "With $(fossil version | head -1)"
 fi
+# The repositories: made for those not named, kept while the script, its
+# data and the Fossil are the same, in the same month (they have events of
+# the last year).
+if [ -z "${TKTAALIK_REPO:-}" ] || [ -z "${TKTAALIK_REPO2:-}" ] || [ -z "${TKTAALIK_FORUM:-}" ]; then
+    repos=$TKTAALIK_TMP/repos
+    stamp="$(cat make-repos.tcl data/*.conf | cksum) $(fossil version) $(date +%Y-%m)"
+    if [ ! -f "$repos/tk.fossil" ] || [ "$(cat "$repos/stamp" 2>/dev/null)" != "$stamp" ]; then
+        rm -f "$repos/stamp"
+        if ! xvfb-run -a "${WISH%% *}" -encoding utf-8 make-repos.tcl "$repos"; then
+            echo "The test repositories could not be made (make-repos.tcl)"
+            exit 1
+        fi
+        echo "$stamp" > "$repos/stamp"
+    fi
+    TKTAALIK_REPO=${TKTAALIK_REPO:-$repos/tk.fossil}
+    TKTAALIK_REPO2=${TKTAALIK_REPO2:-$repos/tips.fossil}
+    TKTAALIK_FORUM=${TKTAALIK_FORUM:-$repos/forum.fossil}
+fi
+TKTAALIK_REPO=$(cd "$(dirname "$TKTAALIK_REPO")" && pwd)/$(basename "$TKTAALIK_REPO")
+export TKTAALIK_REPO TKTAALIK_REPO2 TKTAALIK_FORUM
 if [ -z "$jobs" ]; then
     jobs=$(nproc 2>/dev/null || echo 4)
     [ "$jobs" -gt 8 ] && jobs=8
@@ -98,7 +124,7 @@ export TKTAALIK_XBUTTON=${TKTAALIK_XBUTTON:-}
 dbus=""
 command -v dbus-run-session >/dev/null 2>&1 && dbus="dbus-run-session --"
 export dbus
-tests=${*:-$(ls *.tcl | grep -v -x -e common.tcl -e smoke.tcl | sed "s/\.tcl$//")}
+tests=${*:-$(ls *.tcl | grep -v -x -e common.tcl -e smoke.tcl -e make-repos.tcl | sed "s/\.tcl$//")}
 rm -rf "$TKTAALIK_TMP/out"; mkdir -p "$TKTAALIK_TMP/out"
 # Each test its own X display number (xvfb-run -a starting from it): two
 # started at once do not take the same one.

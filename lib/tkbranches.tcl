@@ -36,6 +36,7 @@ namespace eval tkbranches {
     variable showHidden 0
     variable privateOnly 0
     variable selected ""        ;# the branch in the details
+    variable checkinLimit 1000  ;# the newest check-ins of it shown there
     variable searched ""        ;# the query of the list shown
     variable shown {}           ;# the query, view and options of the list shown
     variable header ""          ;# the line above the details
@@ -1042,6 +1043,7 @@ proc tkbranches::selectedNames {} {
 proc tkbranches::showDetails {name} {
     variable branches
     variable selected
+    variable checkinLimit
     variable header
     variable tipHash
     variable targets
@@ -1105,7 +1107,7 @@ proc tkbranches::showDetails {name} {
         FROM tagxref x JOIN event e ON e.objid=x.rid JOIN blob b ON b.rid=e.objid
         WHERE x.tagid=(SELECT tagid FROM tag WHERE tagname='branch') AND x.tagtype>0
         AND x.value=[fossil::sqlstr $name] AND e.type='ci' ORDER BY e.mtime DESC
-        LIMIT 1000" [list tkbranches::checkinsRead $name]]
+        LIMIT $checkinLimit" [list tkbranches::checkinsRead $name]]
 
     # The tickets.
     set ids [dict get $b tickets]
@@ -1143,7 +1145,7 @@ proc tkbranches::checkinsRead {name code rows} {
                 [string map {\n " "} [fossil::lf $comment]]]
     }
     if {[llength $rows]} { $c see [lindex [$c children {}] 0] }
-    # (The newest 1000: a main branch can have tens of thousands.)
+    # (The newest only: a main branch can have tens of thousands.)
     set n [dict get $branches($name) checkins]
     .branches.main.details.nb tab 0 -text [expr {$n > [llength $rows]
         ? "Check-ins ([llength $rows] of $n)" : "Check-ins ($n)"}]

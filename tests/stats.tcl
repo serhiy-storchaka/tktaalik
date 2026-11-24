@@ -116,13 +116,32 @@ tkstats::choose period
 waitUntil {[llength [dict get $charts::spec($a.time) -categories]] < 60}
 set weeks [dict get $charts::spec($a.time) -categories]
 set after [lastYear]
-check "a year in weeks: [llength $weeks], [total $a.time] events ($after..$before)" {[llength $weeks] >= 52 && [llength $weeks] <= 54
-    && [total $a.time] <= $before && [total $a.time] >= $after}
+# (From the week of the first event in it, to this one: a year where there
+# was something every week.)
+proc since {unit} {
+    set of [dict get {week "date(%s, '-6 days', 'weekday 1')" month "strftime('%%Y-%%m-01', %s)"} $unit]
+    lindex [sql "SELECT [format $of 'now'], [format $of min(mtime)] FROM event WHERE mtime >= julianday('now', '-1 year')"] 0
+}
+lassign [since week] now first
+set want 0
+if {$first ne ""} {
+    set want [expr {round(([clock scan $now -format %Y-%m-%d -timezone :UTC] - [clock scan $first -format %Y-%m-%d -timezone :UTC]) / 604800.0) + 1}]
+}
+check "a year in weeks: [llength $weeks] of $want, [total $a.time] events ($after..$before)" {[llength $weeks] <= 54
+    && abs([llength $weeks] - $want) <= 1 && [total $a.time] <= $before && [total $a.time] >= $after}
 tkstats::showEvents [lindex $weeks 1] ""; update
 check "a week: [list $tktimeline::query]" {[regexp {^date:\d{4}-\d\d-\d\d\.\.\d{4}-\d\d-\d\d$} $tktimeline::query]}
 .stats.top.b set Month
 tkstats::choose by
-check "by month: [llength [dict get $charts::spec($a.time) -categories]]" {[llength [dict get $charts::spec($a.time) -categories]] in {12 13}}
+lassign [since month] now first
+set want 0
+if {$first ne ""} {
+    scan $now %d-%d y1 m1
+    scan $first %d-%d y0 m0
+    set want [expr {($y1 - $y0) * 12 + $m1 - $m0 + 1}]
+}
+check "by month: [llength [dict get $charts::spec($a.time) -categories]] of $want" {[llength [dict get $charts::spec($a.time) -categories]] <= 13
+    && abs([llength [dict get $charts::spec($a.time) -categories]] - $want) <= 1}
 set tkstats::period all
 set tkstats::by auto
 tkstats::ShowChoices

@@ -66,6 +66,8 @@ check "Open in browser: [lindex $::browsed end]" {[lindex $::browsed end] eq "ht
 # Technotes (in another repository, if given).
 if {$T(repo2) ne ""} {
     tktaalik::openPath $T(repo2); update
+    # (The tab reads the repository when it is shown: Tickets is.)
+    tktaalik::show wiki; update
     .wiki.top.technotes invoke; update
     set notes [$t children {}]
     set listed [llength [lsearch -all -inline -not [split [exec fossil wiki list --technote -R $T(repo2)] \n] ""]]

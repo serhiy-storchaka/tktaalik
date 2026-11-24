@@ -28,7 +28,8 @@ namespace eval tktimeline {
     variable query ""           ;# the search
     variable history {}
     variable view all           ;# all lastpull outgoing private
-    variable limit 1000         ;# rows shown; More doubles it
+    variable firstLimit 1000    ;# rows shown at first
+    variable limit 1000         ;# rows shown now; More doubles it
     variable searched {}        ;# the query and view of the list shown
     variable pulled             ;# the last pull: see lastPull
     variable status ""
@@ -1409,7 +1410,8 @@ proc tktimeline::setRepository {path newRoot} {
     variable root $newRoot
     variable me
     variable remote
-    variable limit 1000
+    variable firstLimit
+    variable limit $firstLimit
     lassign [fossil::run user default -R $repo] code me
     if {$code} { set me "" }
     set remote ""

@@ -31,7 +31,8 @@ namespace eval tkfulltext {
     variable docGlob ""       ;# the files of the docs when doc-glob is not set
     variable docVersion ""    ;# the check-in of the docs searched
     variable use              ;# array: kind -> searched (1/0)
-    variable limit 200        ;# results of each kind
+    variable firstLimit 200   ;# results of each kind at first
+    variable limit 200        ;# results of each kind now (More doubles it)
     variable running {}       ;# kind -> channel
     variable generation 0
     variable results {}       ;# {kind id title date score snippet} each
@@ -256,7 +257,8 @@ proc tkfulltext::search {} {
     set q [string trim $query]
     # (Another search: 200 of each kind again; More: the same, more.)
     variable limit
-    if {$q ne $searched} { set limit 200 }
+    variable firstLimit
+    if {$q ne $searched} { set limit $firstLimit }
     set searched $q
     if {$q eq "" || $repo eq ""} {
         set status ""

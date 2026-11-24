@@ -102,7 +102,8 @@ check "an option-like name: nothing, nothing run" {[goto::find -R] eq ""}
 wm withdraw .goto
 
 # Several: listed to choose.
-set amb [lindex [sql1 "SELECT substr(uuid,1,4) FROM blob WHERE uuid IN (SELECT uuid FROM blob b JOIN event e ON e.objid=b.rid WHERE e.type='ci') GROUP BY substr(uuid,1,4) HAVING count(*)>1 LIMIT 1"] 0]
+# (Of any artifacts: two check-ins of the same 4 digits need thousands.)
+set amb [lindex [sql1 "SELECT substr(uuid,1,4) FROM blob GROUP BY substr(uuid,1,4) HAVING count(*)>1 LIMIT 1"] 0]
 tktaalik::show tickets
 go $amb
 set rows [.goto.list.t children {}]

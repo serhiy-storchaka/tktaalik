@@ -106,17 +106,17 @@ histops::importBundle $O
 check "--force: imported" {[llength [sql "SELECT 1 FROM blob WHERE uuid='$ci' AND size>=0" $O]]}
 # Removed: its dry run, the count; not into the graveyard (the bundle
 # brings them back).
-set before [llength [split [string trim [exec fossil purge list -R $O]] \n]]
+set before [purges $O]
 set ::confirms {}
 histops::purgeBundle $O
 set c [lindex $::confirms 0]
 check "remove: $n artifacts, not the graveyard, dry run" {[string match "*($n artifacts in it)*do not go to the*graveyard*importing the bundle again*" [lindex $c 1]] && [string match "*Dry run:*Purged artifacts found in the bundle*" [lindex $c 2]] && $n > 0}
-check "removed, graveyard as before" {![llength [sql "SELECT 1 FROM blob WHERE uuid='$ci' AND size>=0" $O]] && [llength [split [string trim [exec fossil purge list -R $O]] \n]] == $before}
+check "removed, graveyard as before" {![llength [sql "SELECT 1 FROM blob WHERE uuid='$ci' AND size>=0" $O]] && [purges $O] == $before}
 
 # Purge the branch (in the checkout, not on it), then obliterate that
 # purge in the graveyard (asked first; cancelled once).
 exec fossil update main --nosync --chdir $co
-set before [llength [split [string trim [exec fossil purge list -R $R]] \n]]
+set before [purges $R]
 set ::confirms {}
 tkbranches::reload; update
 tkbranches::fillBranchMenu .branches.ctx zz-b
@@ -125,15 +125,15 @@ check "branch purged, dry run first" {[string match "*Dry run*" [lindex $::confi
 histops::graveyard $R
 update
 set g .graveyard.f.t
-check "graveyard: the purge newest" {[llength [$g children {}]] == $before + 1}
+check "graveyard: the purge newest" {[llength [lsearch -all -glob [$g children {}] p*]] == $before + 1}
 set id [histops::graveSelected]
 set ::answers [list "Obliterate purge $id?" cancel]
 histops::graveObliterate $R
-check "cancelled: kept" {[llength [$g children {}]] == $before + 1}
+check "cancelled: kept" {[llength [lsearch -all -glob [$g children {}] p*]] == $before + 1}
 set ::answers {}
 set ::boxes {}
 histops::graveObliterate $R
-check "obliterated (asked: [lindex $::boxes 0])" {[lindex $::boxes 0] eq "Obliterate purge $id?" && [llength [$g children {}]] == $before && ![$g exists p$id]}
+check "obliterated (asked: [lindex $::boxes 0])" {[lindex $::boxes 0] eq "Obliterate purge $id?" && [llength [lsearch -all -glob [$g children {}] p*]] == $before && ![$g exists p$id]}
 destroy .graveyard
 
 # Switch without merging: cancelled, nothing; then the checkout is at

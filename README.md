@@ -70,9 +70,13 @@ Plain Tcl/Tk, no build step.
 The tests run under Xvfb with Tk 8.6 and 9.0:
 
 ```sh
-TKTAALIK_REPO=path/to/tk.fossil tests/run.sh   # the tests
+tests/run.sh                                   # the tests
+TKTAALIK_REPO=path/to/tk.fossil tests/run.sh   # on a copy of the Tk repository
 tests/smoke.sh REPOSITORY...                   # on any repositories
 ```
+
+They read small repositories made for them (`tests/make-repos.tcl`),
+or copies of real ones named by `TKTAALIK_REPO`, `TKTAALIK_REPO2` and `TKTAALIK_FORUM`.
 
 `WISH` chooses the Tk shells they run with and `FOSSIL` the Fossil
 ([Environment variables](docs/configuration.md#environment-variables)).

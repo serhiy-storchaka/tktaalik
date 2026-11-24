@@ -53,5 +53,8 @@ foreach tag [$h tag names] {
 }
 click $h [dict get $links randolf]
 check "submitter: [list $tktsearch::query]" {$tktsearch::query eq "author:randolf"}
-check "old link tags removed" {[llength [lsearch -all -glob [$h tag names] fl-*]] == [dict size $links]}
+# (Counted as tags: two fields can have the same value, as assignee and
+# closer.)
+set used [lmap tag [$h tag names] { if {[string match fl-* $tag] && [llength [$h tag ranges $tag]]} { set tag } else continue }]
+check "old link tags removed" {[llength [lsearch -all -glob [$h tag names] fl-*]] == [llength $used]}
 done

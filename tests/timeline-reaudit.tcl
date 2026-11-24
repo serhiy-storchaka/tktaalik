@@ -154,7 +154,7 @@ set ::confirms {}
 set ::boxes {}
 histops::purgeCheckins $R "" $A "x"
 check "purge without a checkout: said so" {[lindex $::boxes 0] eq "Purging check-ins needs a checkout." && ![llength $::confirms]}
-set before [llength [split [string trim [exec fossil purge list -R $R]] \n]]
+set before [purges $R]
 showUuid $A
 histops::purgeCheckins $R $co $A "check-in [string range $A 0 9]" tktimeline::changedHere
 set c [lindex $::confirms 0]
@@ -164,7 +164,7 @@ histops::graveyard $R tktimeline::changedHere
 update
 set g .graveyard.f.t
 set new [lindex [$g children {}] 0]
-check "graveyard: the purge, newest first, its artifacts" {[llength [$g children {}]] == $before + 1 && [$g selection] eq $new && [lsearch -glob [lmap i [$g children $new] {$g set $i what}] "[string range $A 0 15]*"] >= 0}
+check "graveyard: the purge, newest first, its artifacts" {[llength [lsearch -all -glob [$g children {}] p*]] == $before + 1 && [$g selection] eq $new && [lsearch -glob [lmap i [$g children $new] {$g set $i what}] "[string range $A 0 15]*"] >= 0}
 # Its context menu: the buttons; on an artifact also its hash.
 proc tk_popup {m args} { set ::posted $m }
 proc rclick {item} {
@@ -199,6 +199,6 @@ if {$old ne $new} {
 $g selection set [list $new]; update
 histops::graveUndo $R tktimeline::changedHere
 check "undone: back" {[ridOf $A] ne "" && [llength [sql "SELECT 1 FROM event WHERE objid=[ridOf $A]"]]}
-check "graveyard as before" {[llength [$g children {}]] == $before && ![$g exists $new]}
+check "graveyard as before" {[llength [lsearch -all -glob [$g children {}] p*]] == $before && ![$g exists $new]}
 destroy .graveyard
 done
