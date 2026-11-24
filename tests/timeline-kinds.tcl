@@ -34,7 +34,8 @@ proc hoverHead {col} {
 set w [$t column kind -width]
 if {$tk9} {
     check "Tk 9: kind cells empty: [list [$t set $ci kind] [$t set $tk kind]]" {[$t set $ci kind] eq "" && [$t set $tk kind] eq ""}
-    check "Tk 9: narrow kind column: $w" {$w <= 60}
+    # (Narrower than the 9 characters of the word in Tk 8.6.)
+    check "Tk 9: narrow kind column: $w" {$w < 9 * [font measure TkDefaultFont 0]}
     check "icon tag on check-in" {[$t tag cell has icon:k-checkin [list $ci kind]]}
     check "icon tag on ticket" {[$t tag cell has icon:k-ticket [list $tk kind]]}
     check "cell tip check-in: [hover $ci kind]" {[hover $ci kind] eq "Check-in"}

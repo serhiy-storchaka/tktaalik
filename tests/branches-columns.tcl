@@ -4,7 +4,9 @@
 # right-clicked, and when even the shrunk columns leave no room, the table
 # scrolls to it.
 source [file join [file dirname [info script]] common.tcl]
-start branches "" 1200x800
+# (As wide as 150 characters: with a large scaling, 1200 pixels leave no
+# room for the columns even with the comment at its narrowest.)
+start branches "" [expr {150 * [font measure TkDefaultFont 0]}]x800
 set t .branches.main.list.t
 waitUntil {[llength [$t children {}]]}
 update

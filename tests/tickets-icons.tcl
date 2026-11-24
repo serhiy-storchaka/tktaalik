@@ -44,8 +44,10 @@ q id:[string range $open 0 9]
 set head [.tickets.main.details.head get 2.0 3.0]
 check "details: $head" {[string match "*Status: *Open*Priority: *5 Medium*Severity: *M*" $head]}
 # the context menu offers priority and severity separately
-lassign [$t bbox [lindex [$t children {}] 0] severity] x y
-tktsearch::contextMenu [expr {$x+5}] [expr {$y+5}] 300 300; update
+# (In the middle of the cell: Tk takes a few pixels right of a column's
+# edge, more with a large scaling, as that column, for resizing it.)
+lassign [$t bbox [lindex [$t children {}] 0] severity] x y w h
+tktsearch::contextMenu [expr {$x + $w/2}] [expr {$y + $h/2}] 300 300; update
 set labels {}
 for {set i 0} {$i <= [.tickets.ctx index end]} {incr i} { if {[.tickets.ctx type $i] eq "command"} { lappend labels [.tickets.ctx entrycget $i -label] } }
 tk::MenuUnpost .tickets.ctx

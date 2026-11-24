@@ -245,9 +245,10 @@ proc ui::focusIfThere {w} {
 }
 
 # A ttk::panedwindow PW whose panes do not stay squeezed: when it is
-# resized (after the layout), a pane of less than 30 pixels where there is
-# room for all puts the sashes where the panes' weights say.  (On Windows,
-# on a small screen, the Tickets list was 1 pixel high for good.)
+# resized (after the layout), a pane of less than three lines of text where
+# there is room for all puts the sashes where the panes' weights say.  (On
+# Windows, on a small screen, the Tickets list was 1 pixel high for good;
+# with a large scaling the Branches list had room for its heading only.)
 proc ui::splitByWeights {pw} {
     bind $pw <Configure> [list after idle [list ui::Unsqueeze $pw]]
 }
@@ -258,14 +259,15 @@ proc ui::Unsqueeze {pw} {
     if {[llength $panes] < 2} return
     set vertical [expr {[$pw cget -orient] eq "vertical"}]
     set size [expr {$vertical ? [winfo height $pw] : [winfo width $pw]}]
-    if {$size < 60 * [llength $panes]} return
+    set least [expr {3 * [font metrics TkDefaultFont -linespace]}]
+    if {$size < 2 * $least * [llength $panes]} return
     # (The sizes by the sashes: a pane squeezed to nothing is unmapped and
     # keeps its old size.)
     set sashes [lmap i [lrange [lsearch -all $panes *] 1 end] { $pw sashpos [expr {$i - 1}] }]
     set edges [list 0 {*}$sashes $size]
     set small 0
     for {set i 0} {$i < [llength $panes]} {incr i} {
-        if {[lindex $edges [expr {$i + 1}]] - [lindex $edges $i] < 30} { set small 1 }
+        if {[lindex $edges [expr {$i + 1}]] - [lindex $edges $i] < $least} { set small 1 }
     }
     if {!$small} return
     set weights [lmap p $panes { expr {max(1, [$pw pane $p -weight])} }]

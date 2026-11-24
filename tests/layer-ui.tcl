@@ -265,4 +265,25 @@ font configure TkDefaultFont -size $size
 ui::size .sized 10000 10000; update
 check "ui::size, at most 90% of the screen: [wm geometry .sized]" {[string match "[expr {[winfo screenwidth .] * 9 / 10}]x[expr {[winfo screenheight .] * 9 / 10}]*" [wm geometry .sized]]}
 destroy .sized
+# ui::splitByWeights: a pane left with room for two lines gets its share
+# again when the window is resized; one with room for five keeps it.
+toplevel .split
+wm geometry .split 400x[expr {20 * $line}]
+ttk::panedwindow .split.p -orient vertical
+ttk::frame .split.p.a -height 10
+ttk::frame .split.p.b -height 10
+.split.p add .split.p.a -weight 3
+.split.p add .split.p.b -weight 2
+pack .split.p -fill both -expand 1
+ui::splitByWeights .split.p
+update
+.split.p sashpos 0 [expr {2 * $line}]; update
+set squeezed [.split.p sashpos 0]
+wm geometry .split 400x[expr {20 * $line + 10}]; update; after 100; update
+set h [winfo height .split.p]
+check "ui::splitByWeights: $squeezed -> [.split.p sashpos 0] of $h" {$squeezed < 3 * $line && abs([.split.p sashpos 0] - 3 * $h / 5) <= 5}
+.split.p sashpos 0 [expr {5 * $line}]; update
+wm geometry .split 400x[expr {20 * $line}]; update; after 100; update
+check "ui::splitByWeights: a pane with room kept: [.split.p sashpos 0]" {abs([.split.p sashpos 0] - 5 * $line) <= 10}
+destroy .split
 done

@@ -26,7 +26,10 @@ foreach f {TkDefaultFont TkFixedFont} {
 focus -force .tickets.top.q; update
 event generate .tickets.top.q <Control-g>; update
 check "Ctrl+G opens it" {[winfo exists .goto] && [winfo ismapped .goto]}
-check "large fonts: room for 40 characters: [winfo width .goto.top.e] px" {[winfo width .goto.top.e] >= 40 * [font measure TkFixedFont 0]}
+# (Or as wide as the screen lets it be: with a large scaling as well, the
+# window needs more.)
+check "large fonts: room for 40 characters: [winfo width .goto.top.e] px" {[winfo width .goto.top.e] >= 40 * [font measure TkFixedFont 0]
+    || [winfo width .goto] >= [lindex [wm maxsize .goto] 0]}
 dict for {f size} $sizes { font configure $f -size $size }
 wm withdraw .goto
 
